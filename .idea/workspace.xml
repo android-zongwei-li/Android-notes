@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="b4f26d34-b233-43b2-83ae-c5b643b62f91" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/1-Android/2-View体系/基础知识/View的滑动.md" beforeDir="false" afterPath="$PROJECT_DIR$/1-Android/2-View体系/基础知识/View的滑动.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="MIXED" />
+  </component>
+  <component name="GitSEFilterConfiguration">
+    <file-type-list>
+      <filtered-out-file-type name="LOCAL_BRANCH" />
+      <filtered-out-file-type name="REMOTE_BRANCH" />
+      <filtered-out-file-type name="TAG" />
+      <filtered-out-file-type name="COMMIT_BY_MESSAGE" />
+    </file-type-list>
+  </component>
+  <component name="ProjectId" id="27j0ZCcDknuzHZrWGSJusC8YmbP" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
+    <property name="cidr.known.project.marker" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="b4f26d34-b233-43b2-83ae-c5b643b62f91" name="Default Changelist" comment="" />
+      <created>1649818240876</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1649818240876</updated>
+    </task>
+    <task id="LOCAL-00001" summary="new notes">
+      <created>1649818285848</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1649818285848</updated>
+    </task>
+    <task id="LOCAL-00002" summary="&lt;学习方法&gt;&#10;+ Add : 专题化学习">
+      <created>1654351503298</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351503298</updated>
+    </task>
+    <task id="LOCAL-00003" summary="&lt;Android&gt;&lt;Launcher&gt;&#10;+ Add : launcher基本概念">
+      <created>1654351621923</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351621924</updated>
+    </task>
+    <task id="LOCAL-00004" summary="&lt;Android&gt;&#10;+ Add : 笔记模板">
+      <created>1654351642985</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351642985</updated>
+    </task>
+    <task id="LOCAL-00005" summary="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : View 相关">
+      <created>1654351741343</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351741343</updated>
+    </task>
+    <task id="LOCAL-00006" summary="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 动画">
+      <created>1654351772941</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351772941</updated>
+    </task>
+    <task id="LOCAL-00007" summary="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 基础知识">
+      <created>1654351787840</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351787840</updated>
+    </task>
+    <task id="LOCAL-00008" summary="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 基础知识">
+      <created>1654351886261</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351886261</updated>
+    </task>
+    <task id="LOCAL-00009" summary="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 自定义VIew">
+      <created>1654351899101</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1654351899101</updated>
+    </task>
+    <task id="LOCAL-00010" summary="+ Modify : .gitignore">
+      <created>1654352115874</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1654352115874</updated>
+    </task>
+    <task id="LOCAL-00011" summary="+ Modify : 去除.idea文件夹">
+      <created>1654352336179</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1654352336179</updated>
+    </task>
+    <option name="localTasksCounter" value="12" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="17ee50c0-61d9-43d0-9e1a-5082e1995f43">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+        <entry key="5173839b-4642-4131-b421-0fce262642df">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="HEAD" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="new notes" />
+    <MESSAGE value="&lt;学习方法&gt;&#10;+ Add : 专题化学习" />
+    <MESSAGE value="&lt;Android&gt;&lt;Launcher&gt;&#10;+ Add : launcher基本概念" />
+    <MESSAGE value="&lt;Android&gt;&#10;+ Add : 笔记模板" />
+    <MESSAGE value="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : View 相关" />
+    <MESSAGE value="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 动画" />
+    <MESSAGE value="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 基础知识" />
+    <MESSAGE value="&lt;Android&gt;&lt;View体系&gt;&#10;+ Add : 自定义VIew" />
+    <MESSAGE value="+ Modify : .gitignore" />
+    <MESSAGE value="+ Modify : 去除.idea文件夹" />
+    <option name="LAST_COMMIT_MESSAGE" value="+ Modify : 去除.idea文件夹" />
+  </component>
+</project>

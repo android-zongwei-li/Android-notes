@@ -1,4 +1,4 @@
-> version：2022/04/
+> version：2022/06/04
 >
 > review：
 
@@ -16,7 +16,7 @@
 
 ## 1.1 layout() 方法
 
-View 在进行绘制的时候会调用 onLayout() 方法来设置显示的位置，因此可以通过修改 View 的 left、top、right、bottom 这 4 种属性来控制 View 的坐标。首先我们要自定义一个View，在 onTouchEvent() 方法中获取触摸点的坐标，代码如下所示：
+View 在绘制的时候会调用 onLayout() 方法来设置显示的位置，因此可以通过修改 View 的 left、top、right、bottom 这 4 个属性来控制 View 的坐标。首先我们要自定义一个View，在 onTouchEvent() 方法中获取触摸点的坐标 ：
 
 ```java
     @Override
