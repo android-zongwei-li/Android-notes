@@ -52,19 +52,19 @@ View 在绘制的时候会调用 onLayout() 方法来设置显示的位置，因
 在每次移动时都会调用 layout()方法对屏幕重新布局，从而达到移动 View 的效果。自定义 View，CustomView 的全部代码如下所示：
 
 ```java
-public class CustomView extends View {
+public class FingerView extends View {
     private int lastX;
     private int lastY;
 
-    public CustomView(Context context) {
+    public FingerView(Context context) {
         super(context);
     }
 
-    public CustomView(Context context, @Nullable AttributeSet attrs) {
+    public FingerView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
     }
 
-    public CustomView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
+    public FingerView(Context context, @Nullable AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
     }
 
@@ -72,7 +72,7 @@ public class CustomView extends View {
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
         super.onLayout(changed, left, top, right, bottom);
     }
-
+    
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         // 获取手指触摸点的横坐标和纵坐标
@@ -119,7 +119,7 @@ public class CustomView extends View {
 
 运行效果图。图中的方块就是我们自定义的 CustomView，它会随着我们手指的滑动改变自己的位置。
 
-![image-20210420105713206](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210420105713206.png)
+
 
 #### 3.2 offsetLeftAndRight()与 offsetTopAndBottom()
 
@@ -413,18 +413,6 @@ Scroller 并不能直接实现 View 的滑动，它需要配合 View 的 compute
 
 
 # 相关问题
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
 
 <font color='orange'>Q：</font>
 
