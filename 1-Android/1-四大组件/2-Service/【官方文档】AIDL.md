@@ -24,7 +24,7 @@ Android 接口定义语言 (AIDL) 可以定义客户端与服务端均认可的�
 
 
 
-## 定义 AIDL 接口
+# 二、定义 AIDL 接口
 
 您必须在 `.aidl` 文件中使用 Java 编程语言的语法定义 AIDL 接口，然后将其保存至应用的源代码（在 `src/` 目录中）内，这类应用会托管服务或与服务进行绑定。
 
@@ -48,7 +48,7 @@ Android 接口定义语言 (AIDL) 可以定义客户端与服务端均认可的�
 
 
 
-### 1. 创建 .aidl 文件
+# 三.  .aidl 文件介绍
 
 AIDL 使用一种简单语法，允许您通过一个或多个方法（可接收参数和返回值）来声明接口。参数和返回值可为任意类型，甚至是 AIDL 生成的其他接口。
 
@@ -89,31 +89,83 @@ AIDL 使用一种简单语法，允许您通过一个或多个方法（可接收
 
 
 
-以下是 `.aidl` 文件示例：
+### in、out、inout 定向标签
 
-```
-// IRemoteService.aidl
-package com.example.android
+定向标签主要是为了节约系统编码转化的时间。提高执行效率。
 
-// Declare any non-default types here with import statements
-/** Example service interface */
-internal interface IRemoteService {
-    /** Request the process ID of this service, to do evil things with it. */
-    val pid:Int
+- in 表示数据只能由客户端流向服务端
 
-    /** Demonstrates some basic types that you can use as parameters
-     * and return values in AIDL.
+就是说，服务端将会接收到一个那个对象的完整数据，但是客户端的那个对象不会因为服务端对传参的修改而发生变动；
+
+- out 表示数据只能由服务端流向客户端
+
+即，服务端将会接收到那个对象的**空对象**，但是在服务端对接收到的空对象有任何修改之后客户端将会同步变动；
+
+- inout 则表示数据可在服务端与客户端之间双向流通。
+
+服务端将会接收到客户端传来对象的完整信息，并且客户端将会同步服务端对该对象的任何变动。
+
+**哪些数据要制定标签呢？**
+
+自定义的类，还有下面这些：
+
+- list类型的参数，如`List<String>`
+- 基本类型的数组，如byte[]
+- Parcelable的实现类，如Bundle
+
+当然，基本数据类型也是可以指定定向标签的。
+
+
+
+# 四、基本示例
+
+## 1、服务端定义接口（创建aidl文件并build）
+
+1、首先在指定目录下创建一个文件：`IRemoteService.aidl`
+
+![image-20220624184650759](images/image-20220624184650759.png)
+
+2、然后定义接口内容，并指定package路径。
+
+```java
+// 指定包路径，就是这个aidl文件的路径。客户端需将这个aidl文件复制到相同路径。
+// 然后build生成接口实现类，即可使用。
+package main.aidl;
+
+/**
+ * 一个服务端的aidl接口示例。将通过Service返回给客户端。
+ */
+interface IRemoteService {
+    /**
+     * 获取pid。
      */
-    fun basicTypes(anInt:Int, aLong:Long, aBoolean:Boolean, aFloat:Float,
-                 aDouble:Double, aString:String)
+    int getPid();
+
+    /**
+     * 可以作为参数和返回值的基本类型。
+     */
+    void basicTypes(int anInt, long aLong, boolean aBoolean, float aFloat,
+            double aDouble, String aString);
 }
 ```
 
-您只需将 `.aidl` 文件保存至项目的 `src/` 目录内，这样在构建应用时，SDK 工具便会在项目的 `gen/` 目录中生成 `IBinder` 接口文件。生成文件的名称与 `.aidl` 文件的名称保持一致，区别在于其使用 `.java` 扩展名（例如，`IRemoteService.aidl` 生成的文件名是 `IRemoteService.java`）。
+3、build
 
-如果您使用 Android Studio，增量构建几乎会立即生成 Binder 类。如果您不使用 Android Studio，则 Gradle 工具会在您下一次开发应用时生成 Binder 类。因此，在编写完 `.aidl` 文件后，您应立即使用 `gradle assembleDebug`（或 `gradle assembleRelease`）构建项目，以便您的代码能够链接到生成的类。
+build后会生成如下 `IBinder` 接口文件。
 
-### 2. 实现接口
+![image-20220624184943962](images/image-20220624184943962.png)
+
+生成的文件名称与 `.aidl` 文件的名称一样，区别在于其使用 `.java` 扩展名（例如，`IRemoteService.aidl` 生成的文件名是 `IRemoteService.java`）。
+
+生成的文件内容如下：
+
+![image-20220624185113492](images/image-20220624185113492.png)
+
+4、服务端的aidl接口定义就完成了，接下来可以使用接口。
+
+
+
+## 2. 服务端实现接口
 
 当您构建应用时，Android SDK 工具会生成以 `.aidl` 文件命名的 `.java` 接口文件。生成的接口包含一个名为 `Stub` 的子类（例如，`YourInterface.Stub`），该子类是其父接口的抽象实现，并且会声明 `.aidl` 文件中的所有方法。
 
@@ -121,181 +173,337 @@ internal interface IRemoteService {
 
 如要实现 `.aidl` 生成的接口，请扩展生成的 `Binder` 接口（例如，`YourInterface.Stub`），并实现继承自 `.aidl` 文件的方法。
 
-以下示例展示使用匿名实例实现 `IRemoteService` 接口（由以上 `IRemoteService.aidl` 示例定义）的过程：
-
-```kotlin
-private val binder = object : IRemoteService.Stub() {
-
-    override fun getPid(): Int =
-            Process.myPid()
-
-    override fun basicTypes(
-            anInt: Int,
-            aLong: Long,
-            aBoolean: Boolean,
-            aFloat: Float,
-            aDouble: Double,
-            aString: String
-    ) {
-        // Does nothing
-    }
-}
-```
-
-现在，`binder` 是 `Stub` 类的一个实例（一个 `Binder`），其定义了服务的远程过程调用 (RPC) 接口。在下一步中，我们会向客户端公开此实例，以便客户端能与服务进行交互。
-
-在实现 AIDL 接口时，您应注意遵守以下规则：
-
-- 由于无法保证在主线程上执行传入调用，因此您一开始便需做好多线程处理的准备，并对您的服务进行适当构建，使其达到线程安全的标准。
-- 默认情况下，RPC 调用是同步调用。如果您知道服务完成请求的时间不止几毫秒，则不应从 Activity 的主线程调用该服务，因为这可能会使应用挂起（Android 可能会显示“Application is Not Responding”对话框）— 通常，您应从客户端内的单独线程调用服务。
-- 您引发的任何异常都不会回传给调用方。
-
-### 3. 向客户端公开接口
-
-在为服务实现接口后，您需要向客户端公开该接口，以便客户端进行绑定。如要为您的服务公开该接口，请扩展 `Service` 并实现 `onBind()`，从而返回实现生成的 `Stub` 的类实例（如前文所述）。以下是向客户端公开 `IRemoteService` 示例接口的服务示例。
+下面是在一个Service中，返回接口实现的例子：
 
 ```kotlin
 class RemoteService : Service() {
-
-    override fun onCreate() {
-        super.onCreate()
-    }
+    // 一个service中，持有一个实现就可以了
+    private val binder = RemoteService()
 
     override fun onBind(intent: Intent): IBinder {
-        // Return the interface
+        // 避免这样写，return RemoteService()，可能会导致binder泄漏。
         return binder
     }
 
-    private val binder = object : IRemoteService.Stub() {
+    // 接口的实现就在这里，也就是客户端调用的代码，这里应该要考虑并发情况了。
+    private class RemoteService : IRemoteService.Stub() {
         override fun getPid(): Int {
             return Process.myPid()
         }
 
         override fun basicTypes(
-                anInt: Int,
-                aLong: Long,
-                aBoolean: Boolean,
-                aFloat: Float,
-                aDouble: Double,
-                aString: String
+            anInt: Int,
+            aLong: Long,
+            aBoolean: Boolean,
+            aFloat: Float,
+            aDouble: Double,
+            aString: String?
         ) {
-            // Does nothing
+            Log.i("basicTypes", "$anInt,$aLong,$aBoolean,$aFloat,$aDouble,$aString")
         }
     }
 }
+```
+
+- 在实现 AIDL 接口时，您应注意遵守以下规则：
+  - 由于无法保证在主线程上执行传入调用，因此您一开始便需做好多线程处理的准备，并对您的服务进行适当构建，使其达到线程安全的标准。
+  - 默认情况下，RPC 调用是同步调用。如果您知道服务完成请求的时间不止几毫秒，则不应从 Activity 的主线程调用该服务，因为这可能会使应用挂起（Android 可能会显示“Application is Not Responding”对话框）— 通常，您应从客户端内的单独线程调用服务。
+  - 您引发的任何异常都不会回传给调用方。
+
+上面就是服务端的接口实现。
+
+下一步就是提供service给客户端使用了，在这之前，要对service进行一下配置。
+
+service配置
+
+在客户端使用前，还需要对service进行以下配置：
+
+```
+<service
+    android:name=".RemoteService"
+    android:enabled="true"
+    android:exported="true">
+    <intent-filter>
+        <action android:name="com.lizw.ipcservice.RemoteService.action" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</service>
+```
+
+这个是为了不同的APP作为客户端时，能够bindService。因为其他APP是不能直接访问到RemoteService的，所以要通过action来匹配。
+
+当然，如果是在同一个APP内进行serveice绑定，那可以不加action，如下：
+
+```
+<service
+    android:name=".RemoteService"
+    android:enabled="true"
+    android:exported="true">
+</service>
+```
+
+
+
+## 3. 客户端绑定（访问）服务端接口
+
+服务端通过service的onBind()返回接口实现后，客户端端就可以来绑定了。
+
+1、客户端首先要创建aidl接口，并build，如下图：
+
+![image-20220624190842780](images/image-20220624190842780.png)
+
+aidl 文件跟服务端保持一致。这样build后，就能使用IRemoteService接口了。
+
+2、实现一个回调接口：
+
+```kotlin
+    private var remoteService: IRemoteService? = null
+
+    private val mConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            remoteService = IRemoteService.Stub.asInterface(service)
+            remoteService?.apply {
+                Toast.makeText(this@AidlClientActivity, "$pid", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            Log.e("ServiceConnection", "Service has unexpectedly disconnected")
+            remoteService = null
+        }
+    }
+
 ```
 
 现在，当客户端（如 Activity）调用 `bindService()` 以连接此服务时，客户端的 `onServiceConnected()` 回调会接收服务的 `onBind()` 方法所返回的 `binder` 实例。
 
-客户端还必须拥有接口类的访问权限，因此如果客户端和服务在不同应用内，则客户端应用的 `src/` 目录内必须包含 `.aidl` 文件（该文件会生成 `android.os.Binder` 接口，进而为客户端提供 AIDL 方法的访问权限）的副本。
+当客户端在 `onServiceConnected()` 回调中收到 `IBinder` 时，它必须调用 `*YourServiceInterface*.Stub.asInterface(service)`，以将返回的参数转换成 `*YourServiceInterface*` 类型。
 
-当客户端在 `onServiceConnected()` 回调中收到 `IBinder` 时，它必须调用 `*YourServiceInterface*.Stub.asInterface(service)`，以将返回的参数转换成 `*YourServiceInterface*` 类型。例如：
+3、bindService
+
+下面就可以开始绑定了。
+
+不同APP绑定：
 
 ```kotlin
-var iRemoteService: IRemoteService? = null
+val intent = Intent().apply {
+    `package` = "com.lizw.ipcservice"
+    action = "com.lizw.ipcservice.RemoteService.action"
+}
 
-val mConnection = object : ServiceConnection {
+bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+```
 
-    // Called when the connection with the service is established
-    override fun onServiceConnected(className: ComponentName, service: IBinder) {
-        // Following the example above for an AIDL interface,
-        // this gets an instance of the IRemoteInterface, which we can use to call on the service
-        iRemoteService = IRemoteService.Stub.asInterface(service)
+相同APP绑定：
+
+```java
+Intent intent = new Intent(Binding.this, RemoteService.class);
+intent.setAction(IRemoteService.class.getName());
+bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
+```
+
+绑定时可能会遇到一种情况，客户端点击bind按钮，会一直没反应。
+
+这个和targetSdk有关，如果低于`api30`，那是不会有问题了。否则，会没有反应，解决方法如下：
+
+```
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.lizw.apidemos">
+
+    <queries>
+        <package android:name="com.lizw.ipcservice"/>
+    </queries>
+    
+    <application
+```
+
+在AndroidManifest中，添加queries表情，指定服务端的packageName。这样可以bindService了。
+
+下面是客户端绑定的示例：
+
+```kotlin
+class AidlClientActivity : AppCompatActivity() {
+
+    private var remoteService: IRemoteService? = null
+
+    private val mConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            remoteService = IRemoteService.Stub.asInterface(service)
+            remoteService?.apply {
+                Toast.makeText(this@AidlClientActivity, "$pid", Toast.LENGTH_LONG).show()
+            }
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            Log.e("ServiceConnection", "Service has unexpectedly disconnected")
+            remoteService = null
+        }
     }
 
-    // Called when the connection with the service disconnects unexpectedly
-    override fun onServiceDisconnected(className: ComponentName) {
-        Log.e(TAG, "Service has unexpectedly disconnected")
-        iRemoteService = null
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_aidl_client)
+
+        findViewById<Button>(R.id.bind).setOnClickListener {
+            val intent = Intent().apply {
+                `package` = "com.lizw.ipcservice"
+                action = "com.lizw.ipcservice.RemoteService.action"
+            }
+
+            bindService(intent, mConnection, Context.BIND_AUTO_CREATE)
+        }
     }
 }
 ```
 
-如需查看更多示例代码，请参阅 [ApiDemos](https://android.googlesource.com/platform/development/+/master/samples/ApiDemos) 中的 [`RemoteService.java`](https://android.googlesource.com/platform/development/+/master/samples/ApiDemos/src/com/example/android/apis/app/RemoteService.java) 类。
 
 
-
-## 通过 IPC 传递对象
+# 五、通过 IPC 传递对象
 
 可以通过 IPC 接口，将某个类从一个进程发送至另一个进程。不过，必须要确保 IPC 通道的另一端可使用该类的代码，并且该类必须支持 `Parcelable` 接口。支持 `Parcelable` 接口很重要，因为 Android 系统能通过该接口将对象分解成可编组至各进程的原语。
 
-如要创建支持 `Parcelable` 协议的类，您必须执行以下操作：
+如要创建支持 `Parcelable` 协议的类，此类必须：
 
-1. 让您的类实现 `Parcelable` 接口。
+1. 实现 `Parcelable` 接口。
 
 2. 实现 `writeToParcel`，它会获取对象的当前状态并将其写入 `Parcel`。
 
-3. 为您的类添加 `CREATOR` 静态字段，该字段是实现 `Parcelable.Creator` 接口的对象。
+3. 添加 `CREATOR` 静态字段，该字段是实现 `Parcelable.Creator` 接口的对象。
 
 4. 最后，创建声明 Parcelable 类的 `.aidl` 文件（遵照下文 `Rect.aidl` 文件所示步骤）。
 
-   如果您使用的是自定义编译进程，*请勿*在您的构建中添加 `.aidl` 文件。此 `.aidl` 文件与 C 语言中的头文件类似，并未经过编译。
 
 AIDL 会在其生成的代码中使用这些方法和字段，以对您的对象进行编组和解编。
 
-例如，下方的 `Rect.aidl` 文件可创建 Parcelable 类型的 `Rect` 类：
-
-```
-package android.graphics;
-
-// Declare Rect so AIDL can find it and knows that it implements
-// the parcelable protocol.
-parcelable Rect;
-```
-
-以下示例展示 `Rect` 类如何实现 `Parcelable` 协议。
+1、首先，创建一个实现 `Parcelable` 接口的类，如下：
 
 ```kotlin
-import android.os.Parcel
-import android.os.Parcelable
+class BookInfo() : Parcelable {
+    var name: String = ""
+    var type = 0
+    var price = 0
 
-class Rect() : Parcelable {
-    var left: Int = 0
-    var top: Int = 0
-    var right: Int = 0
-    var bottom: Int = 0
-
-    companion object CREATOR : Parcelable.Creator<Rect> {
-        override fun createFromParcel(parcel: Parcel): Rect {
-            return Rect(parcel)
-        }
-
-        override fun newArray(size: Int): Array<Rect> {
-            return Array(size) { Rect() }
-        }
-    }
-
-    private constructor(inParcel: Parcel) : this() {
+    constructor(inParcel: Parcel) : this() {
         readFromParcel(inParcel)
-    }
-
-    override fun writeToParcel(outParcel: Parcel, flags: Int) {
-        outParcel.writeInt(left)
-        outParcel.writeInt(top)
-        outParcel.writeInt(right)
-        outParcel.writeInt(bottom)
-    }
-
-    private fun readFromParcel(inParcel: Parcel) {
-        left = inParcel.readInt()
-        top = inParcel.readInt()
-        right = inParcel.readInt()
-        bottom = inParcel.readInt()
     }
 
     override fun describeContents(): Int {
         return 0
     }
+
+    override fun writeToParcel(outParcel: Parcel, flags: Int) {
+        outParcel.writeString(name)
+        outParcel.writeInt(type)
+        outParcel.writeInt(price)
+    }
+
+    private fun readFromParcel(inParcel: Parcel) {
+        name = inParcel.readString().toString()
+        type = inParcel.readInt()
+        price = inParcel.readInt()
+    }
+
+    companion object CREATOR : Parcelable.Creator<BookInfo> {
+        override fun createFromParcel(parcel: Parcel): BookInfo {
+            return BookInfo(parcel)
+        }
+
+        override fun newArray(size: Int): Array<BookInfo> {
+            return Array(size) { BookInfo() }
+        }
+    }
 }
 ```
 
-`Rect` 类中的编组相当简单。请查看 `Parcel` 的其他相关方法，了解您可以向 Parcel 写入哪些其他类型的值。
+> mynote：要再了解下 `Parcel` 的其他相关方法，知道可以向 Parcel 写入哪些其他类型的值。
 
-> **警告：**请勿忘记从其他进程中接收数据的安全问题。在本例中，`Rect` 从 `Parcel` 读取四个数字，但您需确保：无论调用方目的为何，这些数字均在可接受的值范围内。如需详细了解如何防止应用受到恶意软件侵害、保证应用安全，请参阅[安全与权限](https://developer.android.google.cn/guide/topics/security/security)。
+> **警告：**请勿忘记从其他进程中接收数据的安全问题。在本例中，`BookInfo` 从 `Parcel` 读取2个int，一个String，但需确保：无论调用方目的为何，这些数字均在可接受的值范围内。如需详细了解如何防止应用受到恶意软件侵害、保证应用安全，请参阅[安全与权限](https://developer.android.google.cn/guide/topics/security/security)。
+
+2、创建实现 Parcelable 接口的类的aidl文件
+
+```java
+// BookInfo.aidl
+package com.lizw.ipcservice;
+
+// 声明 BookInfo ，这样 AIDL 就可以找到它，并知道它实现了 parcelable 接口。
+parcelable BookInfo;
+```
+
+3、在 aidl 文件中使用（定义接口）
+
+```java
+// IBookService.aidl
+package com.lizw.ipcservice;
+
+import com.lizw.ipcservice.BookInfo;
+
+interface IBookService {
+    // 获取图书信息
+    BookInfo getBookInfo();
+    
+    // 查询某本图书是否存在
+    boolean isExist(in BookInfo bookInfo);
+}
+```
+
+这一步，下面就跟基本示例中的操作一样了：
+
+1、服务端定义接口
+
+2、服务端实现接口
+
+3、服务端创建服务，返回接口实现
+
+4、客户端复制过来aidl文件和BookInfo文件并build
+
+5、绑定服务，调用服务端接口
+
+这一步，除了可传输的类型拓展了，其他的操作和`基本示例`完全一致，就不贴代码了。
+
+> 示例（在apidemos里）：
+
+> 注意：上面的例子中，方法`boolean isExist(in BookInfo bookInfo);`中使用了一个 in 标签。这是因为，如果在aidl中使用了自定义的parcelable实现类，那在作为参数的时候，必须要使用in\out\inout标签之一。（不使用标签会build报错）
+>
+> 标记介绍见：第三节
+
+项目结构：
+
+服务端代码结构：
+
+![image-20220625182505232](images/image-20220625182505232.png)
+
+客户端代码结构：
+
+![image-20220625183420280](images/image-20220625183420280.png)
+
+问题记录：
+
+1、客户端build会报错，并且当我们在Activity中调用BookInfo的时候会报错
+
+这是因为gradle有默认的Java（kotlin）文件路径，我们复制过来的BookInfo放在了 `src/main/aidl` 路径下了。
+
+解决：
+
+![image-20220625183719082](images/image-20220625183719082.png)
+
+```
+sourceSets {
+    main {
+        java {
+            srcDirs = [
+                    'src/main/java',
+                    'src/main/aidl'
+            ]
+        }
+    }
+}
+```
+
+这样就能正常访问到BookInfo了。
 
 
 
-## 带Bundle参数（包含 Parcelable 类型）的方法
+# 六、带Bundle参数（包含 Parcelable 类型）的方法
 
 如果 AIDL 接口包含接收Bundle作为参数（预计包含 Parcelable 类型）的方法，则在尝试从Bundle读取之前，请务必通过调用 `Bundle.setClassLoader(ClassLoader)` 设置Bundle的类加载器。否则，即使您在应用中正确定义 Parcelable 类型，也会遇到 `ClassNotFoundException`。例如，
 
@@ -324,9 +532,11 @@ private val binder = object : IRectInsideBundle.Stub() {
 }
 ```
 
+> 这个我还没有实践过。
 
 
-## 调用 IPC 方法
+
+# 七、调用 IPC 方法
 
 如要调用通过 AIDL 定义的远程接口，调用类必须执行以下步骤：
 
@@ -606,3 +816,7 @@ class Binding : Activity() {
 # 参考
 
 1、[Android 接口定义语言 (AIDL)](https://developer.android.google.cn/guide/components/aidl)
+
+2、[AIDL中的传参及in、out、inout](https://blog.csdn.net/chzphoenix/article/details/122706077)
+
+3、[sourceSets——安卓gradle](https://blog.csdn.net/weixin_37625173/article/details/102616036)
