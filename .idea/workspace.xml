@@ -103,7 +103,14 @@
       <option name="project" value="LOCAL" />
       <updated>1655993290730</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="modify：aidl传递对象">
+      <created>1656154857028</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1656154857028</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -124,6 +131,7 @@
     <MESSAGE value="add：位运算；原码、反码、补码；" />
     <MESSAGE value="add：bitmap" />
     <MESSAGE value="add：滑动demo" />
-    <option name="LAST_COMMIT_MESSAGE" value="add：滑动demo" />
+    <MESSAGE value="modify：aidl传递对象" />
+    <option name="LAST_COMMIT_MESSAGE" value="modify：aidl传递对象" />
   </component>
 </project>
