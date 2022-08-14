@@ -1,6 +1,78 @@
-RecyclerView源码分析
+> version：2022/07/
+>
+> review：
 
-| RecyclerView相关问题                                         |
+
+
+目录
+
+[TOC]
+
+
+
+# 关键词
+
+
+
+# 一、前置知识
+
+不论什么样的库，或者项目，都是有不同的基础知识点组织起来的，因此先掌握基础是很有必要的。
+
+基础知识这块可以不写。
+
+# 一、概述
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# 相关问题
+
+<font color='orange'>Q：</font>
+
+|                                                              |
 | ------------------------------------------------------------ |
 | RecyclerView的缓存机制。如何优化？                           |
 | Recycler是怎么进行回收和复用的                               |
@@ -14,3 +86,46 @@ RecyclerView源码分析
 | listview缓存机制和优化；                                     |
 | RecyclerView和ListView的区别？                               |
 | RecyclerView与ListView的对比。缓存策略，优缺点。             |
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+<font color='orange'>Q：</font>
+
+
+
+# 总结
+
+1、
+
+## 【精益求精】我还能做（补充）些什么？
+
+1、
+
+
+
+# 脑图
+
+
+
+# 参考
+
