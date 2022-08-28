@@ -4,7 +4,16 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="" />
+    <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="&lt;all&gt;混合提交">
+      <change afterPath="$PROJECT_DIR$/1-Android/SharedPreferences原理.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/1-Android/images/SharedPreferences原理/webp.webp" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/1-Android/空 - 副本.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/学习方法/学习的几个阶段.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/学习方法/看代码的一些原则.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/空 - 副本.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/1-Android/模板.md" beforeDir="false" afterPath="$PROJECT_DIR$/1-Android/0-模板.md" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -150,7 +159,35 @@
       <option name="project" value="LOCAL" />
       <updated>1656850195737</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="add:并发">
+      <created>1656850288249</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850288249</updated>
+    </task>
+    <task id="LOCAL-00018" summary="add:Binder原理">
+      <created>1656850298820</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850298820</updated>
+    </task>
+    <task id="LOCAL-00019" summary="add:读书笔记">
+      <created>1656850313298</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850313298</updated>
+    </task>
+    <task id="LOCAL-00020" summary="&lt;all&gt;混合提交">
+      <created>1660482566469</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1660482566469</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -184,10 +221,12 @@
     <MESSAGE value="add：bitmap" />
     <MESSAGE value="add：滑动demo" />
     <MESSAGE value="modify：aidl传递对象" />
-    <MESSAGE value="add:并发" />
     <MESSAGE value="add:设计模式" />
-    <MESSAGE value="add:Binder原理" />
     <MESSAGE value="add:相关知识点" />
-    <option name="LAST_COMMIT_MESSAGE" value="add:相关知识点" />
+    <MESSAGE value="add:并发" />
+    <MESSAGE value="add:Binder原理" />
+    <MESSAGE value="add:读书笔记" />
+    <MESSAGE value="&lt;all&gt;混合提交" />
+    <option name="LAST_COMMIT_MESSAGE" value="&lt;all&gt;混合提交" />
   </component>
 </project>
