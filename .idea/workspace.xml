@@ -4,15 +4,12 @@
     <option name="autoReloadType" value="NONE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="&lt;all&gt;混合提交">
-      <change afterPath="$PROJECT_DIR$/1-Android/SharedPreferences原理.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/1-Android/images/SharedPreferences原理/webp.webp" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/1-Android/空 - 副本.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/学习方法/学习的几个阶段.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/学习方法/看代码的一些原则.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/空 - 副本.md" afterDir="false" />
+    <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/1-Android/模板.md" beforeDir="false" afterPath="$PROJECT_DIR$/1-Android/0-模板.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/2-设计模式/设计模式6个基本原则.md" beforeDir="false" afterPath="$PROJECT_DIR$/2-设计模式/设计模式6个基本原则.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/【学习方法】读官方文档的益处.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/杂想/对成事的思考.md" beforeDir="false" afterPath="$PROJECT_DIR$/杂想/对成事的思考.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,6 +21,9 @@
     <option name="RESET_MODE" value="SOFT" />
   </component>
   <component name="ProjectId" id="2A7QFoBde2ZnxMbvP0s9tbBg1fj" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
