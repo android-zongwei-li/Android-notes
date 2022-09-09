@@ -5,6 +5,7 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -190,7 +191,14 @@
       <option name="project" value="LOCAL" />
       <updated>1662305612890</updated>
     </task>
-    <option name="localTasksCounter" value="22" />
+    <task id="LOCAL-00022" summary="&lt;other&gt;&#10;* 图片重命名">
+      <created>1662717310864</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1662717310864</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -230,6 +238,7 @@
     <MESSAGE value="add:Binder原理" />
     <MESSAGE value="add:读书笔记" />
     <MESSAGE value="&lt;all&gt;混合提交" />
-    <option name="LAST_COMMIT_MESSAGE" value="&lt;all&gt;混合提交" />
+    <MESSAGE value="&lt;other&gt;&#10;* 图片重命名" />
+    <option name="LAST_COMMIT_MESSAGE" value="&lt;other&gt;&#10;* 图片重命名" />
   </component>
 </project>
