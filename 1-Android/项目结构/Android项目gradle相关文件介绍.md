@@ -4,7 +4,7 @@
 
 # 一、目录结构概述
 
-![img](images/Android项目gradle相关文件介绍/17163e407e7c113a~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0-20220727180331642.png)
+![img](images/Android项目gradle相关文件介绍/1.png)
 
 
 
@@ -35,13 +35,13 @@ gradlew 并没有直接启动 Gradle 而是启动 gradle-wrapper.jar，它会判
 
 ## 3、setting.gradle
 
-![img](images/Android项目gradle相关文件介绍/17163e43555a0a42~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.png)
+![img](images/Android项目gradle相关文件介绍/2.png)
 
 setting.gradle 中最关键的就是其提供的 include 方法，通过这个方法可以指定哪些工程需要参与编译
 
 ## 4、根目录 build.gradle （Project: NewProject）
 
-![img](images/Android项目gradle相关文件介绍/17163e473969d341~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.png)
+![img](images/Android项目gradle相关文件介绍/3.png)
 
 
 
@@ -55,7 +55,7 @@ setting.gradle 中最关键的就是其提供的 include 方法，通过这个�
 
 ## 5、app build.gradle
 
-![img](images/Android项目gradle相关文件介绍/17163e4a99664e2d~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.png)
+![img](images/Android项目gradle相关文件介绍/4.png)
 
 **apply plugin: 'com.android.application'** ：当应用这个插件后，它会为我们创建一系列 Task，比如 assembleDebug、assembleRelease，执行这些 Task，就会得到最终的 APK。
 
@@ -71,7 +71,7 @@ setting.gradle 中最关键的就是其提供的 include 方法，通过这个�
 
 在 Android Gradle Plugin 3.0 时代，Google 使用 implementation 和 api 选项取代过去的 compile 选项。既然接口都变了，Google 索性将其他的配置项也进行了改名，方便大家理解其配置的含义。需要注意的是，老版本的接口没有被立刻删除，但是在下一个主要版本中会被删除。下面是各个配置项的官方中文解释：
 
-![img](images/Android项目gradle相关文件介绍/17163e4cf4bdb128~tplv-t2oaga2asx-zoom-in-crop-mark:3024:0:0:0.png)
+![img](images/Android项目gradle相关文件介绍/5.png)
 
 举个例子： 假设 A 依赖 B，B 依赖 C。
 如果 B 对 C 使用 implementation 依赖，则 A 无法调用 C 的代码
