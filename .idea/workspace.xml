@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="NONE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="">
+      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RESET_MODE" value="SOFT" />
+  </component>
+  <component name="ProjectId" id="2A7QFoBde2ZnxMbvP0s9tbBg1fj" />
+  <component name="ProjectLevelVcsManager">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
+    <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
+    <property name="android.sdk.path" value="D:/Android/Sdk" />
+    <property name="cidr.known.project.marker" value="true" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="preferences.fileTypes" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="" />
+      <created>1654358043077</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1654358043077</updated>
+    </task>
+    <task id="LOCAL-00001" summary="idea初始化">
+      <created>1654358237442</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1654358237442</updated>
+    </task>
+    <task id="LOCAL-00002" summary="idea初始化">
+      <created>1654358243231</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1654358243231</updated>
+    </task>
+    <task id="LOCAL-00003" summary="idea初始化">
+      <created>1654358257911</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1654358257911</updated>
+    </task>
+    <task id="LOCAL-00004" summary="idea初始化">
+      <created>1654358299898</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1654358299898</updated>
+    </task>
+    <task id="LOCAL-00005" summary="idea初始化">
+      <created>1654358646597</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1654358646597</updated>
+    </task>
+    <task id="LOCAL-00006" summary="service、aidl">
+      <created>1655993151420</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1655993151420</updated>
+    </task>
+    <task id="LOCAL-00007" summary="add：位运算；原码、反码、补码；">
+      <created>1655993246366</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1655993246366</updated>
+    </task>
+    <task id="LOCAL-00008" summary="add：bitmap">
+      <created>1655993276863</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1655993276863</updated>
+    </task>
+    <task id="LOCAL-00009" summary="add：滑动demo">
+      <created>1655993290730</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1655993290730</updated>
+    </task>
+    <task id="LOCAL-00010" summary="modify：aidl传递对象">
+      <created>1656154857028</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1656154857028</updated>
+    </task>
+    <task id="LOCAL-00011" summary="add:并发">
+      <created>1656850115732</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850115732</updated>
+    </task>
+    <task id="LOCAL-00012" summary="add:并发">
+      <created>1656850128313</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850128313</updated>
+    </task>
+    <task id="LOCAL-00013" summary="add:并发">
+      <created>1656850140452</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850140452</updated>
+    </task>
+    <task id="LOCAL-00014" summary="add:设计模式">
+      <created>1656850162441</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850162441</updated>
+    </task>
+    <task id="LOCAL-00015" summary="add:Binder原理">
+      <created>1656850178408</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850178408</updated>
+    </task>
+    <task id="LOCAL-00016" summary="add:相关知识点">
+      <created>1656850195737</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850195737</updated>
+    </task>
+    <task id="LOCAL-00017" summary="add:并发">
+      <created>1656850288249</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850288249</updated>
+    </task>
+    <task id="LOCAL-00018" summary="add:Binder原理">
+      <created>1656850298820</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850298820</updated>
+    </task>
+    <task id="LOCAL-00019" summary="add:读书笔记">
+      <created>1656850313298</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1656850313298</updated>
+    </task>
+    <task id="LOCAL-00020" summary="&lt;all&gt;混合提交">
+      <created>1660482566469</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1660482566469</updated>
+    </task>
+    <task id="LOCAL-00021" summary="&lt;all&gt;混合提交">
+      <created>1662305612890</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1662305612890</updated>
+    </task>
+    <task id="LOCAL-00022" summary="&lt;other&gt;&#10;* 图片重命名">
+      <created>1662717310864</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1662717310864</updated>
+    </task>
+    <option name="localTasksCounter" value="23" />
+    <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="master" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="idea初始化" />
+    <MESSAGE value="service、aidl" />
+    <MESSAGE value="add：位运算；原码、反码、补码；" />
+    <MESSAGE value="add：bitmap" />
+    <MESSAGE value="add：滑动demo" />
+    <MESSAGE value="modify：aidl传递对象" />
+    <MESSAGE value="add:设计模式" />
+    <MESSAGE value="add:相关知识点" />
+    <MESSAGE value="add:并发" />
+    <MESSAGE value="add:Binder原理" />
+    <MESSAGE value="add:读书笔记" />
+    <MESSAGE value="&lt;all&gt;混合提交" />
+    <MESSAGE value="&lt;other&gt;&#10;* 图片重命名" />
+    <option name="LAST_COMMIT_MESSAGE" value="&lt;other&gt;&#10;* 图片重命名" />
+  </component>
+</project>
