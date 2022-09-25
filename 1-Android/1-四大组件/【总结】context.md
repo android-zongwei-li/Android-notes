@@ -16,11 +16,17 @@
 
 # 一、什么是Context?
 
-上下文。
+context的本意是上下文、环境的意思。在Android中，Context类中提供了一系列方法，用来获取应用资源和应用信息（比如getAssets、getResources、Sp文件等，package和application的信息）和类；另外还提供了组件之间交互的方法，比如启动Activity、Service、注册广播等方法；然后还提供了其他一些应用开发中常用的方法。
 
 ## 作用
 
-简单来讲，这是系统提供的，用于获取应用程序的资源和类，并且可以执行一些应用操作，比如：启动一个Activity，发送广播，接受Intent信息等。
+提供了一系列常用的方法：
+
+1、获取应用资源
+
+2、组件交互
+
+3、权限检查等其他方法。
 
 ## Context继承关系
 
@@ -98,11 +104,13 @@ public class MyReceiver extends BroadcastReceiver{
 
 
 
-## Context引起的内存泄露
+# 四、Context引起的内存泄露
 
-但Context并不能随便乱用，用的不好有可能会引起内存泄露的问题，下面就示例两种错误的引用方式。
+泄漏的本质是，context被比它生命周期更长的对象所持有，导致context不能被销毁。
 
-**错误的单例模式**
+Context并不能随便乱用，用的不好有可能会引起内存泄露的问题，下面就示例两种错误的引用方式。
+
+## 1、**错误的单例模式**
 
 ```java
 public class Singleton {
@@ -124,7 +132,7 @@ public class Singleton {
 
 这是一个非线程安全的单例模式，instance作为静态对象，其生命周期要长于普通的对象，其中也包含Activity，假如Activity A去getInstance获得instance对象，传入this，常驻内存的Singleton保存了你传入的Activity A对象，并一直持有，即使Activity被销毁掉，但因为它的引用还存在于一个Singleton中，就不可能被GC掉，这样就导致了内存泄漏。
 
-**View持有Activity引用**
+## 2、**View持有Activity引用**
 
 ```java
 public class MainActivity extends Activity {
@@ -142,6 +150,88 @@ public class MainActivity extends Activity {
 ```
 
 有一个静态的Drawable对象，当ImageView设置这个Drawable时，ImageView保存了mDrawable的引用，而ImageView传入的this是MainActivity的mContext，因为被static修饰的mDrawable是常驻内存的，MainActivity是它的间接引用，MainActivity被销毁时，也不能被GC掉，所以造成内存泄漏。
+
+## 3、内部类持有Activity引用
+
+下面是一个Handle导致Activity泄漏的示例：
+
+```java
+public class SampleActivity extends Activity {
+
+  private final Handler mLeakyHandler = new Handler() {
+    @Override
+    public void handleMessage(Message msg) {
+      // ...
+    }
+  }
+
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+
+    // 延时10分钟发送一个消息
+    mLeakyHandler.postDelayed(new Runnable() {
+      @Override
+      public void run() { }
+    }, 60 * 10 * 1000);
+
+    // 返回前一个Activity
+    finish();
+  }
+}
+```
+
+解决：
+
+```java
+public class SampleActivity extends Activity {
+    /**
+    * 匿名类的静态实例不会隐式持有他们外部类的引用
+    */
+    private static final Runnable sRunnable = new Runnable() {
+            @Override
+            public void run() {
+            }
+        };
+
+    private final MyHandler mHandler = new MyHandler(this);
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+        // 延时10分钟发送一个消息.
+        mHandler.postDelayed(sRunnable, 60 * 10 * 1000);
+
+        // 返回前一个Activity
+        finish();
+    }
+
+    /**
+    * 静态内部类的实例不会隐式持有他们外部类的引用。
+    */
+    private static class MyHandler extends Handler {
+        private final WeakReference<SampleActivity> mActivity;
+
+        public MyHandler(SampleActivity activity) {
+            mActivity = new WeakReference<SampleActivity>(activity);
+        }
+
+        @Override
+        public void handleMessage(Message msg) {
+            SampleActivity activity = mActivity.get();
+
+            if (activity != null) {
+                // ...
+            }
+        }
+    }
+}
+```
+
+4、
+
+
 
 **正确使用Context**
 
@@ -179,13 +269,21 @@ Q：在一个应用程序中有多少个context实例？
 
 
 
-<font color='orange'>Q：</font>
 
 
 
-<font color='orange'>Q：</font>
 
 
+
+<font color='orange'>Q：Application Context和Activity Context的区别</font>
+
+<font color='orange'>Q：Application、Activity、Service中context的区别？能否启动一个Activity、Dialog?</font>
+
+Activity继承自ContextThemeWrapper，Application 和 Service 继承自 ContextWrapper。
+
+ContextThemeWrapper 类中新增了theme的相关的内容，这个是Activity独有的。
+
+启动的内容见：作用域一节。
 
 <font color='orange'>Q：</font>
 
@@ -215,7 +313,7 @@ Q：在一个应用程序中有多少个context实例？
 
 自我提问：
 
-
+Context继承结构这样设计的好处？能否借鉴到项目中？
 
 
 
