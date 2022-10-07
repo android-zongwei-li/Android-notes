@@ -213,6 +213,16 @@ Binder 是一个比较复杂的知识点，本节侧重点是介绍 Binder 的�
 
 # 相关问题
 
+**1、Bundle 传递对象为什么需要序列化？Serialzable 和 Parcelable 的区别？**
+
+o 因为 bundle 传递数据时只支持基本数据类型，所以在传递对象时需要序列化转换成可存储或可传输的本质状态（字节流）。序列化后的对象可以在网络、IPC（比如启动另一个进程的 Activity、Service 和 Reciver）之间进行传输，也可以存储到本地。
+
+o 序列化实现的两种方式：实现 Serializable/Parcelable接口。不同点如图：
+
+![image-20221007165237783](images/IPC前置知识/image-20221007165237783.png)
+
+
+
 <font color='orange'>Q：</font>
 
 

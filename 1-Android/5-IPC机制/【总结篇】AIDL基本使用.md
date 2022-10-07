@@ -1,4 +1,4 @@
-> version：2021/10/
+> version：2022/10/7
 >
 > review：
 
@@ -16,7 +16,7 @@
 
 针对这种情况，Android设计了AIDL。
 
-### ***\*5.1 AIDL\*******\*基本概念\****
+### 5.1 AIDL基本概念
 
 每个应用程序都运行在自己的独立进程中，并且可以启动另一个应用程序的服务，而且经常需要在不同的进程间传递数据对象。
 
@@ -26,7 +26,7 @@
 
 有序：写的顺序和读的顺序要一致。
 
-### ***\*5.2 AIDL\*******\*的使用\****
+### 5.2 AIDL的使用
 
 AIDL全称Android Interface Definition Language，用于生成可以在Android设备上进行进程间通信(interprocess communication,IPC)的代码。
 
@@ -34,7 +34,7 @@ AIDL全称Android Interface Definition Language，用于生成可以在Android�
 
 下面梳理一下AIDL使用的步骤：
 
-##### ***\*服务端流程：\****
+##### 服务端流程：
 
 ​	即提供服务的程序（进程）。
 
@@ -44,7 +44,7 @@ AIDL全称Android Interface Definition Language，用于生成可以在Android�
 
 在这一步，要注意文件名称保持一致。
 
-**第二步：定义A****IDL****接口。**
+第二步：定义AIDL接口。
 
 1、![img](images/wps7A3.tmp.jpg)：这个文件，内容如下：
 
@@ -94,7 +94,7 @@ IStudentService接口说明：
 
 Aidl文件à接口（通信代码）àBinder子类实现接口àonBind()返回IBinder实现类。
 
-##### ***\*客户端流程：\****
+##### 客户端流程：
 
 第一步：首先，要实现跨进程通信，客户端也需要一套通信代码，文件结构图下，把服务端的相关文件复制过来即可。
 
@@ -112,7 +112,7 @@ Aidl文件à接口（通信代码）àBinder子类实现接口àonBind()返回IB
 
  
 
-##### ***\*其他：\****
+##### 其他：
 
 编写AIDL接口时应注意：
 
@@ -143,6 +143,32 @@ Process 'command 'D:\SDK\build-tools\27.0.3\aidl.exe'' finished with non-zero ex
 
 
 # 相关问题
+
+**讲讲 AIDL？原理是什么？如何优化多模块都使用 AIDL 的情况？**
+
+o AIDL(Android Interface Definition Language，Android接口定义语言)：如果在一个进程中要调用另一个进程中对象的方法，可使用 AIDL 生成可序列化的参数，AIDL 会生成一个服务端对象的代理类，通过它客户端实现间接调用服务端对象的方法。
+
+o AIDL 的本质是系统提供了一套可快速实现 Binder 的工具。关键类和方法：
+
+**AIDL 接口**：继承 IInterface。 
+
+**Stub 类**：Binder 的实现类，服务端通过这个类来提供服务。
+
+**Proxy 类**：服务器的本地代理，客户端通过这个类调用服务器的方法。
+
+**asInterface()**：客户端调用，将服务端的返回的Binder 对象，转换成客户端所需要的 AIDL 接口类型对象。如果客户端和服务端位于统一进程，则直接返回 Stub 对象本身，否则返回系统封装后的Stub.proxy 对象
+
+**asBinder()**：根据当前调用情况返回代理 Proxy 的Binder 对象。
+
+**onTransact()**：运行服务端的 Binder 线程池中，当客户端发起跨进程请求时，远程请求会通过系统底层封装后交由此方法来处理。
+
+**transact()**：运行在客户端，当客户端发起远程请求的同时将当前线程挂起。之后调用服务端的onTransact()直到远程请求返回，当前线程才继续执行。
+
+o 当有多个业务模块都需要 AIDL 来进行 IPC，此时需要为每个模块创建特定的 aidl 文件，那么相应的 Service 就会很多。必然会出现系统资源耗费严重、应用过度重量级的问题。解决办法是建立 Binder 连接池，即将每个业务模块的Binder 请求统一转发到一个远程 Service 中去执行，从而避免重复创建 Service。 
+
+**工作原理**：每个业务模块创建自己的 AIDL 接口并实现此接口，然后向服务端提供自己的唯一标识和其对应的 Binder 对象。服务端只需要一个 Service，服务器提供一个 queryBinder 接口，它会根据业务模块的特征来返回相应的 Binder 对象，不同的业务模块拿到所需的 Binder 对象后就可进行远程方法的调用了
+
+
 
 <font color='orange'>Q：</font>
 

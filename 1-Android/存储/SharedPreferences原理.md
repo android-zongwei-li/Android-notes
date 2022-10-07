@@ -368,7 +368,7 @@ MODE_MULTI_PROCESS提供的作用在于：每次context#getSharedPreferences取S
 2. 减少数据拷贝。普通的 read() 调用，数据需要经过两次拷贝；而 mmap 只需要从磁盘拷贝一次就可以了，并且由于做过内存映射，也不需要再拷贝回用户空间。
 3. 可靠性高。mmap 把数据写入页缓存后，跟缓存 I/O 的延迟写机制一样，可以依靠内核线程定期写回磁盘。值得一提的是，mmap 在内核崩溃、突然断电的情况下也一样有可能引起内容丢失，当然我们也可以使用 msync 来强制同步写。
 
-![img](images/SharedPreferences%E5%8E%9F%E7%90%86/webp.webp)
+![webp](images/SharedPreferences原理/webp.webp)
 
 
 
