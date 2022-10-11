@@ -101,7 +101,7 @@ View 的工作流程，指的就是 measure、layout 和 draw。其中，measure
 
    AppComponentFactory类负责多个组件的实例化工作。
 
-   ![image-20210420181401675](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210420181401675.png)
+   
 
 2. 注释2
 

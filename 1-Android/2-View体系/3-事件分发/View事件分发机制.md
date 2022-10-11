@@ -26,7 +26,9 @@ ViewGroup与子View都不拦截，最终事件如何处理？
 
 以上问题总结为思维导图如下:
 
-![09091](images/09091.webp)
+![09091](images/View事件分发机制/09091.webp)
+
+
 
 ### 一、Touch事件如何从屏幕到我们的App
 
@@ -75,7 +77,7 @@ public final class ViewRootImpl {
 
 这里涉及到了WindowManagerService和Binder跨进程通信，读者不需要纠结于详细的细节，只需了解最终在SystemServer进程中，WindowManagerService根据当前的Window创建了SocketPair用于跨进程通信，同时并对App进程中传过来的InputChannel进行了注册。这之后，ViewRootImpl里的InputChannel就指向了正确的InputChannel, 作为Client端，其fd与SystemServer进程中Server端的fd组成SocketPair, 它们就可以双向通信了。
 
-![09092](images/09092.webp)
+![09092](images/View事件分发机制/09092.webp)
 
 然后我们App进程的主线程就会监听socket客户端，当收到消息（输入事件）后，回调NativeInputEventReceiver.handleEvent()方法，最终会走到InputEventReceiver.dispachInputEvent方法。
 
@@ -330,7 +332,7 @@ ViewRootImpl并不知道有Activity这种东西存在！它只是持有了DecorV
 
 经过上述过程，事件终于到了我们熟悉的ViewGroup.dispatchTouchEvent。流程图如下所示：
 
-![2109093](images/2109093.webp)
+![2109093](images/View事件分发机制/2109093.webp)
 
 ### 三、Touch事件到达页面后内部怎样分发
 

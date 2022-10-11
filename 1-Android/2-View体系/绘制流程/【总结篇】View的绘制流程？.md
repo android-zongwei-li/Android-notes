@@ -24,7 +24,7 @@
 
 MeasureSpec是一个大小和模式的组合值，MeasureSpec中的值是一个整型（32位）将size和mode合成一个int型，高两位是mode，后30位是size，是为了减少对象的分配开支。MeasureSpec 类似于下图，只不过这边用的是十进制数，而MeasureSpec 是二进制存储的。
 
-![img](images/966283-c330852c971b02a8.png)
+![img](images/【总结篇】View的绘制流程？/966283-c330852c971b02a8.png)
 
 **注：-1 代表的是EXACTLY，-2 是AT_MOST**
 
@@ -357,7 +357,7 @@ int size = Math.max(0, specSize - padding);
 
 通过一张图来展示：
 
-![View测量Padding图](images/View%E6%B5%8B%E9%87%8FPadding%E5%9B%BE-1632561140144.png)
+![View测量Padding图](images/【总结篇】View的绘制流程？/Padding.png)
 
 下面我通过一个表格来总结一下上面的代码是如何计算子View的MeasureSpec的：
 
@@ -367,17 +367,17 @@ int size = Math.max(0, specSize - padding);
 | MeasureSpec.AT_MOST     | resultSize = childDimension; resultMode = MeasureSpec.EXACTLY; | resultSize = size; resultMode = MeasureSpec.AT_MOST;         | resultSize = size; resultMode = MeasureSpec.AT_MOST;         |
 | MeasureSpec.UNSPECIFIED | resultSize = childDimension; resultMode = MeasureSpec.EXACTLY; | resultSize = View.sUseZeroUnspecifiedMeasureSpec ? 0 : size; resultMode = MeasureSpec.UNSPECIFIED; | resultSize = View.sUseZeroUnspecifiedMeasureSpec ? 0 : size; resultMode = MeasureSpec.UNSPECIFIED; |
 
-![image-20210925172049427](images/image-20210925172049427.png)
+![image-20210925172049427](images/【总结篇】View的绘制流程？/image-20210925172049427.png)
 
 这样可以看到：
 
 情况一：当子View的宽高是指定好了的（childDimension >= 0），那直接用指定的值就ok了，不需要考虑父View是什么模式。因此上面的代码还是可以优化一下的，可以把这种情况合并一下，减少重复代码，看着也跟清晰一些。那还剩下6种情况。
 
-![image-20210925172119659](images/image-20210925172119659.png)
+![image-20210925172119659](images/【总结篇】View的绘制流程？/image-20210925172119659.png)
 
 情况二：父View是MeasureSpec.UNSPECIFIED，就是说父View也是未指定的。这样的话，子View也不用没有必要算了，为什么呢？因为这时候父View的情况不知道（即没有约束），那算出来的值也就没意义了，不知道最大值，可能比父View还大。因此设为size = 0；mode = UNSPECIFIED即可，然后待会让子View自己算。OK，还剩下四种。
 
-![image-20210925172301621](images/image-20210925172301621.png)
+![image-20210925172301621](images/【总结篇】View的绘制流程？/image-20210925172301621.png)
 
 情况三：父mode是MeasureSpec.EXACTLY时，即知道父View的确定值。也就知道了子View的最大值。
 
@@ -385,7 +385,7 @@ int size = Math.max(0, specSize - padding);
 
 如果子View为WRAP_CONTENT：这个时候只能知道子View的最大值为size。使用MeasureSpec.AT_MOST表达。还剩两种。
 
-![image-20210925172936867](images/image-20210925172936867.png)
+![image-20210925172936867](images/【总结篇】View的绘制流程？/image-20210925172936867.png)
 
 情况四：父mode是MeasureSpec.AT_MOST时，也就是只知道父View的最大值。
 
@@ -552,7 +552,7 @@ UNSPECIFIED：未指定，使用自己算的。
 
 通过前面的测量可以知道，当子View为match_parent时，有这么几种情况：
 
-![image-20210925181636056](images/image-20210925181636056.png)
+![image-20210925181636056](images/【总结篇】View的绘制流程？/image-20210925181636056.png)
 
 EXACTLY已经知道确定值了，无需再算；UNSPECIFIED在子View测量的时候，也计算了，使用子View的minSize或者背景的最小值，因此也无需再算。所以主要是想要处理AT_MOST这种情况，因为之前子View只知道一个最大值是多少，现在经过第6步的计算，已经测量了父View的大小了，所以也就可以在把子View的大小确定一下。
 
@@ -656,13 +656,13 @@ FrameLayout.java
 
 上面的代码对应的布局是下面的一张图
 
-![img](images/966283-4a11f92ac8c5e224.png)
+![img](images/【总结篇】View的绘制流程？/966283-4a11f92ac8c5e224.png)
 
 整个图是一个DecorView,DecorView可以理解成整个页面的根View,DecorView是一个FrameLayout,包含两个子View，一个id=statusBarBackground的View和一个是LineaLayout，id=statusBarBackground的View，我们可以先不管（我也不是特别懂这个View,应该就是statusBar的设置背景的一个控件，方便设置statusBar的背景)，而这个LinearLayout比较重要，它包含一个title和一个content，title很好理解其实就是TitleBar或者ActionBar,content 就更简单了，setContentView()方法你应该用过吧，android.R.id.content 你应该听过吧，没错就是它,content是一个FrameLayout，你写的页面布局通过setContentView加进来就成了content的直接子View。
 
 整个View的布局图如下：
 
-![img](images/966283-4096801e91e2eccc.png)
+![img](images/【总结篇】View的绘制流程？/966283-4096801e91e2eccc.png)
 
 这张图在下面分析measure，会经常用到，主要用于了解递归的时候 view 的measure顺序
 
@@ -703,14 +703,14 @@ private static int getRootMeasureSpec(int windowSize, int rootDimension) {
 View的绘制从DecorView开始，在mView.measure()的时候调用getRootMeasureSpec获得两个MeasureSpec做为参数，getRootMeasureSpec的两个参数（mWidth, lp.width）mWith和mHeight 是屏幕的宽度和高度， lp是WindowManager.LayoutParams，它的lp.width和lp.height的默认值是MATCH_PARENT，所以通过getRootMeasureSpec 生成的测量规格MeasureSpec 的mode是EXACTLY ，size是屏幕的宽高。因为DecorView 是一个FrameLayout 那么接下来会进入FrameLayout 的measure方法，measure的两个参数就是刚才getRootMeasureSpec的生成的两个MeasureSpec，DecorView的测量开始了。
 首先是DecorView 的 MeasureSpec ，根据上面的分析DecorView 的 MeasureSpec是Windows传过来的，我们画出DecorView 的MeasureSpec 图：
 
-![img](images/966283-c330852c971b02a8.png)
+![img](images/【总结篇】View的绘制流程？/966283-c330852c971b02a8.png)
 
 1、-1 代表的是EXACTLY，-2 是AT_MOST
 2、由于屏幕的像素是1440x2560,所以DecorView 的MeasureSpec的size 对应于这两个值
 
 那么接下来在FrameLayout 的onMeasure()方法中，DecorView开始for循环测量自己的子View，测量完所有的子View再来测量自己，由下图可知，接下来要测量ViewRoot的大小
 
-![img](images/966283-4096801e91e2eccc.png)
+![img](images/【总结篇】View的绘制流程？/966283-4096801e91e2eccc.png)
 
 ```java
 //FrameLayout 的测量
@@ -753,11 +753,11 @@ child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
 
 ViewRoot 是系统的View，它的LayoutParams默认都是match_parent，根据最开始MeasureSpec 的计算规则，ViewRoot 的MeasureSpec mode应该等于EXACTLY（DecorView MeasureSpec 的mode是EXACTLY，ViewRoot的layoutparams 是match_parent），size 也等于DecorView的size，所以ViewRoot的MeasureSpec图如下：
 
-![img](images/966283-ed0ffedcca47672a.png)
+![img](images/【总结篇】View的绘制流程？/966283-ed0ffedcca47672a.png)
 
 算出ViewRoot的MeasureSpec 之后，开始调用ViewRoot.measure 方法去测量ViewRoot的大小，然而ViewRoot是一个LinearLayout ，ViewRoot.measure最终会执行的LinearLayout 的onMeasure 方法，LinearLayout 的onMeasure 方法又开始逐个测量它的子View，上面的measureChildWithMargins方法又会被调用，那么根据View的层级图，接下来测量的是header（ViewStub），由于header的Gone，所以直接跳过不做测量工作，所以接下来轮到ViewRoot的第二个child content（android.R.id.content）,我们要算出这个content 的MeasureSpec，所以又要拿ViewRoot 的MeasureSpec 和 android.R.id.content的LayoutParams 做计算了，计算过程就是调用getChildMeasureSpec的方法，
 
-![img](images/966283-527eb25fd49d38ef.png)
+![img](images/【总结篇】View的绘制流程？/966283-527eb25fd49d38ef.png)
 
 ```java
 protected void measureChildWithMargins(View child, int parentWidthMeasureSpec, int widthUsed, int parentHeightMeasureSpec, int heightUsed) { 
@@ -780,11 +780,11 @@ public static int getChildMeasureSpec(int spec, int padding, int childDimension)
 而 **padding=mPaddingTop + mPaddingBottom + lp.topMargin + lp.bottomMargin  + heightUsed**
 算出android.R.id.content 的MeasureSpec 的size，由于ViewRoot 的mPaddingBottom=100px(这个可能和状态栏的高度有关，我们测量的最后会发现id/statusBarBackground的View的高度刚好等于100px，ViewRoot 是系统的View的它的Padding 我们没法改变，所以计算出来Content（android.R.id.content） 的MeasureSpec 的高度少了100px ，它的宽高的mode 根据算出来也是EXACTLY（ViewRoot 是EXACTLY和android.R.id.content  是match_parent）。所以Content（android.R.id.content）的MeasureSpec 如下（高度少了100px）：
 
-![img](images/966283-5ce615a3684d7815.png)
+![img](images/【总结篇】View的绘制流程？/966283-5ce615a3684d7815.png)
 
 Content（android.R.id.content） 是FrameLayout，递归调用开始准备计算id/linear的MeasureSpec，我们先给出结果：
 
-![img](images/966283-c7e86f4510ddf84a.png)
+![img](images/【总结篇】View的绘制流程？/966283-c7e86f4510ddf84a.png)
 
 图中有两个要注意的地方：
  1、id/linear的heightMeasureSpec 的mode=AT_MOST，因为id/linear 的LayoutParams 的layout_height="wrap_content"
@@ -795,11 +795,11 @@ Content（android.R.id.content） 是FrameLayout，递归调用开始准备计�
 
 linear.measure接着往下算linear的子View的的MeasureSpec，看下View 层级图，往下走应该是id/text,接下来是计算id/text的MeasureSpec，直接看图，mode=AT_MOST ,size 少了280，别问我为什么 ...specSize - padding.
 
-![img](images/966283-058c5a6ce57b3125.png)
+![img](images/【总结篇】View的绘制流程？/966283-058c5a6ce57b3125.png)
 
 算出id/text 的MeasureSpec 后，接下来text.measure(childWidthMeasureSpec, childHeightMeasureSpec);准备测量id/text 的高宽，这时候已经到底了，id/text是TextView，已经没有子类了，这时候跳到TextView的onMeasure方法了。TextView 拿着刚才计算出来的heightMeasureSpec（mode=AT_MOST,size=1980）,这个就是对TextView的高度和宽度的约束，进到TextView 的onMeasure(widthMeasureSpec,heightMeasureSpec) 方法，在onMeasure 方法执行调试过程中，我们发现下面的代码：
 
-![img](images/966283-856ea117c2b84148.png)
+![img](images/【总结篇】View的绘制流程？/966283-856ea117c2b84148.png)
 
 TextView字符的高度（也就是TextView的content高度[wrap_content]）测出来=107px，107px 并没有超过1980px(允许的最大高度)，所以实际测量出来TextView的高度是107px。
 最终算出id/text 的mMeasureWidth=1440px,mMeasureHeight=107px。
@@ -834,7 +834,7 @@ TextView字符的高度（也就是TextView的content高度[wrap_content]）测�
 
 TextView的高度已经测量出来了，接下来测量id/linear的第二个child（id/view），同样的原理测出id/view的MeasureSpec.
 
-![img](images/966283-55810a48922ac8fe.png)
+![img](images/【总结篇】View的绘制流程？/966283-55810a48922ac8fe.png)
 
 id/view的MeasureSpec 计算出来后，调用view.measure(childWidthMeasureSpec, childHeightMeasureSpec)的测量id/view的高宽，之前已经说过View measure的默认实现是
 
@@ -850,7 +850,7 @@ protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 
 id/linear 的子View的高度都计算完毕了，接下来id/linear就通过所有子View的测量结果计算自己的高宽，id/linear是LinearLayout，所有它的高度计算简单理解就是子View的高度的累积+自己的Padding.
 
-![img](images/966283-b089fd286ca7fc05.png)
+![img](images/【总结篇】View的绘制流程？/966283-b089fd286ca7fc05.png)
 
 最终算出id/linear的mMeasureWidth=1440px,mMeasureHeight=987px。
 
@@ -1060,7 +1060,7 @@ private void drawBackground(Canvas canvas) {
 
 一张图看下整个draw的递归流程。
 
-![img](images/966283-480bf9def58bed74.png)
+![img](images/【总结篇】View的绘制流程？/966283-480bf9def58bed74.png)
 
 到此整个绘制过程基本讲述完毕了。
 

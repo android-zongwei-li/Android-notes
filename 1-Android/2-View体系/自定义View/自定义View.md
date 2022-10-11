@@ -153,7 +153,7 @@ public class RectView extends View {
 
 运行程序，效果如下：
 
-![image-20210422112426052](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210422112426052.png)
+
 
 可以发现设置的 padding 属性确实生效了。
 
@@ -163,7 +163,7 @@ public class RectView extends View {
 
 的，如图所示：
 
-![image-20210422124021231](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210422124021231.png)
+
 
 为何一样，请看下面这段代码：
 
@@ -216,7 +216,7 @@ EXACTLY：match_parent、确切值
 
 运行程序，查看效果：
 
-![image-20210422124927189](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210422124927189.png)
+
 
 #### 2.4、自定义属性
 

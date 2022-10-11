@@ -157,13 +157,13 @@ ViewGroup.java
 
 在这样一个布局中，Button是居中的。
 
-![image-20210913232729903](images/image-20210913232729903.png)
+![image-20210913232729903](images/invalidate()/image-20210913232729903.png)
 
 已知：
 
 dirty = 0，0 - 242,132，父布局宽高为 150dp，150dp，设备密度为：
 
-![image-20210913233236187](images/image-20210913233236187.png)
+![image-20210913233236187](images/invalidate()/image-20210913233236187.png)
 
 wm 取到的 density 实际上是 dpi，转换后得到Android中的density（一般命名为scale）
 
@@ -175,7 +175,7 @@ width = density * 150dp + 0.5f = 2.75 * 150 = 413px
 
 height = density * 150dp + 0.5f = 2.75 * 150 = 413px
 
-![image-20210913232631714](images/image-20210913232631714.png)
+![image-20210913232631714](images/invalidate()/image-20210913232631714.png)
 
 所以现在的Button相对于父布局的坐标是：
 

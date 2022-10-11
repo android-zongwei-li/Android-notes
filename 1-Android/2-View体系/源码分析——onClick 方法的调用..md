@@ -2,11 +2,7 @@
 
 首先 debug 运行到 onClick 中，查看其调用栈，如下：
 
-![image-20210415104126371](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210415104126371.png)
-
 ##### step1：实现 OnClickListener 接口，并把实例传给 View > mListenerInfo > mOnClickListener 持有。
-
-![image-20210415141956684](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210415141956684.png)
 
 首先来看以下 onClick() 方法在 View.java 中的定义：
 
@@ -145,8 +141,6 @@ View.java
         return true;
     }
 ```
-
-![image-20210415162418193](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210415162418193.png)
 
 
 

@@ -26,11 +26,11 @@ Android在“黄油计划”中引入的一个重要机制就是：vsync，引�
 
 上面提到的hw（hardware） vsync信号在目前的Android系统中有两个receiver，App + SurfaceFlinger，hw sync会转化为sw（software） vsync分别分发给app和sf，分别称为vsync-app和vsync-sf。app和sf接收vsync会有一个offset，引入这个机制可以降低输入响应延迟。
 
-![图片](images/vsync.png)
+![图片](images/Android渲染机制/vsync.png)
 
 如果app和sf同时接收hw sync，从上面可以看到需要经过vsync * 2的时间画面才能显示到屏幕，如果合理的规划app和sf接收vsync的时机，想像一下，如果vsync-sf比vsync-app延迟一定时间，如果这个时间安排合理达到如下效果，就能降低延迟：
 
-![vsync-best](images/vsync-best.png)
+![vsync-best](images/Android渲染机制/vsync-best.png)
 
 #### 四、SufaceFlinger工作机制
 
@@ -46,17 +46,17 @@ Android在“黄油计划”中引入的一个重要机制就是：vsync，引�
 - vsync-sf, SF接收到的vsync信号
 - vsync-app, App接收到的vsync信号
 
-![sf原理](images/sf原理.jpg)
+![sf原理](images/Android渲染机制/sf原理.jpg)
 
 #### 五、应用程序基本架构
 
 Android应用进程核心组成
 
-![应用程序UI架构](images/应用程序UI架构.png)
+![应用程序UI架构](images/Android渲染机制/应用程序UI架构.png)
 
 上图列举了Android应用进程侧的几个核心类，PhoneWindow的构建是一个非常重要的过程，应用启动显示的内容装载到其内部的mDecor，Activity(PhoneWindow)要能接收控制也需要mWindowManager发挥作用。ViewRootImpl是应用进程运转的发动机，可以看到ViewRootImpl内部包含mView、mSurface、Choregrapher，mView代表整个控件树，mSurfacce代表画布，应用的UI渲染会直接放到mSurface中，Choregorapher使得应用请求vsync信号，接收信号后开始渲染流程，下面介绍上图构建的流程。
 
-![UI核心类构建流程](images/UI核心类构建流程.png)
+![UI核心类构建流程](images/Android渲染机制/UI核心类构建流程.png)
 
 应用UI构建流程图(下文称该图为P0)
 
@@ -64,7 +64,7 @@ Android应用进程核心组成
 
 应用冷启动第一步就是要先创建进程，这跟linux类似C/C++程序是一致的，Android也是通过fork来孵化应用进程，我们知道Linux fork的子进程继承父进程很多的资源，即所谓的COW。应用进程同样会从其父进程zygote处继承资源，比如art虚拟机实例、预加载的class/drawable资源等，以付出一些开机时间为代价，一来能够节省内存，二来能够加速应用性能，下面结合systrace介绍Android如何启动一个应用进程，应用启动第一个介入的管理者是AMS,应用启动过程中AMS发现没有process创建，就会请求zygote fork进程，下图就是AMS中创建进程的耗时：
 
-![AMS创建进程耗时](images/AMS创建进程耗时.jpg)
+![AMS创建进程耗时](images/Android渲染机制/AMS创建进程耗时.jpg)
 
 AMS(ActivityManagerService)请求zygote创建进程的流程如下：
 
@@ -103,7 +103,7 @@ if (entryPoint == null) entryPoint = "android.app.ActivityThread";
 
 原来进程启动以后就会先去执行ActivityThread：main这个入口，应用自此开始了自己启动流程，这点systrace展示的非常清晰：
 
-![微信图片_20210908215816](images/微信图片_20210908215816.jpg)
+![微信图片_20210908215816](images/Android渲染机制/微信图片_20210908215816.jpg)
 
 看到上面PostFork色块，很明显是Process创建成功后的打印，然后代码继续执行到ZygoteInit，ZygoteInit真正来查找entrypoint，应用程序跳转到ActivityThread.Main开始执行：
 
@@ -251,7 +251,7 @@ setContentView就是操作系统给开发机会告诉系统“到底让我显示
 
 该函数的作用就是使用布局文件填充“房间”mDecor（实际是设置到了contentParent中了，对应着布局R.id.content，这个后面单独做笔记分析），如果布局文件非常复杂会导致“房间”装饰的费时费力（豪装），装修过程中从原理说就是讲布局文件activity_main中的控件实例化，Android这个过程称作inflate,systrace展示如下：
 
-![1](images/1.jpg)
+![1](images/Android渲染机制/1.jpg)
 
 上面只是操作系统从让开发给填充、装饰了房间，但是这个房间还没“开灯”，看不见，也没开门（窗口无法操作），因为需要真正把这个窗口注册到WindowManagerService后，WMS同SurfaceFlinger取得联系才能看到，后面我们来分析这个窗口是如何开灯显示，并且能开门迎客接收按键消息的。
 
@@ -411,7 +411,7 @@ private final class FrameHandler extends Handler {
 
 从systrace中我们经常看到doFrame就是从上面的doFrame打印，这说明应用程序收到了vsync信号要开始渲染布局了，图示如下：
 
-![2](images/2.jpg)
+![2](images/Android渲染机制/2.jpg)
 
 doFrame函数就开始一次处理input/animation/measure/layout/draw，doFrame代码如下：
 
@@ -439,11 +439,11 @@ final class TraversalRunnable implements Runnable {
 
 doTraversal内部会调用大名鼎鼎的：performTraversal，在这里app就可以进行measure/layout/draw三大流程。需要注意的时候Android在5.1引入了renderthread线程，可以将draw操作从UIThread解放出来，这样做的好处是，UIThread将绘制指令sync给renderthread以后可以继续执行measure/layout操作，非常有利于提升设备操作体验，如下：
 
-![3](images/3.jpg)
+![3](images/Android渲染机制/3.jpg)
 
 上面就是应用进程收到vsync信号之后的渲染UI的大概流程，可以看到app进程收到vsync信号以后就开始其measure/layout/draw三大流程，这里面就会回调应用的应用各个空间的onMeasure/onLayout/onDraw，这个部分是在UIThread完成的。UIThread在完成上述步骤以后会将绘制指令（DisplayList）同步（sync）给RenderThread，RenderThread会真正的跟GPU通信执行draw动作，systrace图示如下：
 
-![4](images/4.jpg)
+![4](images/Android渲染机制/4.jpg)
 
 上图中看到doFrame下面会有input/anim(时间短色块比较小）、measure、layout、draw，结合上面的代码分析就清楚了app收到vsync信号的行为，measure/layout/draw的具体分析就涉及到控件系统相关的内容，这块内容本文不作深入分析，提一下draw这个操作，使用硬件加速以后draw部分只是在UIThread中收集绘制命令而已，不做真正的绘制操作。
 
@@ -475,13 +475,13 @@ UIThread被block的因素多种多样，有binder block、IO block等等。前�
 
 可以看到一个vsync的16ms要UIThread + RenderThread配合完成才能保证流畅的体验，UIThread是执行traversal调用，RenderThread其中很重要的一个操作是跟GPU通信将图片上传GPU，上传图片期间UI Thread也是block状态，所以魔盒、TV瀑布流的桌面、影视无法实现边滑动边上传渲染图片，实现过了异步渲染的机制将图片非UI/RT Thread，实现边滑动边出图的效果。
 
-![5](images/5.jpg)
+![5](images/Android渲染机制/5.jpg)
 
 #### 最后总结
 
 本文从代码层面，把应用进程启动和渲染的流程走读了一遍，理解了Android的渲染原理对于理解其他UI框架或者引擎有比较好的借鉴意义，比如研究google的flutter框架时会更轻松：
 
-![6](images/6.jpg)
+![6](images/Android渲染机制/6.jpg)
 
 上图从网络上搜到的flutter 框架的流程图，这个流程是不是有点像套娃战术，同样是vsync信号、UI线程，GPU线程（也就是android的renderthread）两线程加速性能。Android的UI 线程的draw最终只负责将绘制操作转化为绘制指令(DisplayList)，真正负责和GPU交互来绘制的是RenderThread，flutter其实看到也是同样的思路，UI线程绘制构建LayerTree同步给GPU线程，GPU线程通过Skia库跟GPU交互。
 
