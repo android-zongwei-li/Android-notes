@@ -1,0 +1,11 @@
+抓取日志
+adb logcat > log.txt(这个可以自己命名)
+
+导出crash文件
+adb pull sdcard/crash
+
+adb 卸载应用
+C:\Users\840>adb shell
+salvator:/ # pm uninstall com.thundersoft.v2x
+Success
+注：在AS，terminal中无效。需要在cmd中操作。
