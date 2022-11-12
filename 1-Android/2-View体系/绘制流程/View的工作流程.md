@@ -1,10 +1,6 @@
-> 知识路径：Android > 2-View体系
->
 > version：2021/4/21
 >
-> review：2021/4/21
->
-> 掌握程度：初学
+> review：
 
 
 
