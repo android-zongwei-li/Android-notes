@@ -5,7 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0d5ca9a7-2e90-49fd-8add-5fb7f09182df" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/1-Android/7-三方库/Retrofit/Retrofit使用.md" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/1-Android/7-三方库/Retrofit/images/Retrofit使用/1.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/1-Android/7-三方库/Retrofit/images/Retrofit使用/2.png" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -29,6 +33,7 @@
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="ASKED_ADD_EXTERNAL_FILES" value="true" />
     <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="RunOnceActivity.cidr.known.project.marker" value="true" />
@@ -201,7 +206,14 @@
       <option name="project" value="LOCAL" />
       <updated>1662717310864</updated>
     </task>
-    <option name="localTasksCounter" value="23" />
+    <task id="LOCAL-00023" summary="&lt;all&gt;">
+      <created>1674996670036</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1674996670036</updated>
+    </task>
+    <option name="localTasksCounter" value="24" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -229,6 +241,7 @@
     <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <MESSAGE value="idea初始化" />
     <MESSAGE value="service、aidl" />
     <MESSAGE value="add：位运算；原码、反码、补码；" />
@@ -242,6 +255,7 @@
     <MESSAGE value="add:读书笔记" />
     <MESSAGE value="&lt;all&gt;混合提交" />
     <MESSAGE value="&lt;other&gt;&#10;* 图片重命名" />
-    <option name="LAST_COMMIT_MESSAGE" value="&lt;other&gt;&#10;* 图片重命名" />
+    <MESSAGE value="&lt;all&gt;" />
+    <option name="LAST_COMMIT_MESSAGE" value="&lt;all&gt;" />
   </component>
 </project>
