@@ -1,22 +1,16 @@
-> version：2021/9/9
->
-> review：
+## 从我们触摸屏幕到App响应事件，都发生了什么，可以分为哪几个部分？
 
+整个Touch事件可以分解为以下几个部分：
 
+1、Touch事件如何从屏幕到我们的App。
 
-从我们触摸屏幕到App响应事件，都发生了什么，可以分为哪几个部分？
+2、Touch事件到达App后怎么传递到对应页面。
 
-可以将整个Touch事件可以分解为以下几个部分:
+3、Touch事件到达对应页面后内部怎样分发。
 
-1.Touch事件如何从屏幕到我们的App。
+其中与上层应用开发息息相关的是第3条，也是我们最关注的，它可以拆解为以下几个问题：
 
-2.Touch事件到达App后怎么传递到对应页面。
-
-3.Touch事件到达对应页面后内部怎样分发。
-
-其中与上层软件开发息息相关的就是第3条，也是我们最关注的，它可以拆解为以下几个问题。
-
-ViewGroup是否拦截事件,拦截与不拦截后分别怎么处理？
+ViewGroup是否拦截事件，拦截与不拦截后分别怎么处理？
 
 子View是否拦截事件，拦截与不拦截后分别怎么处理？
 
@@ -30,9 +24,9 @@ ViewGroup与子View都不拦截，最终事件如何处理？
 
 
 
-### 一、Touch事件如何从屏幕到我们的App
+## 一、Touch事件如何从屏幕到我们的App
 
-#### **1.1 硬件与内核部分**
+### **1.1 硬件与内核部分**
 
 当我们触摸屏幕或者按键操作时，首先触发的是硬件驱动。
 驱动收到事件后，将相应事件写入到输入设备节点，这便产生了最原生态的内核事件。
@@ -40,24 +34,17 @@ ViewGroup与子View都不拦截，最终事件如何处理？
 
 这样做的目的是将输入事件封装为通用的Event，供后续处理。
 
-#### **1.2 SystemServer部分**
+### **1.2 SystemServer部分**
 
-当系统启动时，在SystemServer进程会启动一系列系统服务，如AMS,WMS等。
-其中还有一个就是我们管理事件输入的InputManagerService。
+当系统启动时，在SystemServer进程中会启动一系列系统服务，如AMS、WMS等。以及管理事件输入的 InputManagerService，这个服务负责与硬件通信，接受屏幕输入事件。在其内部，会启动一个读线程，也就是 InputReader，它会从系统目录 /dev/input/ 拿到任务，并且分发给 InputDispatcher 线程，然后进行统一的事件分发调度。
 
-这个服务就是用来负责与硬件通信，接受屏幕输入事件。
-在其内部，会启动一个读线程，也就是InputReader，它会从系统也就是/dev/input/目录拿到任务，并且分发给InputDispatcher线程，然后进行统一的事件分发调度。
-
-#### **1.3 跨进程通信传递给App**
+### **1.3 跨进程通信传递给App**
 
 现在系统进程已经拿到输入事件了，但还需要传递给App进程，这就涉及到跨进程通信的部分。
-我们的App中的Window与InputManagerService之间的通信实际上使用的是InputChannel。
+我们的App中的Window与InputManagerService之间的通信实际上使用的是InputChannel，InputChannel是一个pipe，底层通过socket通信。
+在Activity启动时会调用 ViewRootImpl.setView()，在ViewRootImpl.setView()过程中，会同时注册 InputChannel：
 
-InputChannel是一个pipe，底层通过socket通信。
-我们知道在Activity启动时会调用ViewRootImpl.setView()。
-在ViewRootImpl.setView()过程中，也会同时注册InputChannel：
-
-```
+```java
 public final class ViewRootImpl {
 
   public void setView(View view, WindowManager.LayoutParams attrs, View panelParentView) {
@@ -72,10 +59,9 @@ public final class ViewRootImpl {
                             mAttachInfo.mOutsets, mInputChannel);
   }
 }
-
 ```
 
-这里涉及到了WindowManagerService和Binder跨进程通信，读者不需要纠结于详细的细节，只需了解最终在SystemServer进程中，WindowManagerService根据当前的Window创建了SocketPair用于跨进程通信，同时并对App进程中传过来的InputChannel进行了注册。这之后，ViewRootImpl里的InputChannel就指向了正确的InputChannel, 作为Client端，其fd与SystemServer进程中Server端的fd组成SocketPair, 它们就可以双向通信了。
+这里涉及到了WindowManagerService和Binder跨进程通信，读者不需要纠结于详细的细节，只需了解最终在SystemServer进程中，WindowManagerService根据当前的Window创建了SocketPair用于跨进程通信，同时并对App进程中传过来的InputChannel进行了注册。这之后，ViewRootImpl里的InputChannel就指向了正确的InputChannel，作为Client端，其fd与SystemServer进程中Server端的fd组成SocketPair，它们就可以双向通信了。
 
 ![09092](images/View事件分发机制/09092.webp)
 
@@ -83,18 +69,18 @@ public final class ViewRootImpl {
 
 经过以上操作App终于拿到输入事件了，接下来就是传递到对应页面。
 
-#### **1.4小结**
+### **1.4 小结**
 
 关于内核处理输入事件与跨进程通信的部分一般来说不是应用开发者最关注的部分，也不是本文的重点，所以只做了概述。
 想要了解细节的同学可参考：Input系统—事件处理全过程。
 
 *http://gityuan.com/2016/12/31/input-ipc/*
 
-### 二、Touch事件到达App后怎么传递到对应页面
+## 二、Touch事件到达App后怎么传递到对应页面
 
 现在我们已经在App进程中拿到输入事件了，接下来看看事件如何分发到页面。下面跟一下源码。
 
-#### **2.1 事件回传到ViewRootImpl**
+### **2.1 事件回传到ViewRootImpl**
 
 ```java
 //InputEventReceiver.java
@@ -136,7 +122,7 @@ void enqueueInputEvent(InputEvent event,
 
 可以看到事件还是回到了ViewRootImpl中，可见ViewRootImpl不仅负责界面的绘制，同时还负责事件的传递。
 
-#### **2.2 第一次责任链分发**
+### **2.2 第一次责任链分发**
 
 接下来走到doProcessInputEvents中，其中涉及到事件分发中的第一次责任链分发。
 
@@ -195,9 +181,9 @@ abstract class InputStage {
 2.InputStage是处理输入的责任链，在调用deliver时会遍历责任链传递事件。
 3.事件分发完成后会调用finishInputEvent，告知SystemServer进程的InputDispatcher线程，最终将该事件移除，完成此次事件的分发消费。
 
-那么问题来了,InputStage的责任链是什么时候组建的呢？
+那么问题来了，InputStage的责任链是什么时候组建的呢？
 
-#### **2.3 组装责任链**
+### **2.3 组装责任链**
 
 我们回到ViewRootImpl.setView方法中。
 
@@ -277,12 +263,12 @@ public final boolean dispatchPointerEvent(MotionEvent event) {
 1.经过层层回调会调用到mView.dispatchPointerEvent。
 2.我们知道ViewRootImpl中的mView就是DecorView。
 
-现在事件已经传递到了DecorView，也就是我们界面的根布局。接下来是事件在Activity,Window,DecorView中的传递。
+现在事件已经传递到了DecorView，也就是我们界面的根布局。接下来是事件在Activity，Window，DecorView中的传递。
 
-#### **2.4 事件在Activity,Window,DecorView中的传递**
+### **2.4 事件在Activity，Window，DecorView中的传递**
 
 ```java
-//DecorView.java
+// DecorView.java
 @Override
 public boolean dispatchTouchEvent(MotionEvent ev) {
     //cb其实就是对应的Activity/Dialog
@@ -291,7 +277,7 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
             ? cb.dispatchTouchEvent(ev) : super.dispatchTouchEvent(ev);
 }
 
-//Activity.java
+// Activity.java
 public boolean dispatchTouchEvent(MotionEvent ev) {
     if (ev.getAction() == MotionEvent.ACTION_DOWN) {
         onUserInteraction();
@@ -302,31 +288,31 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
     return onTouchEvent(ev);
 }
 
-//PhoneWindow.java
+// PhoneWindow.java
 @Override
 public boolean superDispatchTouchEvent(MotionEvent event) {
     return mDecor.superDispatchTouchEvent(event);
 }
 
-//DecorView.java
+// DecorView.java
 public boolean superDispatchTouchEvent(MotionEvent event) {
     return super.dispatchTouchEvent(event);
 }    
 ```
 
-可以看到事件分发经过了:DecorView -> Activity -> PhoneWindow -> DecorView。
+可以看到事件分发经过了：DecorView -> Activity -> PhoneWindow -> DecorView。
 看起来是一个很奇怪的事件流转，事件从DecorView出发，最后又回到了DecorView，为什么这样做呢？
 
 #### **2.4.1 为什么ViewRootImpl不直接把事件交给Activity？**
 
 主要是为了解藕
 
-ViewRootImpl并不知道有Activity这种东西存在！它只是持有了DecorView。所以，不能直接把触摸事件送到Activity.dispatchTouchEvent()。
+ViewRootImpl 并不知道有 Activity 存在！它只是持有了 DecorView。所以，不能直接把触摸事件送到Activity.dispatchTouchEvent()。
 
 #### **2.4.2 交给Acitivity后，为什么不直接交给DecorView开始分发事件呢?**
 
-因为Activity不知道有DecorView！（但是在Android30中，Activity是持有了一个mDecor的。）
-但是，Activity持有PhoneWindow ，而PhoneWindow当然知道自己的窗口里有些什么了，所以能够把事件派发给DecorView。在Android中，Activity并不知道自己的Window中有些什么，这样耦合性就很低了,Activity不需要知道Window中的具体内容。
+因为 Activity 不知道有 DecorView！（但是在Android30中，Activity是持有了一个mDecor的。）
+但是，Activity持有PhoneWindow ，而PhoneWindow当然知道自己的窗口里有些什么了，所以能够把事件派发给DecorView。在Android中，Activity并不知道自己的Window中有些什么，这样耦合性就很低了，Activity不需要知道Window中的具体内容。
 
 ### **2.5 小结**
 
@@ -334,16 +320,22 @@ ViewRootImpl并不知道有Activity这种东西存在！它只是持有了DecorV
 
 ![2109093](images/View事件分发机制/2109093.webp)
 
-### 三、Touch事件到达页面后内部怎样分发
 
-#### **3.1 ViewGroup是否拦截事件**
+
+## 三、Touch事件到达页面后内部怎样分发
+
+在 View 和 ViewGroup 内部的事件分发从 dispatchTouchEvent 方法开始，ViewGroup.dispatchTouchEvent() 负责找到处理事件的View，View.dispatchTouchEvent() 负责将事件交给具体的方法（有onTouch/onTouchEvent/onClick等）进行处理。
+
+### **3.1 ViewGroup是否拦截事件**
+
+事件通过 ViewGroup.dispatchTouchEvent() 给到 ViewGroup 后，ViewGroup 需要判断此事件是由自己处理、还是交给 child view 处理。
 
 ```java
 @Override
 public boolean dispatchTouchEvent(MotionEvent ev) {
 
     final boolean intercepted;
-    //只有ActionDown或者mFirstTouchTarget为空时才会判断是否拦截
+    // ActionDown 或者 mFirstTouchTarget 为空时会判断是否拦截
     if (actionMasked == MotionEvent.ACTION_DOWN|| mFirstTouchTarget != null) {
         final boolean disallowIntercept = (mGroupFlags & FLAG_DISALLOW_INTERCEPT) != 0;
         if (!disallowIntercept) {
@@ -378,20 +370,21 @@ private boolean dispatchTransformedTouchEvent(View child) {
 }
 ```
 
-从以上可以看出：
-1.只有当Action_Down或者mFirstTouchTarget不为空时才判断是否拦截。
+1、当 Action_Down 或者 mFirstTouchTarget 不为空时会判断是否拦截。down 为事件序列的开始，mFirstTouchTarget != null 意味着 down 事件已经有 View 接收处理了。
 
-2.mFirstTouchTarget是个链表结构，代表某个子View消费了事件，为null则表示没有子View消费事件。
+2、mFirstTouchTarget是个链表结构，代表某个子 View 消费了事件，为 null 则表示没有子 View 消费事件。
 
-3.在判断是否拦截前有个disallowIntercept字段，这个在后面事件冲突内部拦截法时会用到。
+3、在判断是否拦截前有个 disallowIntercept 字段，这个在后面事件冲突内部拦截法时会用到。
 
-4.接下来就到了onInterceptTouchEvent,ViewGroup是否拦截事件正是由这个方法控制的。
+4、接下来就到了 onInterceptTouchEvent,ViewGroup是否拦截事件正是由这个方法控制的。
 
 #### **3.1.1 ViewGroup拦截后会发生什么？**
 
-1.拦截之后，事件自然就不会再下发给子View。
-2.接下来如果mFirstTouchTarget为null,则会调用到dispatchTransformedTouchEvent,然后调用到super.dispatchTouchEvent,最终到ViewGroup.onTouchEvent。
-3.为什么使用mFirstTouchTarget==null来判断是否是ViewGroup处理，是因为mFirstTouchTarget==null有两种情况，一是ViewGroup拦截，二是子View没有处理事件,两种情况最后都回调到ViewGroup.onTouchEvent。
+1、拦截之后，后续事件就不会再下发给子View。
+
+2、接下来如果mFirstTouchTarget为null，则会调用到dispatchTransformedTouchEvent，然后调用到super.dispatchTouchEvent，最终到ViewGroup.onTouchEvent。
+
+3、为什么使用mFirstTouchTarget==null来判断是否是ViewGroup处理，是因为mFirstTouchTarget==null有两种情况，一是ViewGroup拦截，二是子View没有处理事件，两种情况最后都回调到ViewGroup.onTouchEvent。
 
 通过上面的分析，我们可以得出ViewGroup拦截的伪代码：
 
@@ -456,14 +449,15 @@ private boolean dispatchTransformedTouchEvent(View child) {
 
 如果不拦截，ViewGroup内主要做以下几件事：
 
-1.遍历当前ViewGroup的所有子View。
-2.判断当前事件是否在当前子View的坐标范围内，不在范围内不能接收事件，直接跳过。
-3.利用dispatchTransformedTouchEvent,如果返回true,则通过addTouchTarget对mFirstTouchTarget赋值。
-4.dispatchTransformedTouchEvent做的主要就是两个事，如果child不为null，则事件分发到child,否则调用super.dispatchTouchEvent,并最终返回结果。
+1、遍历当前ViewGroup的所有子View，判断当前事件是否在当前子View的坐标范围内，不在范围内不能接收事件，直接跳过。
 
-5.mFirstTouchTarget是单链表结构，记录消费链，但是在单点触控的时候这个特性没有用上，只是一个普通的TouchTarget对象。
+2、利用dispatchTransformedTouchEvent，如果返回true，则通过addTouchTarget对mFirstTouchTarget赋值。
 
-#### **3.2 子View是否拦截**
+3、dispatchTransformedTouchEvent做的主要就是两个事，如果child不为null，则事件分发到child，否则调用super.dispatchTouchEvent自己处理并返回结果。
+
+4、mFirstTouchTarget是单链表结构，记录消费链，但是在单点触控的时候这个特性没有用上，只是一个普通的TouchTarget对象。
+
+### **3.2 子View是否拦截**
 
 ```java
 public boolean dispatchTouchEvent(MotionEvent event) {
@@ -485,11 +479,11 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 }
 ```
 
-子View的diapatchTouchEvent逻辑比较简单。
-1.如果设置了setOnTouchListener并且返回为true，那么onTouchEvent就不再执行。
-2.否则执行onTouchEvent，我们常用的OnClickListenr就是在onTouchEvent里触发的。
+1、如果设置了setOnTouchListener并且返回为true，那么onTouchEvent就不再执行。
 
-所以默认情况下会直接执行onTouchEvent，如果我们设置了setOnClickListener或者setLongClickListener，都会正常触发。
+2、否则执行onTouchEvent，常用的OnClickListenr就是在onTouchEvent里触发的。
+
+默认情况下会直接执行onTouchEvent，如果我们设置了setOnClickListener或者setLongClickListener，都会触发。
 
 #### **3.2.1 如果子View消费事件会怎么样？**
 
@@ -522,12 +516,13 @@ if (mFirstTouchTarget == null) {
 ```
 
 小结一下：
-1.子View不拦截事件，就回调到了dispatchTransformedTouchEvent。
-2.然后就调到了super.dispatchTouchEvent。
+1、子View不处理事件，就回调到了dispatchTransformedTouchEvent。
 
-3.那么接下来ViewGroup就跟子View的逻辑一样了,默认执行onTouchEvent，如果设置了setOnTouchLister则执行onTouch。
+2、然后就调到了super.dispatchTouchEvent。
 
-#### **3.3 如果ViewGroup与子View都不拦截会怎么样**
+3、那么接下来ViewGroup就跟子View的逻辑一样了,默认执行onTouchEvent，如果设置了setOnTouchLister则执行onTouch。
+
+### **3.3 如果ViewGroup与子View都不拦截会怎么样**
 
 如果ViewGroup与子View都不拦截，即mFirstTouchTarget == null,dispatchTouchEvent也返回false。
 再看看Activity的源码：
@@ -546,12 +541,9 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 
 会执行Activity的onTouchEvent方法。
 
-#### **3.4 后续事件如何分发？**
+### **3.4 后续事件如何分发？**
 
-事件分发的处理者已经找到了，看起来任务已经完成了。
-但其实事件分发是包括ACTION_DOWN、ACTION_MOVE、ACTION_UP、ACTION_CANCEL的一系列事件，我们上面分析的都是Action_DOWN的过程。
-
-后续事件如何处理？
+事件分发的处理者已经找到了，看起来任务已经完成了。但其实事件分发是包括ACTION_DOWN、ACTION_MOVE、ACTION_UP、ACTION_CANCEL的一系列事件，上面分析的都是Action_DOWN的过程。后续事件如何处理？
 
 ```java
 public boolean dispatchTouchEvent(MotionEvent ev) {
@@ -590,9 +582,9 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 ```
 
 从上可以看出：
-1.后续的事件不会走对子View的循环判断的方法，因为已经找到了目标View，直接通过mFirstTouchTarget分发。
+1、后续的事件不会走对子View的循环判断的方法，因为已经找到了目标View，直接通过mFirstTouchTarget分发。
 
-2.如果某个View开始处理拦截事件，后续事件序列只能由它处理。
+2、如果某个View开始处理拦截事件，后续事件序列只能由它处理。
 
 #### **3.5 小结**
 
@@ -606,15 +598,19 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 
 如果所有View的onTouchEvent方法都返回false，则最后会执行到Activity的onTouchEvent方法，事件分发也就结束了。
 
-### 四、滑动冲突解决
+
+
+## 四、滑动冲突解决
 
 我们在开发中经常会碰到滑动冲突的问题，比如一个页面同时有横向与竖向两个方向的滑动，这个时候就需要根据情况在Action_MOVE时对事件进行判断和拦截。
+
 常见的滑动冲突解决方法有两种：
+
 1.外部拦截法。
 
 2.内部拦截法。
 
-#### **4.1 外部拦截法**
+### **4.1 外部拦截法**
 
 外部拦截法的原理很简单，就是通过我们上面分析的onInterceptTouchEvent进行。
 
@@ -647,9 +643,11 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
 }
 ```
 
-但是这种方式会带来一个问题，如果ACTION_DOWN交给了子View处理，那么后续事件应该会直接被分发给这个view呀，为什么还能被父View拦截的？
+如果 ACTION_DOWN 由子View处理，那么mFirstTouchTarget 也就不为 null 了， ViewGroup 对于后续的事件也会进行拦截判断，
 
-我们再来看看dispatchTouchEvent方法。
+如果不拦截，那么后续事件会直接分发给这个子View；
+
+拦截的话，会给子View分发一个 ACTION_CANCEL 事件，并将mFirstTouchTarget设置为 null，意味着不由子 View 处理。下面来看看dispatchTouchEvent方法。
 
 ```java
 public boolean dispatchTouchEvent(MotionEvent ev) {
@@ -709,17 +707,18 @@ private boolean dispatchTransformedTouchEvent(MotionEvent event, boolean cancel,
 ```
 
 1.首先通过onInterceptTouchEvent方法拦截事件。
+
 2.intercepted为true导致cancelChild也为true，dispatchTransformedTouchEvent方法传递Action_CANCEL给子View。
+
 3.cancelChild后将mFirstTouchTarget置为空。
+
 4.mFirstTouchTarget为空后，后续的事件都由ViewGroup处理了。
 
 综上就是外部拦截法能成功的原因。
 
-> 关于拦截，还需研究。
+### **4.2 内部拦截法**
 
-#### **4.2 内部拦截法**
-
-接下来看下内部拦截法的模板代码。
+内部拦截法的模板代码。
 
 ```java
 //父view.java            
@@ -728,6 +727,7 @@ public boolean onInterceptTouchEvent(MotionEvent ev) {
     if (ev.getActionMasked() == MotionEvent.ACTION_DOWN) {
         return false;
     } else {
+      // 只要走到这里，就默认拦截，这时候可通过子 View 更改 disallowIntercept 值来控制拦截逻辑
         return true;
     }
 }
@@ -762,8 +762,8 @@ public boolean dispatchTouchEvent(MotionEvent event) {
 public boolean dispatchTouchEvent(MotionEvent ev) {
 
     final boolean intercepted;
-    //只有ActionDown或者mFirstTouchTarget为空时才会判断是否拦截
-    if (actionMasked == MotionEvent.ACTION_DOWN|| mFirstTouchTarget != null) {
+    // ActionDown 或者 mFirstTouchTarget 为空时会判断是否拦截
+    if (actionMasked == MotionEvent.ACTION_DOWN || mFirstTouchTarget != null) {
         final boolean disallowIntercept = (mGroupFlags & FLAG_DISALLOW_INTERCEPT) != 0;
         if (!disallowIntercept) {
             intercepted = onInterceptTouchEvent(ev);
@@ -772,33 +772,124 @@ public boolean dispatchTouchEvent(MotionEvent ev) {
 }
 ```
 
-如上所示，原理很简单。
-1.子View通过requestDisallowInterceptTouchEvent控制mGroupFlags的值，从而控制disallowIntercept的值。
+1、子View通过requestDisallowInterceptTouchEvent控制mGroupFlags的值，进而控制disallowIntercept的值。
 
-2.disallowIntercept为true时就不会走到onInterceptTouchEvent，外部也就无法拦截了,当需要外部处理时，将disallowIntercept置为false即可。
+2、disallowIntercept 为true时就不会走到 onInterceptTouchEven 了 ，外部也就无法拦截了，当需要外部处理时，将disallowIntercept置为false即可。
 
-## **总结**
 
-本文详细总结了事件分发机制从屏幕到View的详细过程，下面列出几个问题供读者参考，方便读者判断是否真正掌握了这个知识点。
 
-1.简单描述下事件是怎么从屏幕传递到View的。
+## 自测问题
 
-2.事件分发过程中有几次责任链分发？
+本文详细总结了事件分发机制从屏幕到View的详细过程，下面列出几个问题自测，方便判断是否真正掌握了这个知识点。
 
-3.为什么事件分发从DecorView -> Activity -> PhoneWindow -> DecorView。
+### framework 阶段事件传递
 
-4.滑动冲突有几种解决方法？分别介绍一下。
+Q：问点击屏幕上的按钮，如何传递到framework的
 
-5.如果只在onInterceptTouchEvent的ACTION_MOVE中拦截事件，说一下从ViewGroup到View的各个Action是如何传递的。
+Q：AMS click 事件传递
 
-6.点击ViewGroup中的一个View，然后手指移动到其他地方然后抬起，事件是如何分发的。
+### 完整事件分发流程
 
-7.View的OnTouch和OnTouchEvent有什么关系？OnTouch和OnClick事件呢？
+Q：简单描述下事件是怎么从屏幕传递到View的。
 
-8.手写一下长按事件的伪代码。
+Q：事件分发机制（流程），详细说下整个流程。
+
+Q：为什么事件分发从DecorView -> Activity -> PhoneWindow -> DecorView。
+
+Q：事件处理：分发，拦截，处理。
+
+Q：事件分发机制，如何下发，如何上传?
+
+##### 例子分析
+
+Q：事件分发机制，分析3层View包裹，点击click
+
+Q：给出一个Activity的布局：Activity里包含ViewGroup1，ViewGroup1里包含ViewGroup2，ViewGroup2里包含Button，问touch事件的传递和处理机制；
+
+Q：点击一个按钮后，事件分发机制说一下
+
+Q：点击ViewGroup中的一个View，然后手指移动到其他地方然后抬起，事件是如何分发的。
+
+##### 事件处理阶段关键方法
+
+Q：onTouchEvent如果返回false，onClick还会执行么？
+
+Q：onTouchListener（onTouch）、onTouchEvent、onClick的执行顺序
+
+Q：事件分发中的onTouch和onTouchEvent有什么区别，又该如何使用？
+
+Q：View的OnTouch和OnTouchEvent有什么关系？OnTouch和OnClick事件呢？
+
+Q：手写一下长按事件的伪代码。
+
+##### 责任链模式
+
+Q：事件分发过程中有几次责任链分发？
+
+Q：事件的分发机制，责任链模式的优缺点
+
+### 事件拦截
+
+Q：事件拦截机制
+
+Q：怎么拦截事件
+
+Q：点击事件被拦截，但是想传到下面的View，如何操作？
+
+Q：View分发反向制约的方法？
+
+Q：事件分发与拦截机制，画出它的原理
+
+Q：如果只在onInterceptTouchEvent的ACTION_MOVE中拦截事件，说一下从ViewGroup到View的各个Action是如何传递的。
+
+### 滑动冲突
+
+Q：怎么处理滑动（事件）冲突，滑动冲突的原理
+
+Q：滑动冲突有几种解决方法？分别介绍一下。
+
+
+
+## 认识MotionEvent
+
+当手指接触屏幕时，会先触发ActionDown一次，然后会触发一次或多次ActionMove，最后触发一次ActionUp，这些触摸动作，会被系统封装成一个MotionEvent对象，传给App处理。
+
+![img](images/View事件分发机制/931.png)
+
+事件分发中所分发的对象——MotionEvent。所谓事件分发，就是找到MotionEvent的处理者的过程。将MotionEvent传给指定的View或ViewGroup以判断是否处理，如果没有View和ViewGroup接收事件，会交给Activity处理。
+
+
+
+Q：View和ViewGroup分别有哪些事件分发相关的回调方法
+
+这是三个方法分别在activity，viewGroup，View中的存在状况，事件分发逻辑主要集中在这几个方法中：
+
+![img](images/View事件分发机制/1005.png)
+
+在 View#onTouchEvent 中会去调用 onClick、onLongClick 方法。
+
+
+
+事件分发示意图
+
+这里堆叠的是一个个view，因为view都是一个个堆叠在屏幕上的
+
+![img](images/View事件分发机制/1159.png)
 
 
 
 参考：
 
 [解决这 8 个问题，Android事件分发再往前一步](https://mp.weixin.qq.com/s/BwGoB-u8M7kVF4gwkHuJeA)
+
+拓展：
+
+https://www.gcssloop.com/customview/dispatch-touchevent-source.html
+
+
+
+
+
+> version：2021/9/9
+>
+> review：
