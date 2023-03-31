@@ -2,6 +2,16 @@
 
 
 
+##### 仓库地址
+
+https://github.com/square/retrofit
+
+##### 添加依赖
+
+com.squareup.retrofit2:retrofit:2.9.0
+
+
+
 # 一、简介
 
 ![示意图](images/Retrofit使用/1.png)
