@@ -1,10 +1,7 @@
-> 知识路径：Android > View > Bitmap
->
 > version：2021/4/8
 >
 > review：2021/4/8
 >
-> 掌握程度：初学
 
 
 
