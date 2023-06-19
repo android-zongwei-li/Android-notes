@@ -77,7 +77,9 @@
 
 ### 2.4 内存回收
 
-![image-20210408172805632](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210408172805632.png)
+![image-20210408172805632](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-2021040817
+
+2805632.png)
 
 ![image-20210408172814693](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210408172814693.png)
 
@@ -85,7 +87,13 @@
 
 
 
+# 问题
 
+Q：一个像素占几个字节?
+
+一个像素通常占用4个字节的内存空间，因为它需要存储红、绿、蓝、透明度四个通道的值。但在某些情况下，如灰度图像或位图，一个像素可能只占用1个字节或2个字节。取决于加载图片时候的Bitmap.Config的配置。
+
+Q：
 
 
 

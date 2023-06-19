@@ -20,7 +20,7 @@
 
 ## Listview的缓存机制
 
-在正式讲RecyclerView的缓存机制之前还需要了解下ListView的缓存机制，先上图
+在正式讲RecyclerView的缓存机制之前还需要了解下ListView的缓存机制，ssh-keygen -t rsa -C “xxxxx@xxxxx.com”先上图
 
 ![listview缓存页面](images/RecyclerView缓存复用机制/876)
 
