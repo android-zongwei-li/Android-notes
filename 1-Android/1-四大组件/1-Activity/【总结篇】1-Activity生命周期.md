@@ -276,9 +276,7 @@ Activity.this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
 #### 一、生命周期相关问题
 
-<font color='orange'>Q1：一个 A Activity 跳转到一个 B Activity 中，生命周期的走动。点击Back返回呢。</font>
-
-<font color='orange'>Q1-1：如果 B Activity是透明的呢？如果 B Activity是一个Dialog呢？</font>
+<font color='orange'>Q：一个 A Activity 跳转到一个 B Activity 中，生命周期的走动。点击Back返回呢。如果 B Activity是透明的呢？如果 B Activity是一个Dialog呢？</font>
 
 ```java
 1）一个 A Activity 跳转到 B Activity 中，生命周期的走动
@@ -320,19 +318,27 @@ B：onStop，onDestroy
 
 3）、4）中A被部分覆盖，不会有onStop，恢复时只有onResume。
 
-<font color='orange'>Q2：什么时候 Activity 单独走 onPause()不走 onStop()？</font>
+<font color='orange'>Q：什么时候 Activity 单独走 onPause() 不走 onStop()？</font>
 
-<font color='orange'>Q2-1：onStop()一定会执行吗？</font>
+启动 `Dialog类型`或`透明的` Activity 时，只走onPause。另外，如果有多个可见窗口，切换 Activity 时，也只会执行 onPause。
 
-启动 `Dialog类型`或`透明的` Activity时，只走onPause。取决于当前Activity是否被完全覆盖，是，则走onStop，否则只走onPause。
+<font color='orange'>Q：onStop()一定会执行吗？</font>
 
-<font color='orange'>Q2-2：onPause与onStop的区别？</font>
+取决于当前Activity是否被完全覆盖，是，则走onStop，否则只走onPause。
 
+<font color='orange'>Q：onPause 与 onStop 的区别？</font>
 
+onPause 和 onStop 的回调时机和适用的场景不同
+
+这两个回调方法都是在启动其他 Activity 以后执行的，onPause 表示当前页面失去焦点，onStop表示当前页面不可见。
+
+在启动 Activity 时，回调。只有在前一个 Activity 的 onPause 方法执行完成后，新的 Activity 才会被创建，因此为了新的 Activity 能够快速启动，onPause 方法要避免做耗时操作。另外，onPause 适合用来保存需要持久化的数据，在 onPause 处执行，可以避免数据丢失；同时，可以在此处释放内存。因为有可能此时还是可见的（启动的 Activity 是弹窗类型或者是透明的；或者是在多窗口模式下，切换到了其他 Activity），因此 UI 相关的操作可能还要继续运行。
+
+onStop 会在新的 Activity 启动完成（下一个页面的onResume，onWindowFocusChanged执行完）后，回调。由于 onStop 是在当前页面不可见后执行的，因此适合用来停止跟 UI 显示相关的操作，比如 UI 刷新，动画等。另外，就是释放资源。
 
 <font color='orange'>Q3：什么时候 Activity 的 onDestory()不执行？</font>
 
-<font color='orange'>Q3-1：onDestory()一定会执行吗？</font>
+<font color='orange'>Q：onDestory()一定会执行吗？</font>
 
 当返回栈中仅有一个 Activity 实例时，用户从后台强杀应用程序，会去执行 onDestroy 方法。
 
@@ -442,6 +448,8 @@ onConfigurationChanged方法一般与android:configChanges属性成双成对，a
 
 <font color='orange'>Q：Activity调用finish()后怎么走到onDestroy的？</font>
 
+class：ActivityClient，ActivityClientController extends IActivityClientController.Stub，
+
 
 
 <font color='orange'>Q：两个Activity之间跳转时必然会执行的是哪几个方法？</font>
@@ -496,11 +504,23 @@ Activity 的 onSaveInstanceState() 和 onRestoreInstanceState() 并不是生命�
 
 <font color='orange'>Q：Dialog会让Activity调用生命周期方法吗？</font>
 
+不会。
 
+如果是 Dialog 类型的 Activity，生命周期如下：
+
+|                | 打开Dialog类型Activity      | 关闭Dialog类型Activity |
+| -------------- | --------------------------- | ---------------------- |
+| 当前           | onPause                     | onResume               |
+| 下一个Activity | onCreate，onStart，onResume | onPause                |
+|                |                             |                        |
+
+
+
+：
 
 <font color='orange'>Q：Dialog会不会影响Activity的生命周期，为什么？</font>
 
-
+不会。
 
 <font color='orange'>Q：Activity上有Dialog的时候按Home键时的生命周期？</font>
 
@@ -508,19 +528,8 @@ Activity 的 onSaveInstanceState() 和 onRestoreInstanceState() 并不是生命�
 
 <font color='orange'>Q：弹出Dialog，生命周期回调方法。</font>
 
+不会回调。
+
 
 
 <font color='orange'>Q：</font>
-
-<font color='orange'>Q：</font>
-
-<font color='orange'>Q：</font>
-
-<font color='orange'>Q：</font>
-
-<font color='orange'>Q：</font>
-
-<font color='orange'>Q：</font>
-
-
-
