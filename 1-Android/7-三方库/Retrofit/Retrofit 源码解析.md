@@ -1341,8 +1341,6 @@ static class Android extends Platform {
 
 以上便是整个以**异步方式**发送网络请求的过程。
 
-------
-
 # 5. 总结
 
 `Retrofit` 本质上是一个 `RESTful` 的`HTTP` 网络请求框架的封装，即通过 大量的设计模式 封装了 `OkHttp` ，使得简洁易用。具体过程如下：
