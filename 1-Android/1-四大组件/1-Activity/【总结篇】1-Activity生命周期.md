@@ -274,7 +274,7 @@ Activity.this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE)
 
 
 
-#### 一、生命周期相关问题
+# 生命周期相关问题
 
 <font color='orange'>Q：一个 A Activity 跳转到一个 B Activity 中，生命周期的走动。点击Back返回呢。如果 B Activity是透明的呢？如果 B Activity是一个Dialog呢？</font>
 
@@ -448,7 +448,11 @@ onConfigurationChanged方法一般与android:configChanges属性成双成对，a
 
 <font color='orange'>Q：Activity调用finish()后怎么走到onDestroy的？</font>
 
-class：ActivityClient，ActivityClientController extends IActivityClientController.Stub，
+class：ActivityClient，ActivityClientController extends IActivityClientController.Stub
+
+
+
+
 
 
 
@@ -456,7 +460,7 @@ class：ActivityClient，ActivityClientController extends IActivityClientControl
 
 
 
-#### 二、状态保存与恢复相关
+# 状态保存与恢复相关问题
 
 <font color='orange'>Q5：说说onSaveInstanceState()和onRestoreInstanceState()？</font>
 
@@ -500,7 +504,7 @@ Activity 的 onSaveInstanceState() 和 onRestoreInstanceState() 并不是生命�
 
 
 
-#### 三、Dialog相关
+# Dialog相关问题
 
 <font color='orange'>Q：Dialog会让Activity调用生命周期方法吗？</font>
 
