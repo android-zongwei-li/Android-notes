@@ -1,3 +1,17 @@
+# 前置知识
+
+提前掌握这些知识，可以更容易地理解 Glide 的原理，因为这些知识点都在Glide中有用到。反之，如果不懂的话，那理解起来就有阻碍，不那么通畅。
+
+GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，ReferenceQueue），线程池，synchronized，volatile，LinkedHashMap，泛型，DiskLruCache，Bitmap，Handler，
+
+下面对各个模块所涉及的知识点做个归纳：
+
+加载模块：
+
+缓存模块：
+
+这也可以说明一点，即掌握Glide原理可以给我们带了什么？首先就是对上面这些知识点的原理和运用理解的更加深刻，同时对Glide的理解也更加深入。
+
 # Glide流程分析
 
 ## 第一条主线
@@ -763,7 +777,7 @@ public interface Encoder<T> {
 
 ## Engine
 
-------
+作用：负责资源（Resource）的加载和管理（回收、加载策略）。
 
 上面的 Request 中也讲到了 Engine 这个类，可理解为**执行引擎**，算是整个 Glide 的核心发动机。
 
@@ -776,6 +790,465 @@ Engine 负责管理请求以及活动资源、缓存等。主要关注 load 方�
 5. 构建 EngineJob 与 DecodeJob 并执行。
 
 关于缓存相关的都在缓存章节。下面说说 EngineJob 与 DecodeJob。
+
+### Engine#load()
+
+```kotlin
+  /**
+   * Starts a load for the given arguments.
+   *
+   * <p>Must be called on the main thread.
+   *
+   * <p>The flow for any request is as follows:
+   *
+   * <ul>
+   *   <li>Check the current set of actively used resources, return the active resource if present,
+   *       and move any newly inactive resources into the memory cache.
+   *   <li>Check the memory cache and provide the cached resource if present.
+   *   <li>Check the current set of in progress loads and add the cb to the in progress load if one
+   *       is present.
+   *   <li>Start a new load.
+   * </ul>
+   *
+   * <p>Active resources are those that have been provided to at least one request and have not yet
+   * been released. Once all consumers of a resource have released that resource, the resource then
+   * goes to cache. If the resource is ever returned to a new consumer from cache, it is re-added to
+   * the active resources. If the resource is evicted from the cache, its resources are recycled and
+   * re-used if possible and the resource is discarded. There is no strict requirement that
+   * consumers release their resources so active resources are held weakly.
+   *
+   * @param width The target width in pixels of the desired resource.
+   * @param height The target height in pixels of the desired resource.
+   * @param cb The callback that will be called when the load completes.
+   */
+  public <R> LoadStatus load(...){}
+```
+
+注释中介绍了load()方法的工作流程，即如何加载资源
+
+1、检查当前正在活跃使用的资源列表，如果存在，就找到了，返回结果。并且移动任何新的不活跃资源到memory cache中。
+
+
+
+
+
+**怎么理解 Active Resources（活跃资源）和 inactive resources 呢？Active Resources 的作用是什么？**
+
+我们知道不论是 Active Resources 还是 memory cache，其实图片都已经在内存中，那区别是什么呢？为什么需要两个东西？
+
+我们思考一个场景，有一张图片在 Activity1 中加载好了，然后用户打开了Activity2。。。这时候，系统是有可能把图片回收的。但用户之后可能又会返回Activity1，那如果不做任何处理的话，之前Activity1中加载的图片是不是又要重新加载了？这就是为什么有了  memory cache 后还要引入 Active Resources 的原因。不仅如此，注意这句话：Check the current set of actively used resources, return the active resource if present，这是不是说明 Active Resources 中的图片是支持复用的，2个 ImageView 显示一张图片时，并没有加载两张，而是共用了一张图片。
+
+知道了为什么要用 Active Resources后，我们再来看，**Glide 是怎么把 Active Resources 移动到 memory cache 中的**。
+
+为什么要使用弱引用呢？
+
+There is no strict requirement that consumers release their resources so active resources are held weakly.
+
+翻译：没有严格要求消费者释放他们的资源，因此活动资源被微弱地持有。
+
+怎么理解这句话呢？因为Glide没有强制要求我们释放资源，所以我们在用完图片后，可能不会主动去释放图片，那就没有了告诉Glide图片不再使用的时机了。由于Glide想在我们不再使用图片时，将图片资源放到memory cache，所以Glide需要这么一个时机来做这件事。显然Glide选择通过用 WeakRef（弱引用）来实现。这就涉及到 WeakRef 的使用了，它可以监听 GC ，当监听到图片资源要被回收时，Glide会将资源添加到memory cache中，这样图片也就再次被Glide内部强引用了，也就做到了持久的保存在内存中了。
+
+#### 小结
+
+通过对load() 的分析，我们知道了 Glide 是怎么做缓存管理的。
+
+
+
+### Resource 接口
+
+作用：定义了一个资源接口，Engine 负责处理的资源都会实现此接口。
+
+```kotlin
+/**
+ * A resource interface that wraps a particular type so that it can be pooled and reused.
+ *
+ * @param <Z> The type of resource wrapped by this class.
+ */
+public interface Resource<Z> {
+
+  /** Returns the {@link Class} of the wrapped resource. */
+  @NonNull
+  Class<Z> getResourceClass();
+
+  /**
+   * Returns an instance of the wrapped resource.
+   *
+   * <p>Note - This does not have to be the same instance of the wrapped resource class and in fact
+   * it is often appropriate to return a new instance for each call. For example, {@link
+   * android.graphics.drawable.Drawable Drawable}s should only be used by a single {@link
+   * android.view.View View} at a time so each call to this method for Resources that wrap {@link
+   * android.graphics.drawable.Drawable Drawable}s should always return a new {@link
+   * android.graphics.drawable.Drawable Drawable}.
+   */
+  @NonNull
+  Z get();
+
+  /**
+   * Returns the size in bytes of the wrapped resource to use to determine how much of the memory
+   * cache this resource uses.
+   */
+  int getSize();
+
+  /**
+   * Cleans up and recycles internal resources.
+   *
+   * <p>It is only safe to call this method if there are no current resource consumers and if this
+   * method has not yet been called. Typically this occurs at one of two times:
+   *
+   * <ul>
+   *   <li>During a resource load when the resource is transformed or transcoded before any consumer
+   *       have ever had access to this resource
+   *   <li>After all consumers have released this resource and it has been evicted from the cache
+   * </ul>
+   *
+   * For most users of this class, the only time this method should ever be called is during
+   * transformations or transcoders, the framework will call this method when all consumers have
+   * released this resource and it has been evicted from the cache.
+   */
+  void recycle();
+}
+```
+
+
+
+### EngineResource
+
+作用：对 Resource 做了一次包装，主要是增加了【引用计数】的功能——在资源被使用或者释放时分别增加或减少计数，用来控制资源的回收。 
+
+
+
+### ActiveResources
+
+#### 作用
+
+对 Active 资源进行一次缓存，并在资源不再使用时进行回收。Active 资源是什么？即正在使用的资源，是被强引用所持有的。
+
+#### 实现原理
+
+1、弱引用 ResourceWeakReference 的实现
+
+作用：持有 Resource，Resource 会在 EngineResource 被回收后使用。假设这里不持有 Resource 的话，Resource 就会被 gc 掉了，也就不能做 ActiveResources 到 MemoryCache 的转化了。
+
+ResourceWeakReference 是 ActiveResources 实现的基础，需要先知道其实现。
+
+```Java
+final class ActiveResources {
+  
+  static final class ResourceWeakReference extends WeakReference<EngineResource<?>> {
+    final Key key;
+
+    final boolean isCacheable;
+
+    @Nullable
+    Resource<?> resource;
+
+    ResourceWeakReference(
+        @NonNull Key key,
+        @NonNull EngineResource<?> referent,
+        @NonNull ReferenceQueue<? super EngineResource<?>> queue,
+        boolean isActiveResourceRetentionAllowed) {
+      //（1）ResourceWeakReference 直接持有的对象是 EngineResource，而不是图片资源。
+      // 引用链：ResourceWeakReference -> EngineResource -> Resource -> 真正的图片资源
+      //（2）支持传入 ReferenceQueue，用来在 EngineResource 被 gc 回收后，记录其对应的 ResourceWeakReference。
+      super(referent, queue);
+      this.key = Preconditions.checkNotNull(key);
+      //（3）EngineResource 所持有的 Resource 也被 ResourceWeakReference 持有了（强引用），
+      // 这意味着在 EngineResource 被回收时，Resource、图片资源其实还在内存中。
+      // 这是实现 ActiveResources 转化为 MemoryCacheResource 的基础。
+      this.resource =
+          referent.isMemoryCacheable() && isActiveResourceRetentionAllowed
+              ? Preconditions.checkNotNull(referent.getResource())
+              : null;
+      isCacheable = referent.isMemoryCacheable();
+    }
+
+    void reset() {
+      //（4）释放资源
+      resource = null;
+      // 主动调用 clear 后，get方法将返回 null，即使此时 EngineResource 还没有被回收
+      // 另外，主动调用，并不会将此引用加入到 ReferenceQueue 中
+      // 并且之后 EngineResource 被回收了，也不会将 ResourceWeakReference 加入队列中
+      clear();
+    }
+  }
+}
+```
+
+ResourceWeakReference 是 ActiveResources 的内部类，通过这个类我们可以知道 4 个点，如注释所言。
+
+2、缓存功能
+
+缓存的基本功能有增加、删除、获取（查询），然后内部会有一个存储数据的集合，下面看源码：
+
+```Java
+package com.bumptech.glide.load.engine;
+
+final class ActiveResources {
+  // 通过前面对 ResourceWeakReference 的掌握，我们已经知道 ResourceWeakReference 中持有了 Resource
+  // 存储结构，保存缓存资源，间接强引用了 Resource
+  final Map<Key, ResourceWeakReference> activeEngineResources = new HashMap<>();
+  // 引用队列，在 EngineResource 被 gc 回收后，会将 ResourceWeakReference 加入到队列中
+  private final ReferenceQueue<EngineResource<?>> resourceReferenceQueue = new ReferenceQueue<>();
+
+  // 添加（或者修改）缓存
+  synchronized void activate(Key key, EngineResource<?> resource) {
+    ResourceWeakReference toPut =
+        new ResourceWeakReference(
+            key, resource, resourceReferenceQueue, isActiveResourceRetentionAllowed);
+
+    ResourceWeakReference removed = activeEngineResources.put(key, toPut);
+    if (removed != null) {
+      // 将之前的缓存对象reset。清除资源
+      removed.reset();
+    }
+  }
+
+  // 删除缓存
+  synchronized void deactivate(Key key) {
+    ResourceWeakReference removed = activeEngineResources.remove(key);
+    if (removed != null) {
+      removed.reset();
+    }
+  }
+
+  // 获取缓存
+  @Nullable
+  synchronized EngineResource<?> get(Key key) {
+    ResourceWeakReference activeRef = activeEngineResources.get(key);
+    if (activeRef == null) {
+      return null;
+    }
+
+    EngineResource<?> active = activeRef.get();
+    if (active == null) {
+      // activeRef.get() == null 理论上有两种情况：
+      // 1、EngineResource 已经被 gc 掉了
+      // 2、主动调用了 reset() 方法，我们已经知道这个方法内会将引用去除
+      // 3、activate 传入的 Resource 为null。
+     
+      // 不管哪种情况，EngineResource 不再属于 ActiveResources 了，所以清除其对应的引用
+      cleanupActiveReference(activeRef);
+    }
+    return active;
+  }
+  
+  // 将资源从 ActiveResources 中移除
+    void cleanupActiveReference(@NonNull ResourceWeakReference ref) {
+    synchronized (this) {
+      activeEngineResources.remove(ref.key);
+
+      if (!ref.isCacheable || ref.resource == null) {
+        return;
+      }
+    }
+
+    // 构建一个新的 EngineResource，并将 ResourceWeakReference 中的 Resource 放入其中，回调给其他模块使用
+    // 回调处理后面会分析，见：第 4 节（回调处理）
+    EngineResource<?> newResource =
+        new EngineResource<>(
+            ref.resource,
+            /* isMemoryCacheable= */ true,
+            /* isRecyclable= */ false,
+            ref.key,
+            listener);
+    listener.onResourceReleased(ref.key, newResource);
+  }
+}
+```
+
+3、监听资源被回收
+
+创建 ActiveResources 时，会新建一个 monitorClearedResourcesExecutor 线程池来监视资源回收。
+
+```java
+final class ActiveResources {
+  private final Executor monitorClearedResourcesExecutor;
+  @VisibleForTesting final Map<Key, ResourceWeakReference> activeEngineResources = new HashMap<>();
+  private final ReferenceQueue<EngineResource<?>> resourceReferenceQueue = new ReferenceQueue<>();
+  
+  ActiveResources(boolean isActiveResourceRetentionAllowed) {
+    this(
+        isActiveResourceRetentionAllowed,
+        java.util.concurrent.Executors.newSingleThreadExecutor(
+            new ThreadFactory() {
+              @Override
+              public Thread newThread(@NonNull final Runnable r) {
+                return new Thread(
+                    new Runnable() {
+                      @Override
+                      public void run() {
+                        Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+                        r.run();
+                      }
+                    },
+                    "glide-active-resources");
+              }
+            }));
+  }
+
+  @VisibleForTesting
+  ActiveResources(
+      boolean isActiveResourceRetentionAllowed, Executor monitorClearedResourcesExecutor) {
+    this.isActiveResourceRetentionAllowed = isActiveResourceRetentionAllowed;
+    this.monitorClearedResourcesExecutor = monitorClearedResourcesExecutor;
+
+    monitorClearedResourcesExecutor.execute(
+        new Runnable() {
+          @Override
+          public void run() {
+            cleanReferenceQueue();
+          }
+        });
+  }
+
+  void cleanupActiveReference(@NonNull ResourceWeakReference ref) {
+    synchronized (this) {
+      activeEngineResources.remove(ref.key);
+
+      if (!ref.isCacheable || ref.resource == null) {
+        return;
+      }
+    }
+
+    // 回调处理后面会分析，见：第 4 节（回调处理）
+    EngineResource<?> newResource =
+        new EngineResource<>(
+            ref.resource,
+            /* isMemoryCacheable= */ true,
+            /* isRecyclable= */ false,
+            ref.key,
+            listener);
+    listener.onResourceReleased(ref.key, newResource);
+  }
+
+  @SuppressWarnings("WeakerAccess")
+  @Synthetic
+  void cleanReferenceQueue() {
+    // 创建死循环，不断从 resourceReferenceQueue 中读取是否有 ResourceWeakReference 被加入队列
+    while (!isShutdown) {
+      try {
+        // 阻塞，直到获取到元素
+        ResourceWeakReference ref = (ResourceWeakReference) resourceReferenceQueue.remove();
+        // 清除资源，回调通知
+        cleanupActiveReference(ref);
+
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+}
+```
+
+ActiveResources 会创建一个线程池，并执行死循环不断从 resourceReferenceQueue 中读取 ResourceWeakReference 元素，如果读取到就意味着 ResourceWeakReference 所指向的对象被回收了，自然也就没有外部的引用了，可进行清除和后续回调处理。
+
+4、回调处理
+
+第 2 和 3 节已经提到在资源（EngineResource）被回收后，会调用 cleanupActiveReference 并回调 listener.onResourceReleased(ref.key, newResource)。
+
+```kotlin
+final class ActiveResources {
+    interface ResourceListener {
+    void onResourceReleased(Key key, EngineResource<?> resource);
+  }
+  
+   private ResourceListener listener;
+  
+    void setListener(ResourceListener listener) {
+    synchronized (listener) {
+      synchronized (this) {
+        this.listener = listener;
+      }
+    }
+  }
+  
+void cleanupActiveReference(@NonNull ResourceWeakReference ref) {
+    synchronized (this) {
+      activeEngineResources.remove(ref.key);
+
+      if (!ref.isCacheable || ref.resource == null) {
+        return;
+      }
+    }
+
+    EngineResource<?> newResource =
+        new EngineResource<>(
+            ref.resource,
+            /* isMemoryCacheable= */ true,
+            /* isRecyclable= */ false,
+            ref.key,
+            listener);
+    listener.onResourceReleased(ref.key, newResource);
+  }
+}
+```
+
+下面是 setListener 和 listener.onResourceReleased 的实现：
+
+Engine 实现了 ResourceListener 接口，并在 Engine 构造方法中，设置了 listener，
+
+```kotlin
+public class Engine
+    implements EngineJobListener,
+        MemoryCache.ResourceRemovedListener,
+        EngineResource.ResourceListener {
+          
+  Engine(
+      MemoryCache cache,
+      DiskCache.Factory diskCacheFactory,
+      GlideExecutor diskCacheExecutor,
+      GlideExecutor sourceExecutor,
+      GlideExecutor sourceUnlimitedExecutor,
+      GlideExecutor animationExecutor,
+      Jobs jobs,
+      EngineKeyFactory keyFactory,
+      ActiveResources activeResources,
+      EngineJobFactory engineJobFactory,
+      DecodeJobFactory decodeJobFactory,
+      ResourceRecycler resourceRecycler,
+      boolean isActiveResourceRetentionAllowed) {
+    
+    if (activeResources == null) {
+      activeResources = new ActiveResources(isActiveResourceRetentionAllowed);
+    }
+    this.activeResources = activeResources;
+    activeResources.setListener(this);
+  }
+  
+  // 回调方法：将资源从 ActiveResources 移到 MemoryCache 中
+  @Override
+  public void onResourceReleased(Key cacheKey, EngineResource<?> resource) {
+    activeResources.deactivate(cacheKey);
+    if (resource.isMemoryCacheable()) {
+      // 支持内存缓存，缓存起来
+      cache.put(cacheKey, resource);
+    } else {
+      // 不支持内存缓存，回收 resource
+      resourceRecycler.recycle(resource, /* forceNextFrame= */ false);
+    }
+  }  
+}
+```
+
+
+
+#### Why？
+
+前面分析了 ActiveResources 的作用和实现原理，但是我们还没有回答一个问题——为什么要这么做？我们知道，ActiveResources 本质也是内存缓存，cache 也是属于内存缓存，那为什么需要两次内存缓存呢？区别又是什么？
+
+通过对 ActiveResources 的分析，我们知道 ActiveResources 所管理的资源是被外部（应用层）正在使用的，也就是被外部强引用的。或者是刚使用完，已经不在被强引用，但是还没有被 gc 回收。这类资源，正在使用或者刚使用完，使用频率会更高，所以做了一次缓存分级。相较于全部使用MemoryCache，这类资源可以更块地加载到。
+
+特别注意：ActiveResources 所管理的资源，指的是 EngineResource 和 Resource 实现类，并不是指真正的图片资源
+
+#### 小结
+
+Glide 为了实现更快的加载图片资源，在内存缓存的基础上增加了一个 ActiveResources 缓存，用来保存正在使用或刚用完但还没有被 gc 的资源。然后基于 WeakReference（强引用持有Resource） 和可监听对象被回收的机制，实现了资源从 ActiveResources 到 MemoryCache 的转化。
+
+为什么要使用 WeakReference？是因为 Glide 想要知道外部是否正在使用资源（资源追踪），并在未使用时转化为 MemoryCache。那要知道是否在使用有两种方法，一是用户主动调用SDK告知已经释放，但用户不一定会主动调用 release 方法，所以这种方法不可靠；而 WeakReference + ReferenceQueue 提供了监听对象回收的能力，符合 Glide 此场景的需求。
+
+Glide 在这里使用 WeakReference 的主要是为了追踪资源，即知道什么时候资源不在被使用。跟解决 Handler 持有 Activity 引起内存泄漏时的目的是不同的，需要注意。
+
+
 
 ## EngineJob
 
@@ -797,8 +1270,7 @@ Engine 负责管理请求以及活动资源、缓存等。主要关注 load 方�
 
 # 缓存模块
 
-关于缓存的获取、数据加载相关的逻辑在 [Engine#load](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2F0xZhangKe%2FGlide-note%2Fblob%2Fmaster%2Flibrary%2Fsrc%2Fmain%2Fjava%2Fcom%2Fbumptech%2Fglide%2Fload%2Fengine%2FEngine.java%23L151) 方法中。
-先来看看缓存流程，流程如下图：
+关于缓存的获取、数据加载相关的逻辑在 Engine#load 方法中。先来看看缓存流程，流程如下图：
 
 <img src="images/Glide解析/10.png" alt="image-20240328170713559" style="zoom:50%;" />
 
@@ -832,8 +1304,7 @@ if (diskCacheFactory == null) {
 
 ------
 
-ActiveResources 是**第一级缓存**，表示当前正在活动中的资源。
-类路径：
+ActiveResources 是**第一级缓存**，管理的资源是正在使用的或者最近使用的（刚用完还没被 gc 回收的），没有大小限制。类路径：
 
 ```css
 com.bumptech.glide.load.engine.ActiveResources
@@ -843,9 +1314,7 @@ Engine#load 方法中构建好 Key 之后第一件事就是去这个缓存中获
 
 当资源加载成功，或者通过缓存命中资源后都会将其放入 ActiveResources 中，资源被释放时移除出 ActiveResources 。
 
-由于其中的生命周期较短，所以**没有大小限制**。
-
-ActiveResources 中通过一个 Map 来存储数据，数据保存在一个**虚引用**（WeakReference）中。
+ActiveResources 中通过一个 Map 来存储数据，数据保存在一个**弱引用**（WeakReference）中。
 
 刚刚说的 activeResource 使用一个 Map<Key, WeakReference<EngineResource<?>>> 来存储的，此外还有一个引用队列：
 
@@ -853,7 +1322,7 @@ ActiveResources 中通过一个 Map 来存储数据，数据保存在一个**虚
 ReferenceQueue<EngineResource<?>> resourceReferenceQueue;
 ```
 
-每当向 activeResource 中添加一个 WeakReference 对象时都会将 resourceReferenceQueue 和这个 WeakReference 关联起来，用来跟踪这个 WeakReference 的 gc，一旦这个弱引用被 gc 掉，就会将它从 activeResource 中移除，ReferenceQueue 的具体作用可以自行谷歌，大概就是用来**跟踪弱引用（或者软引用、虚引用）是否被 gc 的。**
+每当向 activeResource 中添加一个 WeakReference 对象时都会将 resourceReferenceQueue 和这个 WeakReference 关联起来，用来跟踪这个 WeakReference 的 gc，一旦这个弱引用持有的对象被 gc 掉，就会将它从 activeResource 中移除。
 
 那么 ReferenceQueue 具体是在何时去判断 WeakReference 是否被 gc 了呢，Handler 机制大家应该都知道，但不知道大家有没有用过 MessageQueue.IdleHandler ，可以调用 MessageQueue#addIdleHandler 添加一个 MessageQueue.IdleHandler 对象，Handler 会在**线程空闲时调用这个方法**。resourceReferenceQueue 在创建时会创建一个 Engine#RefQueueIdleHandler 对象并将其添加到当前线程的 MessageQueue 中，ReferenceQueue 会在 IdleHandler 回调的方法中去判断 activeResource 中的 WeakReference 是不是被 gc 了，如果是，则将引用从 activeResource 中移除，代码如下：
 
@@ -874,8 +1343,7 @@ public boolean queueIdle() {
 
 ------
 
-这个类是用来计算 BitmapPool 、ArrayPool 以及 MemoryCache **大小**的。
-计算方式如下：
+这个类是用来计算 BitmapPool 、ArrayPool 以及 MemoryCache **大小**的。计算方式如下：
 
 ```java
 //默认为 4MB，如果是低内存设备则在此基础上除以二
@@ -920,7 +1388,7 @@ if (targetMemoryCacheSize + targetBitmapPoolSize <= availableSize) {
 
 ------
 
-Bitmap 是用来**复用 Bitmap** 从而避免重复创建 Bitmap 而带来的内存浪费，Glide 通过 SDK 版本不同创建不同的 BitmapPool 实例，版本低于 Build.VERSION_CODES.HONEYCOMB(11) 实例为 BitmapPoolAdapter，其中的方法体几乎都是空的，也就是是个实例不做任何缓存。否则实例为 LruBitmapPool，先来看这个类。
+BitmapPool 是用来**复用 Bitmap** 从而避免重复创建 Bitmap 而带来的内存浪费，Glide 通过 SDK 版本不同创建不同的 BitmapPool 实例，版本低于 Build.VERSION_CODES.HONEYCOMB(11) 实例为 BitmapPoolAdapter，其中的方法体几乎都是空的，也就是是个实例不做任何缓存。否则实例为 LruBitmapPool，先来看这个类。
 
 ### LruBitmapPool
 
@@ -991,13 +1459,86 @@ private static class LinkedEntry<K, V> {
 
 ------
 
-相比较而言内存缓存就简单多了，如果从上面说的 ActiveResources 中没获取到资源则开始从这里寻找。
-内存缓存同样使用 **LRU 算法**，实现类为 LruResourceCache，这个类没几行代码，继承了 LruCache ，所以着重看一下 LruCache 好了。
+如果从 ActiveResources 中没获取到资源则开始从 MemoryCache 寻找。
 
-其实 Java 集合里面提供了一个很好的用来实现 LRU 算法的数据结构，即上面提到过的 **LinkedHashMap**。其基于 HashMap 实现，同时又将 HashMap 中的 Entity 串成了一个双向链表。
-LruCache 中就是使用这个集合来缓存数据，其中代码量也不多，主要就是在 LinkedHashMap 的基础上又提供了对内存的管理的几个操作。
+内存缓存同样使用 **LRU 算法**，实现类为 LruResourceCache，继承自 LruCache。
 
-特别地，LruResourceCache 中提供了一个 ResourceRemovedListener 接口，当有资源从 MemoryCache 中被移除时会回调其中的方法，Engine 中接收到这个消息后就会进行 Bitmap 的回收操作。
+### LruResourceCache
+
+LruResourceCache 是在 LruCache 的基础上，拓展了一些回调方法，比如 trimMemory(int level) 回调，以及 ResourceRemovedListener 接口，当有资源从 MemoryCache 中被移除时会回调其中的方法，Engine 中接收到这个消息后就会进行 Bitmap 的回收操作。
+
+```kotlin
+public class LruResourceCache extends LruCache<Key, Resource<?>> implements MemoryCache {
+}
+```
+
+缓存功能主要是在 LruCache 实现的。
+
+### LruCache
+
+```java
+public class LruCache<T, Y> {
+  private final Map<T, Entry<Y>> cache = new LinkedHashMap<>(100, 0.75f, true);
+  private final long initialMaxSize;
+  // 最大缓存
+  private long maxSize;
+  // 当前已经缓存的内存大小
+  private long currentSize;
+
+    public synchronized Y put(@NonNull T key, @Nullable Y item) {
+    final int itemSize = getSize(item);
+      // 1、itemSize >= maxSize，不缓存
+    if (itemSize >= maxSize) {
+      onItemEvicted(key, item);
+      return null;
+    }
+
+    if (item != null) {
+      // 2、计算新的 currentSize
+      currentSize += itemSize;
+    }
+     // 3、put 新的 item
+    @Nullable Entry<Y> old = cache.put(key, item == null ? null : new Entry<>(item, itemSize));
+    if (old != null) {
+      // 如果是替换，将旧的大小减去
+      currentSize -= old.size;
+
+      if (!old.value.equals(item)) {
+        onItemEvicted(key, old.value);
+      }
+    }
+      // 触发回收
+    evict();
+
+    return old != null ? old.value : null;
+  }
+  
+  // 回收处理。遍历 item 直到 currentSize 小于 maxSize。
+    protected synchronized void trimToSize(long size) {
+    Map.Entry<T, Entry<Y>> last;
+    Iterator<Map.Entry<T, Entry<Y>>> cacheIterator;
+      // 如果 currentSize 大于 maxSize
+    while (currentSize > size) {
+      cacheIterator = cache.entrySet().iterator();
+      last = cacheIterator.next();
+      final Entry<Y> toRemove = last.getValue();
+      currentSize -= toRemove.size;
+      final T key = last.getKey();
+      // 移除首个 item，根据 LinkedHashMap accessOrder = true 时的特性，首个 item 时最近最少使用的
+      cacheIterator.remove();
+      onItemEvicted(key, toRemove.value);
+    }
+  }
+
+  private void evict() {
+    trimToSize(maxSize);
+  }
+}  
+```
+
+Java 集合里面提供了一个很好的用来实现 LRU 算法的数据结构——**LinkedHashMap**。其基于 HashMap 实现，同时又将 HashMap 中的 Entity 串成了一个双向链表。LruCache 中就是使用这个集合来缓存数据，主要是在 LinkedHashMap 的基础上又提供了对内存的管理操作。
+
+Glide LruCache 的实现策略是根据缓存资源大小来决定是否回收（移除item）的，另一种常见的实现 LruCache 方式是按照 LinkedHashMap 中 size 数量去回收的，显然 Glide 的这种实现更合适些，这样如果每张图片都很小的话，就可以缓存更多张了。
 
 ## 磁盘缓存
 
@@ -1022,7 +1563,7 @@ void clear();
 
 另外，在向磁盘写入文件时（put 方法）会使用**重入锁**来同步代码，也就是 DiskCacheWriteLocker 类，其中主要是对 **ReentrantLock** 的包装。
 
-DiskLruCacheWrapper 顾名思义也是一个包装类，包装的是 **DiskLruCache**，那再来看看这个类。
+DiskLruCacheWrapper 顾名思义也是一个包装类，包装的是 **DiskLruCache**。
 
 ### DiskLruCache
 
@@ -1034,8 +1575,6 @@ Glide 是使用一个**日志清单文件**来保存这种顺序，DiskLruCache 
 journal 文件内容如下图：
 
 ![img](images/Glide解析/12.png)
-
-journal 文件内容
 
 开头的 libcore.io.DiskLruCache 是魔数，用来标识文件，后面的三个 1 是版本号 valueCount 等等，再往下就是图片的操作日志了。
 
