@@ -1,8 +1,467 @@
 > 源码分析基于：2.3.0
 
-有很多项目都会使用 MVP 这种项目架构，使用 Presenter 来减轻 `Activity` 的负担，具体的 `MVP` 实现可以阅读 Google 推出的 [android-architecture](https://github.com/googlesamples/android-architecture)。
+# 前言
 
-一般使用 MVP，都会遇到一个问题，如何将 Presenter 和 View 的生命周期进行绑定，常见的做法是，在 `Activity` 的生命周期中手动调用 Presenter 的回调方法，更复杂的做法可能需要在 Presenter 或者 View 维护一个操作栈，在指定生命周期中去执行操作。
+我们都知道 `Activity` 与 `Fragment` 都是有生命周期的，例如：`onCreate()`、`onStop()` 这些回调方法就代表着其生命周期状态。我们开发者所做的一些操作都应该合理的控制在生命周期内，比如：当我们在某个 `Activity` 中注册了广播接收器，那么在其 `onDestory()` 前要记得注销掉，避免出现内存泄漏。
+
+生命周期的存在，帮助我们更加方便地管理这些任务。但是，在日常开发中光凭 `Activity` 与 `Fragment` 可不够，我们通常还会使用一些组件来帮助我们实现需求，而这些组件就不像 `Activity` 与 `Fragment` 一样可以很方便地感知到生命周期了。
+
+假设当前有这么一个需求：
+
+> 开发一个简易的视频播放器组件以供项目使用，要求在进入页面后注册播放器并加载资源，一旦播放器所处的页面不可见或者不位于前台时就暂停播放，等到页面可见或者又恢复到前台时再继续播放，最后在页面销毁时则注销掉播放器。
+
+试想一下：如果现在让你来实现该需求？你会怎么去实现呢？
+
+实现这样的需求，我们的播放器组件就需要获取到所处页面的生命周期状态，在 `onCreate()` 中进行注册，`onResume()` 开始播放，`onStop()` 暂停播放，`onDestroy()` 注销播放器。
+
+最简单的方法：提供方法，暴露给使用方，供其自己调用控制。
+
+```kotlin
+class VideoPlayerComponent(private val context: Context) {
+
+    /**
+     * 注册，加载资源
+     */
+    fun register() {
+        loadResource(context)
+    }
+
+    /**
+     * 注销，释放资源
+     */
+    fun unRegister() {
+        releaseResource()
+    }
+
+    /**
+     * 开始播放当前视频资源
+     */
+    fun startPlay() {
+        startPlayVideo()
+    }
+
+    /**
+     * 暂停播放
+     */
+    fun stopPlay() {
+        stopPlayVideo()
+    }
+}
+```
+
+然后，我们的使用方MainActivity，主动在其相对应的生命周期状态进行控制调用相对应的方法。
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+    private lateinit var videoPlayerComponent: VideoPlayerComponent
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+	videoPlayerComponent = VideoPlayerComponent(this)
+        videoPlayerComponent.register(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        videoPlayerComponent.startPlay()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        videoPlayerComponent.stopPlay()
+    }
+
+    override fun onDestroy() {
+        videoPlayerComponent.unRegister()
+        super.onDestroy()
+    }
+
+}
+```
+
+虽然实现了需求，但显然这不是最优雅的实现方式。一旦使用方忘记在 `onDestroy()` 进行注销播放器，就容易造成内存泄漏，而**忘记注销**显然是一件很容易发生的事情。
+
+回想初衷，之所以将方法暴露给使用方来调用，就是因为我们的组件自身无法感知到使用者的生命周期。所以，一旦我们的组件自身可以感知到使用者的生命周期状态的话，我们就不需要将这些方法暴露出去了。
+
+那么问题来了，组件如何才能感知到生命周期呢？
+
+答：`Lifecycle` !
+
+直接上案例，借助 `Lifecycle` 我们改进一下我们的播放器组件
+
+```kotlin
+class VideoPlayerComponent(private val context: Context) : DefaultLifecycleObserver {
+
+    override fun onCreate(owner: LifecycleOwner) {
+        super.onCreate(owner)
+        register(context)
+    }
+
+    override fun onResume(owner: LifecycleOwner) {
+        super.onResume(owner)
+        startPlay()
+    }
+
+    override fun onPause(owner: LifecycleOwner) {
+        super.onPause(owner)
+        stopPlay()
+    }
+
+    override fun onDestroy(owner: LifecycleOwner) {
+        super.onDestroy(owner)
+        unRegister()
+    }
+
+    /**
+     * 注册，加载资源
+     */
+    private fun register(context: Context) {
+        loadResource(context)
+    }
+
+    /**
+     * 注销，释放资源
+     */
+    private fun unRegister() {
+        releaseResource()
+    }
+
+    /**
+     * 开始播放当前视频资源
+     */
+    private fun startPlay() {
+        startPlayVideo()
+    }
+
+    /**
+     * 暂停播放
+     */
+    private fun stopPlay() {
+        stopPlayVideo()
+    }
+}
+```
+
+改进完成后，我们的调用方MainActivity只需要一行代码即可。
+
+```kotlin
+class MainActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        lifecycle.addObserver(VideoPlayerComponent(this))
+    }
+}
+```
+
+这样是不是就优雅多了。
+
+那这 `Lifecycle` 又是怎么感知到生命周期的呢？让我们这就带着问题，出发探一探它的实现方式与源码！
+
+# 如果让你来做，你会怎么做
+
+在查看源码前，让我们试着思考一下，如果让你来实现 `Jetpack Lifecycle` 这样的功能，你会怎么做呢？该从何入手呢？
+
+我们的目的是不通过回调方法即可获取到生命周期，这其实就是解耦，实现解耦的一种很好方法就是利用观察者模式。
+
+利用观察者模式，我们就可以这么设计
+
+![截屏2022-12-13 下午3.59.21.png](images/4-Lifecycle/1.png)
+
+被观察者对象就是生命周期，而观察者对象则是需要知晓生命周期的对象，例如：我们的三方组件。
+
+接着我们就具体探探源码，看一看Google是如何实现的吧。
+
+# Google 实现方式
+
+## Lifecycle
+
+> 一个代表着Android生命周期的抽象类，也就是我们的抽象被观察者对象。
+
+```kotlin
+public abstract class Lifecycle {
+
+    public abstract void addObserver(@NonNull LifecycleObserver observer);
+
+    public abstract void removeObserver(@NonNull LifecycleObserver observer);
+
+    public enum Event {
+        ON_CREATE,
+        ON_START,
+        ON_RESUME,
+        ON_PAUSE,
+        ON_STOP,
+        ON_DESTROY,
+        ON_ANY;
+    }
+
+    public enum State {
+        DESTROYED,
+        INITIALIZED,
+        CREATED,
+        STARTED,
+        RESUMED;
+    }
+
+}
+```
+
+内包含 `State` 与 `Event` 分别者代表生命周期的状态与事件，同时定义了抽象方法 `addObserver(LifecycleObserver)` 与`removeObserver(LifecycleObserver)` 方法用于添加与删除生命周期观察者。
+
+`Event` 很好理解，就像是 `Activity | Fragment` 的 `onCreate()`、`onDestroy()`等回调方法，它代表着生命周期的事件。
+
+那这 `State` 又是什么呢？何为状态？他们之间又是什么关系呢？
+
+### Event 与 State 之间的关系
+
+关于 `Event` 与 `State` 之间的关系，Google官方给出了这么一张两者关系图
+
+![theRelationOfEventAndState.png](images/4-Lifecycle/2.png)
+
+乍一看，可能第一感觉不是那么直观，我整理了一下
+
+![event与state关系图.png](images/4-Lifecycle/3.png)
+
+- `INITIALIZED`：在 `ON_CREATE` 事件触发前。
+- `CREATED`：在 `ON_CREATE` 事件触发后以及 `ON_START` 事件触发前；或者在 `ON_STOP` 事件触发后以及 `ON_DESTROY` 事件触发前。
+- `STARTED`：在 `ON_START` 事件触发后以及 `ON_RESUME` 事件触发前；或者在 `ON_PAUSE` 事件触发后以及 `ON_STOP` 事件触发前。
+- `RESUMED`：在 `ON_RESUME` 事件触发后以及 `ON_PAUSE` 事件触发前。
+- `DESTROYED`：在 `ON_DESTROY` 事件触发之后。
+
+`Event` 代表生命周期发生变化那个瞬间点，而 `State` 则表示生命周期的一个阶段。这两者结合的好处就是让我们可以更加直观的感受生命周期，从而可以根据当前所处的生命周期状态来做出更加合理的操作行为。
+
+例如，在`LiveData`的生命周期绑定观察者源码中，就会判断当前被观察者对象的生命周期状态，如果当前是`DESTROYED`状态，则直接移除当前观察者对象。同时，根据被观察者对象当前的生命周期状态是否 `>= STARTED`来判断当前被观察者对象是否是活跃的。
+
+```kotlin
+class LifecycleBoundObserver extends ObserverWrapper implements LifecycleEventObserver {
+   ......
+
+   @Override
+   boolean shouldBeActive() {
+      //根据观察者对象当前的生命周期状态是否 >= STARTED 来判断当前观察者对象是否是活跃的。
+      return mOwner.getLifecycle().getCurrentState().isAtLeast(STARTED);
+   }
+
+  @Override
+  public void onStateChanged(@NonNull LifecycleOwner source,
+          @NonNull Lifecycle.Event event) {
+      //根据当前观察者对象的生命周期状态，如果是DESTROYED，直接移除当前观察者
+      Lifecycle.State currentState = mOwner.getLifecycle().getCurrentState();
+      if (currentState == DESTROYED) {
+          removeObserver(mObserver);
+          return;
+      }
+      ......
+  }
+  ......
+
+}
+```
+
+其实 `Event` 与 `State` 这两者之间的联系，在我们生活中也是处处可见，例如：自动洗车。
+
+![自动洗车.png](images/4-Lifecycle/4.png)
+
+想必现在你对 `Event` 与 `State` 之间的关系有了更好的理解了吧。
+
+## LifecycleObserver
+
+> 生命周期观察者，也就是我们的抽象观察者对象。
+
+```kotlin
+public interface LifecycleObserver {
+}
+```
+
+所以，如果我们想成为观察生命周期的观察者的话，就需要实现该接口，也就是成为具体观察者对象。
+
+换句话说，就是如果你想成为观察者对象来观察生命周期的话，那就必须实现 `LifecycleObserver` 接口。
+
+例如Google官方提供的 `DefaultLifecycleObserver`、 `LifecycleEventObserver` 。
+
+![截屏2022-12-14 下午2.33.11.png](images/4-Lifecycle/5.png)
+
+## LifecycleOwner
+
+正如其名字一样，生命周期的持有者，所以像我们的 `Activity | Fragment` 都是生命周期的持有者。
+
+大白话很好理解，但代码应该如何实现呢？
+
+> 抽象概念 + 具体实现
+
+抽象概念：定义 `LifecycleOwner` 接口。
+
+```kotlin
+public interface LifecycleOwner {
+    @NonNull
+    Lifecycle getLifecycle();
+}
+```
+
+具体实现：`Fragment` 实现 `LifecycleOwner` 接口。
+
+```kotlin
+public class Fragment implements ComponentCallbacks, OnCreateContextMenuListener, LifecycleOwner,
+        ViewModelStoreOwner, HasDefaultViewModelProviderFactory, SavedStateRegistryOwner,
+        ActivityResultCaller {
+
+    public Lifecycle getLifecycle() {
+        return mLifecycleRegistry;
+    }
+......
+
+}
+```
+
+具体实现：`Activity` 实现 `LifecycleOwner` 接口。
+
+```kotlin
+public class ComponentActivity extends androidx.core.app.ComponentActivity implements
+        ContextAware,
+        LifecycleOwner,
+        ViewModelStoreOwner,
+        HasDefaultViewModelProviderFactory,
+        SavedStateRegistryOwner,
+        OnBackPressedDispatcherOwner,
+        ActivityResultRegistryOwner,
+        ActivityResultCaller {
+
+@NonNull
+    @Override
+    public Lifecycle getLifecycle() {
+        return mLifecycleRegistry;
+    }
+
+......
+
+}
+```
+
+这样，`Activity | Fragment` 就都是生命周期持有者了。
+
+疑问？在上方 `Activity | Fragment` 的类中，`getLifecycle()` 方法中都是返回 `mLifecycleRegistry`，那这个 `mLifecycleRegistry` 又是什么玩意呢？
+
+## LifecycleRegistry
+
+> 是 `Lifecycle` 的一个具体实现类。
+
+`LifecycleRegistry` 负责管理生命周期观察者对象，并将最新的生命周期事件与状态及时通知给对应的生命周期观察者对象。
+
+添加与删除观察者对象的具体实现方法。
+
+```kotlin
+//用户保存生命周期观察者对象
+private FastSafeIterableMap<LifecycleObserver, ObserverWithState> mObserverMap = new FastSafeIterableMap<>();
+
+@Override
+public void addObserver(@NonNull LifecycleObserver observer) {
+    enforceMainThreadIfNeeded("addObserver");
+    State initialState = mState == DESTROYED ? DESTROYED : INITIALIZED;
+    //将生命周期观察者对象包装成带生命周期状态的观察者对象
+    ObserverWithState statefulObserver = new ObserverWithState(observer, initialState);
+    ObserverWithState previous = mObserverMap.putIfAbsent(observer, statefulObserver);
+    ... 省略代码 ...
+}
+
+@Override
+public void removeObserver(@NonNull LifecycleObserver observer) {
+    mObserverMap.remove(observer);
+}
+```
+
+可以从上述代码中发现，LifecycleRegistry 还对生命周期观察者对象进行了包装，使其带有生命周期状态。
+
+```kotlin
+static class ObserverWithState {
+    //生命周期状态
+    State mState;
+    //生命周期观察者对象
+    LifecycleEventObserver mLifecycleObserver;
+
+    ObserverWithState(LifecycleObserver observer, State initialState) {
+        //这里确保observer为LifecycleEventObserver类型
+        mLifecycleObserver = Lifecycling.lifecycleEventObserver(observer);
+        //并初始化了状态
+        mState = initialState;
+    }
+
+    //分发事件
+    void dispatchEvent(LifecycleOwner owner, Event event) {
+        //根据 Event 得出当前最新的 State 状态
+        State newState = event.getTargetState();
+        mState = min(mState, newState);
+        //触发观察者对象的 onStateChanged() 方法
+        mLifecycleObserver.onStateChanged(owner, event);
+        //更新状态
+        mState = newState;
+    }
+}
+```
+
+将最新的生命周期事件通知给对应的观察者对象。
+
+```kotlin
+public void handleLifecycleEvent(@NonNull Lifecycle.Event event) {
+    ... 省略代码 ...
+    ObserverWithState observer = mObserverMap.entrySet().getValue();
+    observer.dispatchEvent(lifecycleOwner, event);
+		
+    ... 省略代码 ...
+    mLifecycleObserver.onStateChanged(owner, event);
+}
+```
+
+那 `handleLifecycleEvent()` 方法在什么时候被调用呢？
+
+相信看到下方这个代码，你就明白了。
+
+```kotlin
+public class FragmentActivity extends ComponentActivity {
+   ......
+
+   final LifecycleRegistry mFragmentLifecycleRegistry = new LifecycleRegistry(this);
+
+   @Override
+   protected void onCreate(@Nullable Bundle savedInstanceState) {
+       mFragmentLifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE);
+   }
+
+   @Override
+   protected void onDestroy() {
+       mFragmentLifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY);
+   }
+
+   @Override
+   protected void onPause() {
+       mFragmentLifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE);
+   }
+
+   @Override
+   protected void onStop() {
+       mFragmentLifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP);
+   }
+
+   ......
+
+}
+```
+
+在 `Activity | Fragment` 的 `onCreate()`、`onStart()`、`onPause()`等生命周期方法中，调用`LifecycleRegistry` 的 `handleLifecycleEvent()` 方法，从而将生命周期事件通知给观察者对象。
+
+# 总结
+
+`Lifecycle` 通过观察者设计模式，将**生命周期感知对象**与**生命周期提供者**充分解耦，不再需要通过回调方法来感知生命周期的状态，使代码变得更加的精简。
+
+虽然不通过 `Lifecycle`，我们的组件也是可以获取到生命周期的，但是 `Lifecycle` 的意义就是提供了统一的调用接口，让我们的组件可以更加方便的感知到生命周期。而且，Google以此推出了更多的生命周期感知型组件，例如：`ViewModel`、`LiveData`。正是这些组件，让我们的开发变得越来越简单。
+
+
+
+
+
+
 
 ## Lifecycle
 
@@ -26,7 +485,7 @@
 
 这两者的关系如下：
 
-![img](https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fpic3.zhimg.com%2Fv2-924029f666eabc8be6cc328fef6f5e26_r.jpg&refer=http%3A%2F%2Fpic3.zhimg.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=jpeg?sec=1619660996&t=8a00f3d8e0af2b6884777acbe7897d9a)
+![img](images/4-Lifecycle/b1.jpeg)
 
 #### 1、lifecycle基本使用
 
@@ -673,4 +1132,6 @@ public static void injectIfNeededIn(Activity activity) {
 
 
 
+# 参考
 
+1、[我尝试以最简单的方式帮你梳理 Lifecycle](https://juejin.cn/post/7176901382702628924)
