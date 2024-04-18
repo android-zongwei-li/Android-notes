@@ -1,4 +1,4 @@
-> 源码分析基于：2.3.0
+> 源码分析基于：2.6.1
 
 # 前言
 
@@ -87,6 +87,8 @@ class MainActivity : AppCompatActivity() {
 那么问题来了，组件如何才能感知到生命周期呢？
 
 答：`Lifecycle` !
+
+## Lifecycle 使用案例
 
 直接上案例，借助 `Lifecycle` 我们改进一下我们的播放器组件
 
@@ -179,6 +181,33 @@ class MainActivity : AppCompatActivity() {
 
 ## Lifecycle
 
+[lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle) 是 Google 推出的用于响应 `Activity` 和 `Fragment` 生命周期改变的库，允许其他对象去订阅这些状态。
+
+### 基本使用
+
+我们可以调用 `addObserver` 去注册一个监听者
+
+```java
+getLifecycle().addObserver(new PersonOne());
+```
+
+而 `PersonOne` 则需要实现 `LifecycleObserver` 接口，具体的回调方法则通过注解的形式：
+
+```java
+public class PersonOne implements LifecycleObserver {
+    private static final String TAG = "PersonOne";
+
+    @OnLifecycleEvent(Lifecycle.Event.ON_START)
+    public void onStart() {
+        Log.d(TAG, "onStart");
+    }
+}
+```
+
+这样当 Activity 执行到 onStart 方法时，就会调用 PersonOne#onStart 方法。
+
+### 实现原理
+
 > 一个代表着Android生命周期的抽象类，也就是我们的抽象被观察者对象。
 
 ```kotlin
@@ -209,13 +238,19 @@ public abstract class Lifecycle {
 }
 ```
 
-内包含 `State` 与 `Event` 分别者代表生命周期的状态与事件，同时定义了抽象方法 `addObserver(LifecycleObserver)` 与`removeObserver(LifecycleObserver)` 方法用于添加与删除生命周期观察者。
+`Lifecycle` 使用 Event 和 State 来管理生命周期状态的变化，同时定义了抽象方法 `addObserver(LifecycleObserver)` 与`removeObserver(LifecycleObserver)` 方法用于添加与删除生命周期观察者。
 
-`Event` 很好理解，就像是 `Activity | Fragment` 的 `onCreate()`、`onDestroy()`等回调方法，它代表着生命周期的事件。
+#### Event
+
+生命周期变化的事件。当 `Activity | Fragment` 的 `onCreate()`、`onDestroy()`等方法调用时，会分发对应的事件。
+
+#### State
+
+当前生命周期的状态
 
 那这 `State` 又是什么呢？何为状态？他们之间又是什么关系呢？
 
-### Event 与 State 之间的关系
+#### Event 与 State 之间的关系
 
 关于 `Event` 与 `State` 之间的关系，Google官方给出了这么一张两者关系图
 
@@ -286,13 +321,7 @@ public interface LifecycleObserver {
 
 ## LifecycleOwner
 
-正如其名字一样，生命周期的持有者，所以像我们的 `Activity | Fragment` 都是生命周期的持有者。
-
-大白话很好理解，但代码应该如何实现呢？
-
-> 抽象概念 + 具体实现
-
-抽象概念：定义 `LifecycleOwner` 接口。
+生命周期的持有者，`LifecycleOwner` 用于提供 `Lifecycle`，`LifecycleObserver` 监听 `Lifecycle` 的状态变化，`Lifecycle` 则是 `Activity` 或 `Fragment` 生命周期状态的抽象。
 
 ```kotlin
 public interface LifecycleOwner {
@@ -300,6 +329,8 @@ public interface LifecycleOwner {
     Lifecycle getLifecycle();
 }
 ```
+
+ `Activity | Fragment` 都实现了 `LifecycleOwner` 接口。
 
 具体实现：`Fragment` 实现 `LifecycleOwner` 接口。
 
@@ -350,7 +381,9 @@ public class ComponentActivity extends androidx.core.app.ComponentActivity imple
 
 `LifecycleRegistry` 负责管理生命周期观察者对象，并将最新的生命周期事件与状态及时通知给对应的生命周期观察者对象。
 
-添加与删除观察者对象的具体实现方法。
+### 主要流程
+
+#### 添加与删除观察者对象
 
 ```kotlin
 //用户保存生命周期观察者对象
@@ -401,6 +434,8 @@ static class ObserverWithState {
 }
 ```
 
+#### 通知生命周期事件
+
 将最新的生命周期事件通知给对应的观察者对象。
 
 ```kotlin
@@ -443,219 +478,110 @@ public class FragmentActivity extends ComponentActivity {
    protected void onStop() {
        mFragmentLifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP);
    }
-
    ......
-
 }
 ```
 
 在 `Activity | Fragment` 的 `onCreate()`、`onStart()`、`onPause()`等生命周期方法中，调用`LifecycleRegistry` 的 `handleLifecycleEvent()` 方法，从而将生命周期事件通知给观察者对象。
 
-# 总结
+#### 小结
 
 `Lifecycle` 通过观察者设计模式，将**生命周期感知对象**与**生命周期提供者**充分解耦，不再需要通过回调方法来感知生命周期的状态，使代码变得更加的精简。
 
-虽然不通过 `Lifecycle`，我们的组件也是可以获取到生命周期的，但是 `Lifecycle` 的意义就是提供了统一的调用接口，让我们的组件可以更加方便的感知到生命周期。而且，Google以此推出了更多的生命周期感知型组件，例如：`ViewModel`、`LiveData`。正是这些组件，让我们的开发变得越来越简单。
+核心原理：Activity（LifecycleOwner）持有 Lifecycle（LifecycleRegister），当执行 Activity 的生命周期方法时，将生命周期事件通过 Lifecycle 通知给 Observer。Observer 也是由 Lifecycle 进行添加、删除、管理的。
 
+虽然不通过 `Lifecycle`，我们的组件也是可以获取到生命周期的，但是 `Lifecycle` 的意义就是提供了统一的调用接口，让我们的组件可以更加方便的感知到生命周期。Google以此推出了更多的生命周期感知型组件，例如：`ViewModel`、`LiveData`。
 
+### 实现细节分析
 
+#### addObserver
 
-
-
-
-## Lifecycle
-
-[lifecycle](https://developer.android.com/topic/libraries/architecture/lifecycle) 是 Google 推出的用于响应 `Activity` 和 `Fragment` 生命周期改变的库。
-
-**These components help you produce better-organized, and often lighter-weight code, that is easier to maintain.**
-
-#### Lifecycle
-
-`Lifecycle` 是一个包含比如 `Activity` 或 `Fragment` 生命周期状态的类，同时允许其他对象去订阅这些状态
-
-`Lifecycle` 使用 Event 和 State 来管理生命周期状态的变化
-
-##### Event
-
-生命周期变化的事件
-
-##### State
-
-当前生命周期的状态
-
-这两者的关系如下：
-
-![img](images/4-Lifecycle/b1.jpeg)
-
-#### 1、lifecycle基本使用
-
-我们可以调用 `addObserver` 去注册一个监听者
+`addObserver()` 是添加 `Observer` 的方法，源码如下：
 
 ```java
-getLifecycle().addObserver(new PersonOne());
-```
-
-而 `PersonOne` 则需要实现 `LifecycleObserver` 接口，具体的回调方法则通过注解的形式：
-
-```java
-public class PersonOne implements LifecycleObserver {
-    private static final String TAG = "PersonOne";
-
-    @OnLifecycleEvent(Lifecycle.Event.ON_START)
-    public void onStart() {
-        Log.d(TAG, "onStart");
-    }
-}
-```
-
-我们也可以调用 `getCurrentState()` 来获取 `Lifecycle` 当前的状态
-
-#### 2、LifecycleOwner
-
-上面我们简单介绍了 `Lifecyle` 和 `LifecycleObserver` 的作用和关系之后，再来看下 `getLifecycle` 这个方法：
-
-```java
-public interface LifecycleOwner {
-    /**
-     * Returns the Lifecycle of the provider.
-     *
-     * @return The lifecycle of the provider.
-     */
-    @NonNull
-    Lifecycle getLifecycle();
-}
-```
-
-简单来说，`LifecycleOwner` 用于提供 `Lifecycle`，`LifecycleObserver` 监听 `Lifecycle` 的状态变化，`Lifecycle` 则是 `Activity` 或 `Fragment` 生命周期状态的抽象。
-
-可以看到 `Fragment` 和 `ComponentActivity` 等实现了 `LifecycleOwner` 接口，这里我们看下 `ComponentActivity` 的实现：
-
-##### 2.1 ComponentActivity
-
-```java
-private LifecycleRegistry mLifecycleRegistry = new LifecycleRegistry(this);
-
-@CallSuper                                                   
-@Override                                                    
-protected void onSaveInstanceState(Bundle outState) {
-    // 这里需要注意，onSaveInstanceState 状态设置为 CREATED
-    mLifecycleRegistry.markState(Lifecycle.State.CREATED);   
-    super.onSaveInstanceState(outState);                     
-}                                                            
-
-@Override                         
-public Lifecycle getLifecycle() { 
-    return mLifecycleRegistry;    
-}
-
-@Override                                                        
-@SuppressWarnings("RestrictedApi")                               
-protected void onCreate(@Nullable Bundle savedInstanceState) {   
-    super.onCreate(savedInstanceState);     
-    // 2.2
-    ReportFragment.injectIfNeededIn(this);                       
-}
-```
-
-可以看到代码非常简洁，那它又是怎么去实现的呢？可以看到在 `onCreate` 中会调用 `ReportFragment.injectIfNeededIn`
-
-##### 2.2 ReportFragment#injectIfNeededIn()
-
-通过此方法，向Activity中注入（添加）了一个ReportFragment。
-
-```java
-    public static void injectIfNeededIn(Activity activity) {
-        if (Build.VERSION.SDK_INT >= 29) {
-            // On API 29+, we can register for the correct Lifecycle callbacks directly
-            LifecycleCallbacks.registerIn(activity);
-        }
-        // Prior to API 29 and to maintain compatibility with older versions of
-        // ProcessLifecycleOwner (which may not be updated when lifecycle-runtime is updated and
-        // need to support activities that don't extend from FragmentActivity from support lib),
-        // use a framework fragment to get the correct timing of Lifecycle events
-        android.app.FragmentManager manager = activity.getFragmentManager();
-        if (manager.findFragmentByTag(REPORT_FRAGMENT_TAG) == null) {
-            manager.beginTransaction().add(new ReportFragment(), REPORT_FRAGMENT_TAG).commit();
-            // Hopefully, we are the first to make a transaction.
-            manager.executePendingTransactions();
-        }
-    }
-```
-
-这里会添加一个 `ReportFragment` 如果有阅读过 Glide 源码的同学，应该会看到类似的实现：通过添加一个透明的 `Fragment` 来监听 `Activity` 的生命周期。
-
-##### 2.3 ReportFragment
-
-```java
-    @Override
-    public void onActivityCreated(Bundle savedInstanceState) {
-        super.onActivityCreated(savedInstanceState);
-        dispatchCreate(mProcessListener);
-        dispatch(Lifecycle.Event.ON_CREATE);
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-        dispatchStart(mProcessListener);
-        dispatch(Lifecycle.Event.ON_START);
-    }
-
-    @Override
-    public void onResume() {
-        super.onResume();
-        dispatchResume(mProcessListener);
-        dispatch(Lifecycle.Event.ON_RESUME);
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        dispatch(Lifecycle.Event.ON_PAUSE);
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        dispatch(Lifecycle.Event.ON_STOP);
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        dispatch(Lifecycle.Event.ON_DESTROY);
-        // just want to be sure that we won't leak reference to an activity
-        mProcessListener = null;
-    }
+@Override                                                                         
+public void addObserver(@NonNull LifecycleObserver observer) {
+	enforceMainThreadIfNeeded("addObserver");
+    // 如果不是 DESTROYED，则从 INITIALIZED 开始分发
+    State initialState = mState == DESTROYED ? DESTROYED : INITIALIZED;
+    // ObserverWithState 用于分发事件给 observer
+    ObserverWithState statefulObserver = new ObserverWithState(observer, initialState);   
+    ObserverWithState previous = mObserverMap.putIfAbsent(observer, statefulObserver);                                                                                
+    if (previous != null) { 
+        // 唯一性
+        return;                                                                   
+    }                                                                                     
+    LifecycleOwner lifecycleOwner = mLifecycleOwner.get();                       
+    if (lifecycleOwner == null) {  
+        // mLifecycleOwner 为弱引用
+        // it is null we should be destroyed. Fallback quickly                   
+        return;                                                                   
+    }                                                                           
     
-    private void dispatch(@NonNull Lifecycle.Event event) {
-        if (Build.VERSION.SDK_INT < 29) {
-            // Only dispatch events from ReportFragment on API levels prior
-            // to API 29. On API 29+, this is handled by the ActivityLifecycleCallbacks
-            // added in ReportFragment.injectIfNeededIn
-            dispatch(getActivity(), event);
-        }
-    }
-    
-    static void dispatch(@NonNull Activity activity, @NonNull Lifecycle.Event event) {
-        if (activity instanceof LifecycleRegistryOwner) {
-            // 3
-            ((LifecycleRegistryOwner) activity).getLifecycle().handleLifecycleEvent(event);
-            return;
-        }
+    // isReentrance 表示是否在分发事件时新添加了 observer
+    // 举个例子：在 observer 在 onStart() 中又调用了 addObserver()
+    boolean isReentrance = mAddingObserverCounter != 0 || mHandlingEvent; 
+    // 计算需要分发的状态
+    // 4.1
+    State targetState = calculateTargetState(observer);                           
+    mAddingObserverCounter++; 
+    // 将事件逐步分发到 targetState
+    while ((statefulObserver.mState.compareTo(targetState) < 0                   
+            && mObserverMap.contains(observer))) {
+        // 如果 statefulObserver.state 小于 targetState
+        pushParentState(statefulObserver.mState);
+        // 如果 state 为 STARTED，则 upFrom(state) 则为 ON_RESUME
+        final Event event = Event.upFrom(statefulObserver.mState);
+        if (event == null) {
+            throw new IllegalStateException("no event up from " + statefulObserver.mState);
+        }        
+        statefulObserver.dispatchEvent(lifecycleOwner, event); 
+        popParentState();                                                         
+        // mState / subling may have been changed recalculate                     
+        targetState = calculateTargetState(observer);                             
+    }                                                                                 
+    if (!isReentrance) {                                                         
+        // we do sync only on the top level.
+        // 当前为重入，则不进行同步
+        sync();                                                                   
+    }                                                                             
+    mAddingObserverCounter--;                                                     
+}
 
-        if (activity instanceof LifecycleOwner) {
-            Lifecycle lifecycle = ((LifecycleOwner) activity).getLifecycle();
-            if (lifecycle instanceof LifecycleRegistry) {
-                ((LifecycleRegistry) lifecycle).handleLifecycleEvent(event);
-            }
-        }
-    }    
+public static Event upFrom(@NonNull State state) {
+    switch (state) {
+        case INITIALIZED:
+            return ON_CREATE;
+        case CREATED:
+            return ON_START;
+        case STARTED:
+            return ON_RESUME;
+        default:
+            return null;
+    }
+}                                                                   
 ```
 
-在 `Activity` 的各种生命周期回调方法中，调用 `handleLifecycleEvent()` 分发 `Lifecycle.Event`
+##### calculateTargetState
 
-##### 3、handleLifecycleEvent
+```java
+private State calculateTargetState(LifecycleObserver observer) {
+    // 获取上一个添加的 observer
+    Entry<LifecycleObserver, ObserverWithState> previous = mObserverMap.ceil(observer);       
+    State siblingState = previous != null ? previous.getValue().mState : null;
+    // mParentStates 是个 List，它的添加和删除分别由 pushParentState() 和 popParentState()，它们是成对出现的，在 dispatchEvent 的前后
+    // 在这种 case 下，会存在 parentState：在 dispatchEvent 时，又调用了 addObserver()，即上面说的 isReentrance
+    State parentState = !mParentStates.isEmpty() ? mParentStates.get(mParentStates.size() - 1)
+            : null;
+    // 这里的计算是获取更合适的状态
+    // 考虑以下这种 case：某个 observer 在 onStart() 中再调用 addObserver，那这个 observer 理应使用 STARTED 状态分发，而当前状态即 mState 可能是 RESUMED，再在 sync() 中进行同步
+    return min(min(mState, siblingState), parentState);                           
+}
+```
+
+`addObserver()` 主要考虑了 Reentrance 的情况，即在 `observer` 的事件分发中，又添加了新的 `observer` 的情况。
+
+#### handleLifecycleEvent
 
 `LifecycleRegistry` 是 `Lifecycle` 的实现类，看下 `handleLifecycleEvent` 的实现：
 
@@ -730,7 +656,7 @@ private boolean isSynced() {
 
 使用 `sync()` 同步状态，这里分为两种情况，一种是需要回退状态（backward），另外一种则是需要前进（forward），其中 `backward` 代码如下：
 
-##### 3.1 backward
+##### backward
 
 ```java
 private void backwardPass(LifecycleOwner lifecycleOwner) {
@@ -786,94 +712,169 @@ private void backwardPass(LifecycleOwner lifecycleOwner) {
 
 `forwardPass()` 逻辑类似，则不分析了。
 
-#### 4、addObserver
+# ComponentActivity 示例分析
 
-`addObserver()` 是添加 `Observer` 的方法，源码如下：
+通过前面的分析已经知道了生命周期事件是通过 handleLifecycleEvent 方法从 Activity 中通知到 Lifecycle 再到 Observer的。
+
+下面以 ComponentActivity 为例，看看 handleLifecycleEvent方法 又是如何被调用到的。
 
 ```java
-@Override                                                                         
-public void addObserver(@NonNull LifecycleObserver observer) {
-	enforceMainThreadIfNeeded("addObserver");
-    // 如果不是 DESTROYED，则从 INITIALIZED 开始分发
-    State initialState = mState == DESTROYED ? DESTROYED : INITIALIZED;
-    // ObserverWithState 用于分发事件给 observer
-    ObserverWithState statefulObserver = new ObserverWithState(observer, initialState);   
-    ObserverWithState previous = mObserverMap.putIfAbsent(observer, statefulObserver);                                                                                
-    if (previous != null) { 
-        // 唯一性
-        return;                                                                   
-    }                                                                                     
-    LifecycleOwner lifecycleOwner = mLifecycleOwner.get();                       
-    if (lifecycleOwner == null) {  
-        // mLifecycleOwner 为弱引用
-        // it is null we should be destroyed. Fallback quickly                   
-        return;                                                                   
-    }                                                                           
-    
-    // isReentrance 表示是否在分发事件时新添加了 observer
-    // 举个例子：在 observer 在 onStart() 中又调用了 addObserver()
-    boolean isReentrance = mAddingObserverCounter != 0 || mHandlingEvent; 
-    // 计算需要分发的状态
-    // 4.1
-    State targetState = calculateTargetState(observer);                           
-    mAddingObserverCounter++; 
-    // 将事件逐步分发到 targetState
-    while ((statefulObserver.mState.compareTo(targetState) < 0                   
-            && mObserverMap.contains(observer))) {
-        // 如果 statefulObserver.state 小于 targetState
-        pushParentState(statefulObserver.mState);
-        // 如果 state 为 STARTED，则 upFrom(state) 则为 ON_RESUME
-        final Event event = Event.upFrom(statefulObserver.mState);
-        if (event == null) {
-            throw new IllegalStateException("no event up from " + statefulObserver.mState);
-        }        
-        statefulObserver.dispatchEvent(lifecycleOwner, event); 
-        popParentState();                                                         
-        // mState / subling may have been changed recalculate                     
-        targetState = calculateTargetState(observer);                             
-    }                                                                                 
-    if (!isReentrance) {                                                         
-        // we do sync only on the top level.
-        // 当前为重入，则不进行同步
-        sync();                                                                   
-    }                                                                             
-    mAddingObserverCounter--;                                                     
+private LifecycleRegistry mLifecycleRegistry = new LifecycleRegistry(this);
+
+@CallSuper                                                   
+@Override                                                    
+protected void onSaveInstanceState(Bundle outState) {
+    // 这里需要注意，onSaveInstanceState 状态设置为 CREATED
+    mLifecycleRegistry.markState(Lifecycle.State.CREATED);   
+    super.onSaveInstanceState(outState);                     
+}                                                            
+
+@Override                         
+public Lifecycle getLifecycle() { 
+    return mLifecycleRegistry;    
 }
 
-public static Event upFrom(@NonNull State state) {
-    switch (state) {
-        case INITIALIZED:
-            return ON_CREATE;
-        case CREATED:
-            return ON_START;
-        case STARTED:
-            return ON_RESUME;
-        default:
-            return null;
+@Override                                                        
+@SuppressWarnings("RestrictedApi")                               
+protected void onCreate(@Nullable Bundle savedInstanceState) {   
+    super.onCreate(savedInstanceState);     
+    // 2.2
+    ReportFragment.injectIfNeededIn(this);                       
+}
+```
+
+可以看到代码非常简洁，那它又是怎么去实现的呢？可以看到在 `onCreate` 中会调用 `ReportFragment.injectIfNeededIn`
+
+## ReportFragment
+
+### injectIfNeededIn()
+
+实现监听 Activity 生命周期回调。
+
+```java
+    public static void injectIfNeededIn(Activity activity) {
+        if (Build.VERSION.SDK_INT >= 29) {
+            // On API 29+, we can register for the correct Lifecycle callbacks directly
+            LifecycleCallbacks.registerIn(activity);
+        }
+        // Prior to API 29 and to maintain compatibility with older versions of
+        // ProcessLifecycleOwner (which may not be updated when lifecycle-runtime is updated and
+        // need to support activities that don't extend from FragmentActivity from support lib),
+        // use a framework fragment to get the correct timing of Lifecycle events
+        android.app.FragmentManager manager = activity.getFragmentManager();
+        if (manager.findFragmentByTag(REPORT_FRAGMENT_TAG) == null) {
+            manager.beginTransaction().add(new ReportFragment(), REPORT_FRAGMENT_TAG).commit();
+            // Hopefully, we are the first to make a transaction.
+            manager.executePendingTransactions();
+        }
     }
-}                                                                   
 ```
 
-##### 4.1 calculateTargetState
+那 ReportFragment 是怎么知道 Activity 的生命周期的呢？
 
-```java
-private State calculateTargetState(LifecycleObserver observer) {
-    // 获取上一个添加的 observer
-    Entry<LifecycleObserver, ObserverWithState> previous = mObserverMap.ceil(observer);       
-    State siblingState = previous != null ? previous.getValue().mState : null;
-    // mParentStates 是个 List，它的添加和删除分别由 pushParentState() 和 popParentState()，它们是成对出现的，在 dispatchEvent 的前后
-    // 在这种 case 下，会存在 parentState：在 dispatchEvent 时，又调用了 addObserver()，即上面说的 isReentrance
-    State parentState = !mParentStates.isEmpty() ? mParentStates.get(mParentStates.size() - 1)
-            : null;
-    // 这里的计算是获取更合适的状态
-    // 考虑以下这种 case：某个 observer 在 onStart() 中再调用 addObserver，那这个 observer 理应使用 STARTED 状态分发，而当前状态即 mState 可能是 RESUMED，再在 sync() 中进行同步
-    return min(min(mState, siblingState), parentState);                           
+可以看到在 SDK_INT >= 29 版本以上和以下实现是有区别的，先来看 SDK_INT >= 29 的实现：
+
+### SDK_INT >= 29
+
+从下面可以看到是基于 Application.ActivityLifecycleCallbacks 接口实现的，在 29 以及以上，系统已经提供了 Activity 生命周期回调，通过实现此接口，就可以知道 Activity 当前的生命周期了。
+
+```kotlin
+open class ReportFragment() : android.app.Fragment() {
+ 
+internal class LifecycleCallbacks : Application.ActivityLifecycleCallbacks {
+...
+        override fun onActivityPostCreated(
+            activity: Activity,
+            savedInstanceState: Bundle?
+        ) {
+            dispatch(activity, Lifecycle.Event.ON_CREATE)
+        }
+...
+        companion object {
+            @JvmStatic
+            fun registerIn(activity: Activity) {
+                activity.registerActivityLifecycleCallbacks(LifecycleCallbacks())
+            }
+        }
+    }
 }
 ```
 
-`addObserver()` 主要考虑了 Reentrance 的情况，即在 `observer` 的事件分发中，又添加了新的 `observer` 的情况。
+这样，当 LifecycleCallbacks 中回调生命周期方法后，ReportFragment 则会转交给 Lifecycle，继而分发到 Observer。
 
-#### 5、ProcessLifecycleOwner
+```kotlin
+        @JvmStatic
+        internal fun dispatch(activity: Activity, event: Lifecycle.Event) {
+            if (activity is LifecycleRegistryOwner) {
+                activity.lifecycle.handleLifecycleEvent(event)
+                return
+            }
+            if (activity is LifecycleOwner) {
+                val lifecycle = (activity as LifecycleOwner).lifecycle
+                if (lifecycle is LifecycleRegistry) {
+                    lifecycle.handleLifecycleEvent(event)
+                }
+            }
+        }
+```
+
+### SDK_INT < 29
+
+通过添加一个 `ReportFragment` 到 Activity 中，从而实现监听生命周期的目的，跟 >=29 的区别就是 >=29 的版本是不会添加 ReportFragment 到 Activity 中的。如果有阅读过 Glide 源码的同学，应该会看到类似的实现：通过添加一个透明的 `Fragment` 来监听 `Activity` 的生命周期。
+
+```kotlin
+android.app.FragmentManager manager = activity.getFragmentManager();
+        if (manager.findFragmentByTag(REPORT_FRAGMENT_TAG) == null) {
+            manager.beginTransaction().add(new ReportFragment(), REPORT_FRAGMENT_TAG).commit();
+            // Hopefully, we are the first to make a transaction.
+            manager.executePendingTransactions();
+        }
+```
+
+```java
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+        dispatchCreate(mProcessListener);
+        dispatch(Lifecycle.Event.ON_CREATE);
+    }
+...
+    private void dispatch(@NonNull Lifecycle.Event event) {
+        if (Build.VERSION.SDK_INT < 29) {
+            // Only dispatch events from ReportFragment on API levels prior
+            // to API 29. On API 29+, this is handled by the ActivityLifecycleCallbacks
+            // added in ReportFragment.injectIfNeededIn
+            dispatch(getActivity(), event);
+        }
+    }
+    
+    static void dispatch(@NonNull Activity activity, @NonNull Lifecycle.Event event) {
+        if (activity instanceof LifecycleRegistryOwner) {
+            // 3
+            ((LifecycleRegistryOwner) activity).getLifecycle().handleLifecycleEvent(event);
+            return;
+        }
+
+        if (activity instanceof LifecycleOwner) {
+            Lifecycle lifecycle = ((LifecycleOwner) activity).getLifecycle();
+            if (lifecycle instanceof LifecycleRegistry) {
+                ((LifecycleRegistry) lifecycle).handleLifecycleEvent(event);
+            }
+        }
+    }
+```
+
+在 `Activity` 的各种生命周期回调方法中，调用 `handleLifecycleEvent()` 分发 `Lifecycle.Event`
+
+## 小结
+
+到此，我们知道除了 Activity 在生命周期方法中直接调用 handleLifecycleEvent 方法将生命周期事件通知给 LifecycleObserver 外，还可以通过下面 2 种方式完成通知：
+
+1、>=29时，实现系统提供的 Application.ActivityLifecycleCallbacks 接口，并添加到 Activity 中
+
+2、将 ReportFragment 添加到 Activity 中，并在 ReportFragment 的回调方法中实现
+
+# ProcessLifecycleOwner
 
 `ProcessLifecycleOwner` 提供应用进程的生命周期。跟 `Activity` 和 `Fragment` 的生命周期不一样的是：
 
