@@ -71,7 +71,7 @@ Android 系统中的 IPC不只是有AIDL，Android系统还提供了以下几种
 
 #### 方式一——aar引用（推荐）：
 
-在实际工作中，强烈建议**将 AIDL 的接口封装到一个独立的工程（Module）中，使用时将该工程编译成一个aar包**，再交给其它模块使用。这样做可以避免需要同时在APP工程以及Service工程中都定义AIDL接口的情况，也避免了需要build以后才能调用，方便我们使用与维护。具体步骤如下：
+在实际工作中，强烈建议**将 AIDL 的接口封装到一个独立的工程（Module）中，使用时将该工程编译成一个aar包**，再交给其它模块使用，这个 Module 可以直接由服务端维护——也就是在服务端模块中，然后提供给其他各方。这样做可以避免需要同时在APP工程以及Service工程中都定义AIDL接口的情况，也避免了需要build以后才能调用，方便我们使用与维护。具体步骤如下：
 
 1、先创建一个module，类型为Android Library
 
@@ -913,13 +913,19 @@ o 当有多个业务模块都需要 AIDL 来进行 IPC，此时需要为每个�
 
 <font color='orange'>Q：</font>
 
-# 总结
 
-1、
 
-## 【精益求精】我还能做（补充）些什么？
 
-1、
+
+# 问题记录
+
+1、AIDL编译一直不通过之文件目录
+
+这个问题是由于目录异常引起的，创建 aidl 的目录是一级一级的，我创建了一个文件夹命名为了：com.lizw.aidlserver.aidlsdk，导致编译失败，正确的做法是创建 4 级目录。
+
+/Users/lizw/Desktop/mystudio/projects/myproject/Demos-AndroidCoreLibs/aidlserver/aidlsdk/src/main/aidl**/com.lizw.aidlserver.aidlsdk/**person/IOnPersonChangeListener.aidl:6.1-10: IOnPersonChangeListener should be declared in a file called com/lizw/aidlserver/aidlsdk/person/IOnPersonChangeListener.aidl
+
+![image-20240415142658111](images/【总结篇】AIDL基本使用/image-20240415142658111.png)
 
 
 
