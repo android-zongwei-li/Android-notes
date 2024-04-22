@@ -10,6 +10,8 @@ GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，Refere
 
 缓存模块：
 
+生命周期管理：androidx.lifecycle 中的 LifecycleRegistry、Lifecycle
+
 这也可以说明一点，即掌握Glide原理可以给我们带了什么？首先就是对上面这些知识点的原理和运用理解的更加深刻，同时对Glide的理解也更加深入。
 
 # Glide流程分析
@@ -771,7 +773,7 @@ public interface Encoder<T> {
 
 与 Encoder 对应，**数据解码器**，用来**将原始数据解码成相应的数据类型**，针对不同的请求实现类都不同，例如通过网络请求最终获取到的是一个 InputStream，经过 ByteBufferBitmapDecoder 解码后再生成一个 Bitmap。
 
-需要指出的是，这里解码时会根绝 option 以及图片大小（如果有的话）按需加载 Bitmap，防止内存的浪费。
+需要指出的是，这里解码时会根据 option 以及图片大小（如果有的话）按需加载 Bitmap，防止内存的浪费。
 
 与 Encoder 一样，Glide 初始化时会注册很多个类型的 ResourceDecoder 实现类，图片数据获取到之后会根据不同的类型使用对应的解码器对其解码。
 
@@ -1594,6 +1596,96 @@ DIRTY、CLEAN 代表操作类型，除了这两个还有 REMOVE 以及 READ，�
 
 
 
+# 生命周期绑定原理
+
+1、实现原理
+
+在Activity中添加无UI的Fragment，通过Fragment接收Activity传递的生命周期。Fragment和RequestManager基于LifeCycle接口建立联系，并传递生命周期事件，实现生命周期感知。
+
+如何绑定生命周期
+
+在调用Glide.with(Activity activity)的时候，我们跟一下流程
+
+```kotlin
+ // with入口
+ public static RequestManager with(@NonNull FragmentActivity activity) {
+     return getRetriever(activity).get(activity);
+ }
+
+ // 此处拿到对应的 FragmentManager，为生成Fragment做准备
+ public RequestManager get(@NonNull FragmentActivity activity) {
+     if(Util.isOnBackgroundThread()) {
+         return this.get(activity.getApplicationContext());
+     } else {
+         assertNotDestroyed(activity);
+         android.support.v4.app.FragmentManager fm = activity.getSupportFragmentManager();
+         return this.supportFragmentGet(activity, fm, (Fragment)null, isActivityVisible(activity));
+     }
+ }
+ 
+ private RequestManager supportFragmentGet(@NonNull Context context, @NonNull android.support.v4.app.FragmentManager fm, @Nullable Fragment parentHint, boolean isParentVisible) {
+ 	// current就是一个无UI的Fragment实例
+     SupportRequestManagerFragment current = this.getSupportRequestManagerFragment(fm, parentHint, isParentVisible);
+     RequestManager requestManager = current.getRequestManager();
+     if(requestManager == null) {
+         Glide glide = Glide.get(context);
+ 		// 将Fragment的LifeCycle传入RequestManager中，建立起来联系
+         requestManager = this.factory.build(glide, current.getGlideLifecycle(), current.getRequestManagerTreeNode(), context);
+         current.setRequestManager(requestManager);
+     }
+
+     return requestManager;
+ }
+
+ //RequestManager的构造方法中绑定LifeCycle，将自己的引用存入LifeCycle，调用LifeCycle的生命周期时进行回调
+ lifecycle.addListener(this);
+
+```
+
+ 1. Glide绑定Activity时，生成一个无UI的Fragment
+ 2. 将无UI的Fragment的LifeCycle传入到RequestManager中
+ 3. 在RequestManager的构造方法中，将RequestManager存入到之前传入的Fragment的LifeCycle，在回调LifeCycle时会回调到
+
+如何通过Fragment的生命周期回调调用Glide的对应方法
+
+通过Fragment的回调调用到Glide的RequestManager的对应的方法即可执行不同的操作，主要绑定的三个方法为：`onStart()`,`onStop()`,`onDestroy()`。回调的源码：
+
+```kotlin
+ //RequestManager的构造方法中绑定LifeCycle，将自己的引用存入LifeCycle，调用LifeCycle的生命周期时进行回调
+ //这个this是RequestManager的实例
+ lifecycle.addListener(this);
+
+ // onDestory的回调示例
+ void onDestroy() {
+     this.isDestroyed = true;
+     Iterator var1 = Util.getSnapshot(this.lifecycleListeners).iterator();
+
+     while(var1.hasNext()) {
+         LifecycleListener lifecycleListener = (LifecycleListener)var1.next();
+         lifecycleListener.onDestroy();
+     }
+
+ }
+
+ //下面看一下RequestManager里面的onDestory方法，里面主要做一些解绑和清除操作
+ public void onDestroy() {
+     this.targetTracker.onDestroy();
+     Iterator var1 = this.targetTracker.getAll().iterator();
+
+     while(var1.hasNext()) {
+         Target<?> target = (Target)var1.next();
+         this.clear(target);
+     }
+
+     this.targetTracker.clear();
+     this.requestTracker.clearRequests();
+     this.lifecycle.removeListener(this);
+     this.lifecycle.removeListener(this.connectivityMonitor);
+     this.mainHandler.removeCallbacks(this.addSelfToLifecycle);
+     this.glide.unregisterRequestManager(this);
+ }
+```
+
 
 
 # 相关问题
@@ -1622,8 +1714,6 @@ Glide如何确定图片加载完毕？
 
 Glide生命周期是如何绑定的？
 
-LruCache的底层实现？
-
 ### 缓存
 
 Glide的缓存实现？
@@ -1635,6 +1725,8 @@ Glide缓存特点
 Glide内存缓存如何控制大小？
 
 Glide为我们做了哪些内存优化
+
+LruCache的底层实现？
 
 图片缓存框架设计
 
