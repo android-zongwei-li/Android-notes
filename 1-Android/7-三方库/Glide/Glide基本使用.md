@@ -34,6 +34,8 @@ implementation 'com.github.bumptech.glide:glide:4.16.0'
 
 ![img](images/Glide基本使用/webp-1706801581628-80.webp)
 
+
+
 ## 1、加载图片基本流程
 
 加载图片的核心代码就一行，通过这行代码，可以完成图片的加载与展示。
@@ -265,7 +267,48 @@ Glide.with(this).load(imageUrl).centerCrop().into(imageView);
 Glide.with(this).load(imageUrl).priority(Priority.NORMAL).into(imageView);
 ```
 
+# 配置OkHttp请求网络
 
+```kotlin
+//Glide库
+implementation 'com.github.bumptech.glide:glide:4.13160'
+
+//kotlin项目先引入plugin，然后是用kapt引入，切记，不然可能导致无法生成自定义GlideModule的实现类
+plugins {
+    id 'kotlin-kapt'
+}
+kapt 'com.github.bumptech.glide:compiler:4.16.0'
+
+// Glide集成OkHttp时需要使用的库，库已经将需要适配Okhhtp的大部分代码封装
+implementation "com.github.bumptech.glide:okhttp3-integration:4.16.0"
+
+// 提供 Log 拦截器实现类。HttpLoggingInterceptor() 
+implementation "com.squareup.okhttp3:logging-interceptor:3.14.9"
+```
+
+实现类：GlideOkHttpModule
+
+```kotlin
+@GlideModule
+class GlideOkHttpModule : AppGlideModule() {
+    
+    override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
+        val httpLoggingInterceptor = HttpLoggingInterceptor()
+        httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+        
+        Log.i(TAG, "registerComponents: ")
+        val client: OkHttpClient = OkHttpClient.Builder()
+                .retryOnConnectionFailure(true)
+                .addInterceptor(httpLoggingInterceptor)
+                .connectTimeout(6, TimeUnit.SECONDS)
+                .build()
+        
+        registry.replace(GlideUrl::class.java, InputStream::class.java, OkHttpUrlLoader.Factory(client))
+    }
+}
+```
+
+参考：https://blog.csdn.net/sinat_34388320/article/details/124800403
 
 # 3. Demo实例
 
