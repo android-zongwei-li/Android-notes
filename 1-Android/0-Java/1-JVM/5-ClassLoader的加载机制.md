@@ -44,7 +44,7 @@ JVM 中自带 3 个类加载器：
 
 部分源码如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCaAf-h3AAFnyY9SYn4768.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCaAf-h3AAFnyY9SYn4768.png)
 
 可以看出，AppClassLoader 主要加载系统属性“java.class.path”配置下类文件，也就是环境变量 CLASS_PATH 配置的路径。因此 AppClassLoader 是面向用户的类加载器，我们自己编写的代码以及使用的第三方 jar 包通常都是由它来加载的。
 
@@ -52,13 +52,13 @@ JVM 中自带 3 个类加载器：
 
 部分源码如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCaAGUjRAAIMUAR7Y3c186.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCaAGUjRAAIMUAR7Y3c186.png)
 
 可以看出，ExtClassLoader 加载系统属性“java.ext.dirs”配置下类文件，可以打印出这个属性来查看具体有哪些文件：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCaAY_dYAAAprdcpTC0589.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCaAY_dYAAAprdcpTC0589.png)
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCaAPNV4AAAvayS6X4o835.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCaAPNV4AAAvayS6X4o835.png)
 
 #### 2.3、BootstrapClassLoader 启动类加载器
 
@@ -68,11 +68,11 @@ BootstrapClassLoader 同上面的两种 ClassLoader 不太一样。
 
 BootstrapClassLoader 加载系统属性“sun.boot.class.path”配置下类文件，可以打印出这个属性来查看具体有哪些文件：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCaAONHUAAAsZT0sIBc274.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCaAONHUAAAsZT0sIBc274.png)
 
 结果如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCeAMOlRAAGJMpJkA5I246.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCeAMOlRAAGJMpJkA5I246.png)
 
 可以看到，这些全是 JRE 目录下的 jar 包或者 .class 文件。
 
@@ -94,7 +94,7 @@ BootstrapClassLoader 加载系统属性“sun.boot.class.path”配置下类文�
 
 其具体实现代码是在 ClassLoader.java 中的 loadClass 方法中，如下所示：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCeAQezSAAQYyFDklrg999.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCeAQezSAAQYyFDklrg999.png)
 
 解释说明：
 
@@ -109,7 +109,7 @@ BootstrapClassLoader 加载系统属性“sun.boot.class.path”配置下类文�
 
 那这个 parent 是什么呢？ 我们可以看下 ClassLoader 的构造器，如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCeAWh1-AAA_Lzb-zhw301.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCeAWh1-AAA_Lzb-zhw301.png)
 
 可以看出，在每一个 ClassLoader 中都有一个 CLassLoader 类型的 parent 引用，并且在构造器中传入值。如果我们继续查看源码，可以看到 AppClassLoader 传入的 parent 就是 ExtClassLoader，而 ExtClassLoader 并没有传入任何 parent，也就是 null。
 
@@ -133,11 +133,11 @@ Test test = new Test();
 
 最终 Test 类就是被 AppClassLoader 加载到内存中，可以通过如下代码印证此结果：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCeAW8daAADQVXAv0pE448.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCeAW8daAADQVXAv0pE448.png)
 
 打印结果为：
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCeAE1DdAABZjeS7yN0189.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCeAE1DdAABZjeS7yN0189.png)
 
 可以看出，Test 的 ClassLoader 为 AppClassLoader 类型，而 AppClassLoader 的 parent 为 ExtClassLoader 类型。ExtClassLoader 的 parent 为 null。
 
@@ -157,7 +157,7 @@ JVM 中预置的 3 种 ClassLoader 只能加载特定目录下的 .class 文件�
 
 用一段伪代码来描述这段过程如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCeABoqPAACWzrHjS54889.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCeABoqPAACWzrHjS54889.png)
 
 #### 5.2、自定义 ClassLoader 实践
 
@@ -203,7 +203,7 @@ JVM 中预置的 3 种 ClassLoader 只能加载特定目录下的 .class 文件�
 
 PathClassLoader 用来加载系统 apk 和被安装到手机中的 apk 内的 dex 文件。它的 2 个构造函数如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/84/1D/Cgq2xl6MQCiAV6lJAACs0LXqQVg644.png)
+![img](images/5-ClassLoader的加载机制/Cgq2xl6MQCiAV6lJAACs0LXqQVg644.png)
 
 参数说明：
 
@@ -239,7 +239,7 @@ PathClassLoader 里面除了这 2 个构造方法以外就没有其他的代码�
 
 DexClassLoader 的源码里面只有一个构造方法，代码如下：
 
-![img](https://s0.lgstatic.com/i/image3/M01/0B/07/Ciqah16MQCiAP86KAABzADT7Fyw585.png)
+![img](images/5-ClassLoader的加载机制/Ciqah16MQCiAP86KAABzADT7Fyw585.png)
 
 参数说明：
 
