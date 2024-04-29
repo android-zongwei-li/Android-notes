@@ -1,3 +1,11 @@
+# 待看
+
+[Android图片加载框架最全解析（二），从源码的角度理解Glide的执行流程](https://blog.csdn.net/guolin_blog/article/details/53939176)
+
+[Android图片加载框架最全解析（三），深入探究Glide的缓存机制](https://blog.csdn.net/guolin_blog/article/details/54895665)
+
+
+
 # 前置知识
 
 提前掌握这些知识，可以更容易地理解 Glide 的原理，因为这些知识点都在Glide中有用到。反之，如果不懂的话，那理解起来就有阻碍，不那么通畅。
