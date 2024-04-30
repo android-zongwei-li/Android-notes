@@ -2,14 +2,20 @@
 
 
 
-# 前置知识
 
-volatile，
+
+# 待学
+
+[Android图片加载框架最全解析（四），玩转Glide的回调与监听](https://blog.csdn.net/guolin_blog/article/details/70215985)
+
+
 
 # 一、简介与优势
 
+GitHub：https://github.com/bumptech/glide
+
 **1、简介**
-Glide 是Google的开源的一个图片加载框架，功能全、性能高，使用简单。
+Glide 是一个图片加载框架，功能全、性能高，使用简单。
 
 **2、Glide优点**
 1、支持多种数据源，本地、网络、assets、gif等都支持。
@@ -19,50 +25,149 @@ Glide 是Google的开源的一个图片加载框架，功能全、性能高，�
 5、图片加载过程可以监听
 6、可配置度高，自适应高
 
+## 功能概览
+
+![img](images/Glide基本使用/webp-1706801581628-80.webp)
+
 # 二、基本使用
 
-引入依赖库：
+## 添加依赖
 
 ```kotlin
 // https://github.com/bumptech/glide
 implementation 'com.github.bumptech.glide:glide:4.16.0'
 ```
 
+## 添加权限
+
+```kotlin
+<uses-permission android:name="android.permission.INTERNET" />
+```
+
+## 加载图片
+
+一张图片
 
 
-## 功能列表
 
-![img](images/Glide基本使用/webp-1706801581628-80.webp)
+```kotlin
+http://cn.bing.com/az/hprichbg/rb/Dongdaemun_ZH-CN10736487148_1920x1080.jpg
+```
 
-
-
-## 1、加载图片基本流程
+## 1、加载图片
 
 加载图片的核心代码就一行，通过这行代码，可以完成图片的加载与展示。
 
+```kotlin
+Glide.with(this).load(url2).into(ivBg);
 ```
-        Glide.with(this).load(url2).into(ivBg);
+xml
+
+```kotlin
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Load Image"
+        android:onClick="loadImage"
+        />
+
+    <ImageView
+        android:id="@+id/image_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</LinearLayout>
 ```
-分析：
+
+Activity 中使用
+
+```kotlin
+public class MainActivity extends AppCompatActivity {
+
+    ImageView imageView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        imageView = (ImageView) findViewById(R.id.image_view);
+    }
+
+    public void loadImage(View view) {
+        String url = "http://cn.bing.com/az/hprichbg/rb/Dongdaemun_ZH-CN10736487148_1920x1080.jpg";
+        Glide.with(this).load(url).into(imageView);
+    }
+
+}
+```
+
+这样图片就加载完成了。
+
+### 拓展分析
+
 （1）Glide.with()
 用于创建一个加载图片的实例。with()方法可以接收Context、Activity、Fragment、View等类型的参数。with()方法传入的实例会决定Glide加载图片的生命周期，如果传入的是Activity或者Fragment实例，那么当这个Activity或Fragment销毁时，图片加载也会停止。如果传入的是ApplicationContext，那么只有当应用程序被杀掉的时候，图片加载才会停止。
 （2）load()
-用于指定要加载的图片资源，可以来自网络、本地、应用、二进制流、Uri对象等。
+用于指定要加载的图片资源，可以来自网络、本地、应用、二进制流、Uri对象等。load 重载方法使用：
+
+```kotlin
+// 加载本地图片
+File file = new File(getExternalCacheDir() + "/image.jpg");
+Glide.with(this).load(file).into(imageView);
+
+// 加载应用资源
+int resource = R.drawable.image;
+Glide.with(this).load(resource).into(imageView);
+
+// 加载二进制流
+byte[] image = getImageBytes();
+Glide.with(this).load(image).into(imageView);
+
+// 加载Uri对象
+Uri imageUri = getImageUri();
+Glide.with(this).load(imageUri).into(imageView);
+```
+
 （3）into()
-让图片显示到指定控件。
+
+让图片显示到指定控件。into()方法不仅仅是只能接收ImageView类型的参数，还支持很多更丰富的用法，后面会记录。
+
+Glide最基本的使用方式，其实就是关键的三步走：先with()，再load()，最后into()。
 
 ## 2、占位图（加载占位图/异常占位图）
 
-加载占位图用来解决网络加载时有段时间图片空白的情况。异常占位符解决加载失败的情况。
+占位图是指在图片的加载过程中，可以先显示一张临时的图片，等图片加载出来了再替换成要加载的图片；或者在加载失败时，显示失败图片。如下：
 
-```
+加载占位图用来解决网络加载时有段时间图片空白的情况。
+
+异常占位符解决加载失败的情况。异常情况，比如 Url 错误，或者无网络。
+
+```kotlin
 Glide.with(MainActivity.this).load(url)
         .placeholder(R.mipmap.ic_loading)
         .error(R.drawable.error)
         .into(ivBg);
 ```
 
-## 3、关于缓存
+因为Glide有非常强大的缓存机制，所以二次加载图片时，占位图可能根本来不及显示。
+
+```kotlin
+Glide.with(this)
+     .load(url)
+     .placeholder(R.drawable.loading)
+     .diskCacheStrategy(DiskCacheStrategy.NONE)
+     .into(imageView);
+```
+
+传入DiskCacheStrategy.NONE参数，可以禁用掉Glide的缓存功能，以查看占位符效果。一般项目中不会禁用。
+
+## 3、缓存
 
 - 设置磁盘缓存策略
 
@@ -79,9 +184,9 @@ Glide.with(this)
 // DiskCacheStrategy.RESULT：只缓存转换后的图片（即最终的图像：降低分辨率后 / 或者转换后 ，不缓存原始图片
 ```
 
-目前有一种情况，同一个url，服务端对应的图片改了，此时，如果有缓存，那就和预期不符了。下面是禁用缓存的方法。
+有一种情况，同一个url，服务端对应的图片改了，此时，如果有缓存，那就和预期不符了。下面是禁用缓存的方法。
 
-```
+```kotlin
 Glide.with(this)
      .load(url)
      .placeholder(R.drawable.loading)
@@ -91,7 +196,7 @@ Glide.with(this)
 
 - 设置跳过内存缓存
 
-```csharp
+```kotlin
 Glide
   .with(this)
 .load(imageUrl)
@@ -105,18 +210,37 @@ Glide
 - 清理缓存
 
 ```kotlin
-Glide.get(this).clearDiskCache();//清理磁盘缓存 需要在子线程中执行 
+Glide.get(this).clearDiskCache();//清理磁盘缓存 需要在子线程中执行
 Glide.get(this).clearMemory();//清理内存缓存 可以在UI主线程中进行
 ```
 
+## 4、指定图片大小
 
+> 先了解一个概念，就是我们平时在加载图片的时候很容易会造成内存浪费。什么叫内存浪费呢？比如说一张图片的尺寸是1000 * 1000像素，但是我们界面上的ImageView可能只有200 * 200像素，这个时候如果不对图片进行任何压缩就直接读取到内存中，这就属于内存浪费了，因为程序中根本就用不到这么高像素的图片。
+>
+> [Android高效加载大图、多图解决方案，有效避免程序OOM](https://blog.csdn.net/guolin_blog/article/details/9316683)
 
-## 4、指定图片格式（静态/Gif）
+使用override()方法可以指定图片大小，默认情况都是根据ImageView的大小来决定图片大小。
+
+```kotlin
+Glide.with(this)
+     .load(url)
+     .placeholder(R.drawable.loading)
+     .error(R.drawable.error)
+     .override(100, 100)
+     .into(imageView);
+```
+
+Glide会自动判断ImageView的大小，用到多少加载多少，可以避免内存浪费。
+
+![img](images/Glide基本使用/webp.webp)
+
+## 5、指定图片格式（静态/Gif）
 
 默认情况是不需要设置的，Glide会自动判断格式。
 但是如果必须加载静态，可以用asBitmap，这样如果是gif，那么会显示第一帧。
 
-```
+```kotlin
 Glide.with(this)
      .load(url)
      .asBitmap()
@@ -124,8 +248,10 @@ Glide.with(this)
      .error(R.drawable.error)
      .into(imageView);
 ```
+
 指定Gif格式，如果图片不是Gif，那么会显示error图片。
-```
+
+```kotlin
 Glide.with(this)
      .load(url)
      .asGif()
@@ -134,29 +260,11 @@ Glide.with(this)
      .into(imageView);
 ```
 
-## 5、指定图片大小
-
-使用override()方法指定图片大小，默认情况都是根据ImageView的大小来决定图片大小。
-
-```
-Glide.with(this)
-     .load(url)
-     .placeholder(R.drawable.loading)
-     .error(R.drawable.error)
-     .override(100, 100)
-     .into(imageView);
-```
-Glide加载图片是用到多少加载多少，这样可以避免内存浪费。
-
-
-
-![img](images/Glide基本使用/webp.webp)
-
 ## 关于图片加载
 
 - 图片的异步加载（基础功能）
 
-```dart
+```kotlin
 ImageView targetImageView = (ImageView) findViewById(R.id.ImageView);
         String Url = "http://218.192.170.132/1.jpg";
 
