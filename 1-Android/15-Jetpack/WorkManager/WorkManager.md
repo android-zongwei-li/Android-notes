@@ -8,7 +8,9 @@ WorkManager是Google推出的组件, 用于解决**应用在退出或者设备�
 
 ## 适用场景
 
-### 
+什么时候应该选择使用 WorkManager 呢？
+
+
 
 ## 如何管理后台工作
 
@@ -151,6 +153,8 @@ mWorkManager.getWorkInfosByTagLiveData(DownloadWorker.TAG)
 获取到的任务结果为`List<WorkInfo>`, List[0]代表当前最新
 
 # 三. 示例
+
+下面是一个。。。例子。
 
 ![ezgif-1-d5e24750d4.gif](images/WorkManager/3.webp)
 

@@ -1,10 +1,4 @@
-> version：2021/10/
->
-> review：
 
-
-
-目录
 
 [TOC]
 
@@ -21,6 +15,10 @@ Java：线程池
 计算机网络：请求与响应流程。
 
 
+
+官网：https://square.github.io/okhttp/
+
+Github：https://github.com/square/okhttp
 
 # 一、OKHttp请求整体流程
 
@@ -81,32 +79,6 @@ Java：线程池
 # 相关问题
 
 <font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
 
 # 总结
 
