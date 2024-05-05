@@ -350,10 +350,6 @@ class RoomViewModel(private var applicationContext: Application) : ViewModel() {
     private val personDataBase: PersonDataBase = PersonDataBase.getInstance(applicationContext)
     private val personDao = personDataBase.getPersonDao()
 
-    fun migration() {
-        PersonDataBase.migration(applicationContext)
-    }
-
     fun insert(person: Person) = personDao.insertPerson(person)
 
     fun delete(person: Person) = personDao.deletePerson(person)
