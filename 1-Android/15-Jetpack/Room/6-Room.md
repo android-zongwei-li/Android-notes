@@ -4,6 +4,20 @@
 
 [官方：将数据保存到本地数据库](https://developer.android.google.cn/training/data-storage/room?hl=zh_cn&authuser=0)
 
+
+
+# Room SQL命令
+
+
+
+| 作用             | 命令                                      |      |
+| ---------------- | ----------------------------------------- | ---- |
+| 查询表中有多少行 | @Query("SELECT COUNT(*) FROM $tableName") |      |
+|                  |                                           |      |
+|                  |                                           |      |
+
+
+
 # Room
 
 ## 背景
@@ -207,11 +221,24 @@ android {
 ## 添加依赖
 
 ```kotlin
-    def room_version = "2.6.1"
 
-    implementation "androidx.room:room-runtime:$room_version"
-    annotationProcessor "androidx.room:room-compiler:$room_version"
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+// 注意用 kotlin 的项目，要把 annotationProcessor 替换成 kapt，否则不能生成相关的类，运行时会报错
+//    annotationProcessor("androidx.room:room-compiler:2.6.1")
 ```
+
+kapt添加，在module build.gradle文件中添加
+
+```kotlin
+plugins {
+    id("kotlin-kapt")
+    或者，取决于项目gradle版本
+    apply plugin: 'kotlin-kapt'
+}
+```
+
+
 
 ## 数据实体：Person
 
@@ -667,6 +694,27 @@ mPersonDataBase = Room.databaseBuilder(
 
 
 
+# 加载 assets 目录下的数据库
+
+使用：createFromAsset 方法指定名称
+
+```kotlin
+
+        private const val DATABASE_NAME = "english_exam_system_sqlite.db"
+		
+		fun getInstance(context: Context): AppDatabase {
+            if (::appDataBase.isInitialized.not()) {
+                appDataBase = databaseBuilder(
+                    context.applicationContext,
+                    AppDatabase::class.java,
+                    "english_exam_system_sqlite_db"
+                ).createFromAsset(DATABASE_NAME)
+                    .build()
+            }
+            return appDataBase
+        }
+```
+
 
 
 
@@ -745,6 +793,27 @@ android {
   }
 }
 ```
+
+
+
+# 错误合集（Q&A）
+
+1、An entity must have at least 1 field annotated with @PrimaryKey
+
+Entity 必须有一个字段用 @PrimaryKey 标记为主键。
+
+```kotlin
+@Entity(tableName = TABLE_NAME_OF_ceee_3500_words)
+data class HighSchoolWordsEntity(
+    @PrimaryKey
+    @ColumnInfo(name = "index", typeAffinity = ColumnInfo.INTEGER)
+    val index: Int,
+)
+```
+
+2、Caused by: java.lang.IllegalStateException: Cannot access database on the main thread since it may potentially lock the UI for a long period of time.
+
+不能在 UI 线程调用方法访问数据库
 
 
 
