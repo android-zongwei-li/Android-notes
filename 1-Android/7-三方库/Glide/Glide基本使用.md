@@ -511,4 +511,4 @@ C. 内存开销小
 
 1、[ Android图片加载框架最全解析（一），Glide的基本用法](https://guolin.blog.csdn.net/article/details/53759439)
 
-2、https://www.jianshu.com/p/c3a5518b58b2
+[Carson带你学Android：图片加载库Glide使用教程](https://www.jianshu.com/p/c3a5518b58b2)

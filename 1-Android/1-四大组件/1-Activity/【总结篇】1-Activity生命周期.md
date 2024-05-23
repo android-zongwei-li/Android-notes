@@ -8,6 +8,77 @@
 
 
 
+# 前言
+
+- `Android`开发中，会经常接触 `Activity`，所以深入了解`Activity`生命周期非常重要
+- 本文将深入讲解`Activity`生命周期 的相关内容
+
+> 阅读本文 需 3分钟
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-55a212a3e8df7ea4.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 1. 生命周期流程 & 方法详解
+
+### 1.1 具体请看下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-cc3b46419cc30ece.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 1.2 注意点
+
+#### a. 生命周期方法 = 成对出现（配对）
+
+- `onCreate()` & `onDestory()`
+- `onStart()` & `onStop()`
+- `onResume()`  & `onPause()`
+
+#### b. onStart() & onStop()、onResume()  & onPause() 除了回调时刻，在实际使用中无任何区别
+
+- `onStart()` & `onStop()` ：从 `Activity` 是否完全可见的角度 进行回调
+- `onResume()` & `onPause()`： 从 `Activity` 是否位于前台（UI最顶层）的角度进行回调；
+- 除了上述的区别，在实际使用中没有任何区别
+
+#### c. 当前Activity为A，此时用户打开ActivityB后，那么A的onPause（）和B的onResume()哪个方法先执行？
+
+答：先 A的`onPause（）` ，再B的`onResume()`
+
+- `Activity`的启动过程：由`ActivityManagerService`（AMS）对栈内的`Activity`状态进行同步管理 & 规定：**新`Activity`启动前，栈顶的Activity必须先`onPause（）`，才能启动新的`Activity`（执行`onResume()`）**
+
+> 注：为了让新的`Activity`尽快切换到前台，在 `onPause()`尽量不要做耗时 / 重量级操作
+
+------
+
+# 2. 常见场景的生命周期调用方式
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-1a493ddb804eefc4.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 3. 与Fragment生命周期对比
+
+- `Fragment`、`Activity`的生命周期非常相似
+
+- 具体对比如下图：
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-0f9670e55a52403c.png?imageMogr2/auto-orient/strip|imageView2/2/w/340/format/webp)
+
+  与Fragment生命周期对比
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-305b102f39ac27ce.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+
+
 ## 一、前言
 
 生命周期的情况主要分为两部分，第一部分是典型的生命周期的7个部分以及Activity的状态。第二部分是Activity在一些特殊情况下的生命周期过程。 
@@ -537,3 +608,9 @@ Activity 的 onSaveInstanceState() 和 onRestoreInstanceState() 并不是生命�
 
 
 <font color='orange'>Q：</font>
+
+
+
+# 参考
+
+[Carson带你学Android：3分钟全面解析Activity生命周期](https://www.jianshu.com/p/b1ff03a7bb1f)

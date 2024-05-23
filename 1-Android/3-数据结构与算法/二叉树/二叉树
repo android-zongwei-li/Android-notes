@@ -1,0 +1,622 @@
+
+
+# 前言
+
+- 二叉树是一种特殊的树结构，应用广泛
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-a8fb23f35f813eaa.png?imageMogr2/auto-orient/strip|imageView2/2/w/898/format/webp)
+
+示意图
+
+------
+
+# 1. 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-707f6450ae8464d4.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 2. 性质
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-02b52c156fe56d72.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 3. 存储结构
+
+二叉树的存储结构包括：顺序存储结构 & 链式存储结构
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-2c9246de8d527485.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 注：上述的链式存储方式，即为树结构中的孩子兄弟表示法。具体如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-02f51e11b2ba0659.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+**大多数情况下，二叉树的建立会采用 链式存储结构**
+
+------
+
+# 4. 二叉树的建立
+
+建立的核心：
+ 数据结构 = 链表  、实现方式 = 递归 / 非递归  算法
+
+### 4.1 数据结构
+
+采用链表的方式，也称为：二叉链表
+
+> 1. 为了确保每个结点都有左右孩子，所以空指针 = 虚结点 = #
+> 2. 这种处理也称：**扩展二叉树**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-c26877d24810c0f8.png?imageMogr2/auto-orient/strip|imageView2/2/w/821/format/webp)
+
+示意图
+
+- 节点结构 & 树的定义如下
+
+
+
+```java
+   /**
+     * 设置结点结构
+     */
+    public static class TreeNode<T> {
+        T val; // 二叉树的结点数据
+        TreeNode<T> leftNode; // 二叉树的左子树（左孩子）
+        TreeNode<T> rightNode; // 二叉树的右子树（右孩子）
+
+        public TreeNode(T data,TreeNode<T> left,TreeNode<T> right) {
+            this.val = data;
+            this.leftNode = left;
+            this.rightNode = right;
+        }
+
+
+        // 获得 & 设置二叉树的结点数据
+        public T getData(){
+            return val;
+        }
+
+        public void setData(T data){
+            this.val = data;
+        }
+
+        // 获得 & 设置二叉树的左子树（左孩子）
+        public TreeNode getLeftNode(){
+            return leftNode;
+        }
+
+        public void setLeftNode(TreeNode leftNode){
+            this.leftNode = leftNode;
+        }
+
+        // 获得 & 设置二叉树的右子树（右孩子）
+        public TreeNode getRightNode(){
+            return rightNode;
+        }
+        public void setRightNode(TreeNode rightNode){
+            this.rightNode = rightNode;
+        }
+    }
+
+
+/**
+ * 作用：构造二叉树
+ * 注：必须逆序建立，即：先建立子节点，再逆序往上建立
+ * 原因：非叶子节点会使用到下面的节点，而初始化是按顺序初始化的，不逆序建立会报错
+ */ 
+public Node init(){
+    // 结构如下：(由下往上建立)
+    //            A
+    //       B         C
+    //    D         E     F
+    //  G   H         I
+    Node I = new Node("I", null, null);
+    Node H = new Node("H", null, null);
+    Node G = new Node("G", null, null);
+    Node F = new Node("F", null, null);
+    Node E = new Node("E", null, I);
+    Node D = new Node("D", G, H);
+    Node C = new Node("C", E, F);
+    Node B = new Node("B", D, null);
+    Node A = new Node("A", B, C);
+    return A;  // 返回根节点
+}
+```
+
+### 4.2 递归 算法
+
+- 通过 **递归方式** 构造出整个二叉树
+- 构造过程 = 将遍历算法的**输出结点操作** 替换成： **生成结点 & 赋值操作** 即可
+
+> 关于遍历算法，下节会详细说明
+
+------
+
+# 5. 二叉树的遍历
+
+### 5.1 定义
+
+从根节点出发，按照某种次序访问二叉树中的所有结点，**使得每个结点被访问1次 且 只被访问1次**
+
+### 5.2 遍历方式
+
+二叉树的遍历方式包括：
+
+1. 前序遍历（深度优先遍历）
+2. 中序遍历
+3. 后序遍历
+4. 层序遍历（广度优先遍历）
+
+### 5.3 遍历实现
+
+遍历的实现方式分为：递归 & 非递归方式，下面会详细说明
+
+#### 5.3.1 前序遍历
+
+> 也称 深度优先遍历
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-2bf8d1ab11baf4b7.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 递归实现
+
+
+
+```csharp
+   /**
+     * 内容：前序遍历
+     * 方式：递归
+     */
+     public void preOrder(Node root){
+        // 1. 判断二叉树结点是否为空；若是，则返回空操作
+        if(root ==null)
+            return;
+
+        // 2. 访问根节点（显示根结点）
+        printNode(root);
+
+        // 3. 遍历左子树
+        preOrder(root.getLeftNode());
+
+        // 4. 遍历右子树
+        preOrder(root.getRightNode());
+
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-db63e1408c1a6076.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 非递归实现
+
+  主要采用 
+
+  栈实现
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-49f7049bde393775.png?imageMogr2/auto-orient/strip|imageView2/2/w/1120/format/webp)
+
+  流程图
+
+
+
+```cpp
+/**
+  * 方式：非递归（栈实现）
+  */
+    public static void preOrder_stack(Node root){
+
+        Stack<Node> stack = new Stack<Node>();
+
+        // 步骤1：直到当前结点为空 & 栈空时，循环结束
+        while(root != null || stack.size()>0){
+
+            // 步骤2：判断当前结点是否为空
+              // a. 若不为空，执行3
+              // b. 若为空，执行5
+              if(root != null){
+
+                // 步骤3：输出当前节点，并将其入栈
+                printNode(root);
+                stack.push(root);
+
+                // 步骤4：置当前结点的左孩子为当前节点
+                // 返回步骤1
+                root = root.getLeftNode();
+
+            }else{
+
+                // 步骤5：出栈栈顶结点
+                root = stack.pop();
+                // 步骤6：置当前结点的右孩子为当前节点
+                root = root.getRightNode();
+                  // 返回步骤1
+            }
+        }
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-a28eeb8885892f10.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 5.3.2 中序遍历
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-df8d5d51c48e1550.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 递归实现
+
+
+
+```csharp
+/**
+  * 方式：递归
+  */
+    public void InOrder(Node root){
+    
+        // 1. 判断二叉树结点是否为空；若是，则返回空操作
+        if(root ==null)
+            return;
+
+        // 2. 遍历左子树
+        InOrder(root.getLeftNode());
+
+        // 3. 访问根节点（显示根结点）
+        printNode(root);
+
+        // 4. 遍历右子树
+        InOrder(root.getRightNode());
+
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-592fd0f95418775b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 非递归实现
+   主要采用 **栈实现**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-856e1aadb737c5c4.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+流程图
+
+
+
+```cpp
+/**
+  * 方式：非递归（栈实现）
+  */
+    public static void InOrder_stack(Node root){
+
+        Stack<Node> stack = new Stack<Node>();
+
+        // 1. 直到当前结点为空 & 栈空时，循环结束
+        while(root != null || stack.size()>0){
+
+            // 2. 判断当前结点是否为空
+            // a. 若不为空，执行3、4
+            // b. 若为空，执行5、6
+            if(root != null){
+
+                // 3. 入栈当前结点
+                stack.push(root);
+
+                // 4. 置当前结点的左孩子为当前节点
+                // 返回步骤1
+                root = root.getLeftNode();
+
+            }else{
+
+                // 5. 出栈栈顶结点
+                root = stack.pop();
+                // 6. 输出当前节点
+                printNode(root);
+                // 7. 置当前结点的右孩子为当前节点
+                root = root.getRightNode();
+                // 返回步骤1
+            }
+        }
+```
+
+### 5.3.3 后序遍历
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-249e3012e0ecd6ba.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 递归实现
+
+
+
+```csharp
+/**
+  * 方式：递归
+  */
+    public void PostOrder(Node root){
+        // 1. 判断二叉树结点是否为空；若是，则返回空操作
+        if(root ==null)
+            return;
+
+        // 2. 遍历左子树
+        PostOrder(root.getLeftNode());
+
+        // 3. 遍历右子树
+        PostOrder(root.getRightNode());
+
+        // 4. 访问根节点（显示根结点）
+        printNode(root);
+
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-04a3de87309efd6a.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 非递归实现
+   主要采用 **栈实现**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-2d6066ec739bbfa6.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+
+
+```cpp
+/**
+  * 方式：非递归（栈实现）
+  */
+    public void PostOrder_stack(Node root){
+
+        Stack<Node> stack = new Stack<Node>();
+        Stack<Node> output = new Stack<Node>();
+
+        // 步骤1：直到当前结点为空 & 栈空时，循环结束——> 步骤8
+        while(root != null || stack.size()>0){
+
+            // 步骤2：判断当前结点是否为空
+            // a. 若不为空，执行3、4
+            // b. 若为空，执行5、6
+            if(root != null){
+
+                // 步骤3：入栈当前结点到中间栈
+                output.push(root);
+
+                // 步骤4：入栈当前结点到普通栈
+                stack.push(root);
+
+                // 步骤4：置当前结点的右孩子为当前节点
+                // 返回步骤1
+                root = root.getRightNode();
+
+            }else{
+
+                // 步骤5：出栈栈顶结点
+                root = stack.pop();
+                // 步骤6：置当前结点的右孩子为当前节点
+                root = root.getLeftNode();
+                // 返回步骤1
+            }
+        }
+
+        // 步骤8：输出中间栈的结点
+        while(output.size()>0){
+            printNode(output.pop());
+
+        }
+
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-c957297154bb49e3.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 5.3.4 层序遍历
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-5bdec8fd331d72a9.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 实现思路
+   非递归实现，采用 **队列**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-89a809f26a4fa5fe.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 算法流程图
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-11c138468a4286db.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+  示意图
+
+
+
+```csharp
+/**
+  * 方式：非递归（采用队列）
+  */
+    public void levelTravel(Node root){
+        // 创建队列
+        Queue<Node> q=new LinkedList<Node>();
+
+        // 1. 判断当前结点是否为空；若是，则返回空操作
+        if(root==null)
+            return;
+        // 2. 入队当前结点
+        q.add(root);
+
+        // 3. 判断当前队列是否为空，若为空则跳出循环
+        while(!q.isEmpty()){
+
+            // 4. 出队队首元素
+            root =  q.poll();
+
+            // 5. 输出 出队元素
+            printNode(root);
+
+            // 6. 若出队元素有左孩子，则入队其左孩子
+            if(root.getLeftNode()!=null) q.add(root.getLeftNode());
+
+            // 7. 若出队元素有右孩子，则入队其右孩子
+            if(root.getRightNode()!=null) q.add(root.getRightNode());
+        }
+    }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-51b486e6bf39ef1c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 5.4 遍历方式总结
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-76ff9f5a98585715.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 6. 二叉树的类型
+
+- 上述讲解的是基础的二叉树
+- 根据不同的需求场景，二叉树分为许多类型，主要有：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-fd7848a0a43c93a8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 下面，我将详细讲解各种二叉树的类型
+
+### 6.1 线索二叉树
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9b5abaa89fbeffd6.png?imageMogr2/auto-orient/strip|imageView2/2/w/1008/format/webp)
+
+示意图
+
+- 示意图
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-ef0076eb9a6f1697.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+  示意图
+
+- 特别注意
+
+  - 问：如何区别该指针 = 指向左（右）孩子 or 前驱（后继）
+  - 答：增设标志域：Ltag 和 Rtag
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8f15fcc15780f983.png?imageMogr2/auto-orient/strip|imageView2/2/w/1129/format/webp)
+
+示意图
+
+### 6.2 二叉排序树
+
+> 也称：二叉查找树、二叉搜索树
+
+- 特点
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-134c13235e65780c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+  示意图
+
+- 作用 & 应用场景
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-a6da92a52867d3f8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.3 平衡二叉排序树（AVL树）
+
+> 属于 二叉搜索树的一种特殊类型
+
+- 特点
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-694c7327e8168f40.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 具体介绍
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-57588e7eea1b073a.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.4 红黑树
+
+> 属于 二叉搜索树的一种特殊类型
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-fd3f325c087ad902.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.5 赫夫曼树
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-520cb2d728efa411.png?imageMogr2/auto-orient/strip|imageView2/2/w/1045/format/webp)
+
+示意图
+
+- 哈夫曼树算法
+   即，如何找出哈弗曼树。具体算法请看下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-596ce935ae0c6fb3.png?imageMogr2/auto-orient/strip|imageView2/2/w/1081/format/webp)
+
+算法描述
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-f9049d27d3e9c50f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 更加详细请看文章：[http://www.cnblogs.com/mcgrady/p/3329825.html](https://links.jianshu.com/go?to=http%3A%2F%2Fwww.cnblogs.com%2Fmcgrady%2Fp%2F3329825.html)
+
+- 哈夫曼编码
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-25897c3d7b1438bf.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 更加详细请看文章：[http://blog.csdn.net/lfeng_coding/article/details/47782141](https://links.jianshu.com/go?to=http%3A%2F%2Fblog.csdn.net%2Flfeng_coding%2Farticle%2Fdetails%2F47782141)
+
+### 6.6 其他类型（特殊形态）
+
+包括：斜树、满二叉树  & 完全二叉树
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-15db3e2dc8363165.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.7 总结
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9e587dd1ba5806e6.png?imageMogr2/auto-orient/strip|imageView2/2/w/580/format/webp)
+
+
+
+# 参考
+
+[数据结构：图文详解二叉树（遍历、类型、操作）](https://www.jianshu.com/p/d03d62bb02d6)

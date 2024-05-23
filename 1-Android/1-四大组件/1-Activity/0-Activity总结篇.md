@@ -3,6 +3,217 @@
 > review：2021/4/13 - 20240128
 >
 
+
+
+# 前言
+
+- `Activity`属于 `Android`的四大组件之一
+- Carons将献上一份 `Activity`的学习攻略，包括其生命周期、启动模式、启动方式等等，希望你们会喜欢。
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-e1698c9242f037e7.png?imageMogr2/auto-orient/strip|imageView2/2/w/846/format/webp)
+
+示意图
+
+------
+
+# 1. 定义
+
+即 活动，属于 **展示型组件**
+
+> 属于`Android`四大组件之一：`Activity`、`Service`、`BroadcastReceiver`、`ContentProvider`
+
+------
+
+# 2. 作用
+
+显示界面 & 与用户进行交互
+
+> 1. 一个`Activity`通常是一个界面，是四大组件唯一能被用户感知的
+> 2. 每个活动被实现为一个独立的类， & 从活动基类继承过来
+> 3. `Activity`之间通过`Intent`进行通信
+
+------
+
+# 3. 生命周期
+
+- 具体如下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8f75c4ffd13eab1f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 更加详细请看文章：[Android基础：3分钟详解Activity生命周期](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F82620404)
+
+------
+
+# 4. 启动模式
+
+- `Activity`的启动模式有4种，具体如下
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-b6244df4e6c21315.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 4种启动模式的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-f8ff1efde0a29112.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 更加详细请看文章：[Android基础：最易懂的Activity启动模式详解](https://www.jianshu.com/p/399e83d02e33)
+
+------
+
+# 5. 启动方式
+
+- 启动`Activity`的方式主要是：显式`Intent` & 隐式`Intent`
+- 具体介绍如下：
+
+### 5.1 显式Intent（3种）
+
+
+
+```java
+// 1. 使用构造函数 传入 Class对象
+ Intent intent = new Intent(this, SecondActivity.class); 
+ startActivity(intent);
+
+// 2. 使用 setClassName（）传入 包名+类名 / 包Context+类名
+ Intent intent = new Intent(); 
+ // 方式1：包名+类名
+ // 参数1 = 包名称
+ // 参数2 = 要启动的类的全限定名称 
+ intent.setClassName("com.hc.hctest", "com.hc.hctest.SecondActivity"); 
+
+ // 方式2：包Context+类名
+ // 参数1 = 包Context，可直接传入Activity
+ // 参数2 = 要启动的类的全限定名称 
+ intent.setClassName(this, "com.hc.hctest.SecondActivity"); 
+
+ startActivity(intent);
+
+// 3. 通过ComponentName（）传入 包名 & 类全名
+ Intent intent = new Intent(); 
+ // 参数1 = 包名称
+ // 参数2 = 要启动的类的全限定名称 
+ ComponentName cn = new ComponentName("com.hc.hctest", "com.hc.hctest.SecondActivity"); 
+ intent.setComponent(cn); 
+ startActivity(intent);
+```
+
+### 5.2 隐式Intent
+
+
+
+```cpp
+// 通过Category、Action设置
+Intent intent = new Intent(); 
+intent.addCategory(Intent.CATEGORY_DEFAULT); 
+intent.addCategory("com.hc.second"); 
+intent.setAction("com.hc.action"); 
+startActivity(intent);
+```
+
+### 5.3 匹配规则
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-b7156549d2e3d095.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+> 更加详细请看文章：[Android：关于 Intent组件的那些小事（介绍、使用方法等）](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F82767978)
+
+------
+
+# 6. 启动过程
+
+`Activity`的启动过程具体如下：
+
+### 6.1 示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8746d7ac74220415.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.2 具体描述
+
+当请求启动`Activity`时：
+
+1. `Launcher`进程通过`Binder`驱动向`ActivityManagerService`类发起`startActivity`请求；
+2. `ActivityManagerService`类接收到请求后，向`ActivityStack`类发送启动`Activity`的请求；
+3. `ActivityStack`类记录需启动的`Activity`的信息 & 调整`Activity`栈 将其置于栈顶、通过 `Binder` 驱动 将 `Activity` 的启动信息传递到`ApplicationThread`线程中（即`Binder`线程）
+4. `ApplicationThread`线程通过`Handler`将`Activity`的启动信息发送到主线程`ActivityThread`
+5. 主线程`ActivityThread`类接收到该信息 & 请求后，通过`ClassLoader`机制加载相应的`Activity`类，最终调用`Activity`的`onCreate（）`，最后 启动完毕
+
+------
+
+# 7. 卡顿原因
+
+`Activity`的卡顿原因主要归结如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-d052fd1a02f5b4a2.png?imageMogr2/auto-orient/strip|imageView2/2/w/850/format/webp)
+
+示意图
+
+关于内存泄漏 & 性能优化，请看系列文章：
+ [Android性能优化：这是一份全面&详细的内存优化指南](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79549417)
+ [Android性能优化：手把手带你全面了解 内存泄露 & 解决方案](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79407707)
+ [Android性能优化：那些关于Bitmap图片资源优化的小事](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79549382)
+ [Android性能优化：手把手带你全面了解 绘制优化](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79674623)
+ [Android性能优化：布局优化 详细解析（含、、讲解 ）](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79620486)
+
+------
+
+# 8. 加速启动方式
+
+加速启动`Activity`的方式归结如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-19fa54eef58f1744.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 9. 缓存方式（状态保存）
+
+- 问题描述
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8fe90db664407e3b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 具体说明
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-305b102f39ac27ce.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 10. Activity 与Fragment的交互方式
+
+- 主要有：接口、Bundle、广播
+- 具体请看文章：[Android：手把手教你 实现Activity 与 Fragment 相互通信（含Demo）](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F75453770)
+
+至此，关于`Android`四大组件之一的`Activity`讲解完毕。
+
+------
+
+# 11. 总结
+
+本文全面讲解了 `Activity`，现在大家对 `Activity`应该十分了解了。
+
+
+
+
+
+
+
+
+
 ## 一、前言
 
 Activity 作为 Android 的核心组件，在工作和面试中都尤为重要。我们不仅要会使用，还要对它的相关特性（生命周期、启动模式等）了如指掌，也要对其源码（启动流程、和Window与View的关系等）有深入理解。本文会对掌握 Activity 所需了解的知识点做一个整理，然后通过其他几篇笔记来对其中的各个知识点做详细总结。
@@ -175,3 +386,8 @@ Android中的activity全都归属于task管理 。task 是多个 activity 的集
 
 > [点击查看答案](https://www.cnblogs.com/On1Key/p/5180022.html)
 
+
+
+# 参考
+
+[Carson带你学Android：关于Activity的知识都在这里了](https://www.jianshu.com/p/32938446e4e0)

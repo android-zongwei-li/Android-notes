@@ -4,13 +4,197 @@
 
 
 
-目录
+# 通过这篇文章你将学习到：
 
-[TOC]
+- Context 与 Activity 有什么关系？
+- Context对于Activity有什么作用？
+- 不同类型的Context的应用场景是什么？
+- 关于Context的几个常见关键知识点
+
+# 1. 二者有什么关系？
+
+Context 是一个抽象类；Activity 继承了 Context。具体继承关系如下：
+
+- Context的直接实现子类：ContextImp、ContextWrapper
+
+- ContextWrapper的子类是常用的Activity、Service、Application
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-6fce9c4817e1e474.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+------
+
+# 2. Context 对于Activity有什么作用
+
+Activity 通过 Context接口 去访问Android系统的服务 & 资源，主要包括：
+
+1. 获取应用相关信息
+2. 获取系统/应用资源
+3. 四大组件之间的交互
+4. 文件相关
+5. 数据库相关
+
+具体如下：
 
 
 
-# 关键词
+```java
+public abstract class Context {
+    
+    // 作用1：获取应用相关信息
+    public abstract ApplicationInfo getApplicationInfo();
+    public abstract String getPackageName();
+    public abstract Looper getMainLooper();
+    public abstract int checkPermission(@NonNull String permission, int pid, int uid);
+
+    // 作用2：获取系统/应用资源
+    // 如 AssetManager、PackageManager、Resources、System Service 以及 color、string、drawable 等
+    public abstract AssetManager getAssets();
+    public abstract Resources getResources();
+    public abstract PackageManager getPackageManager();
+    public abstract Context getApplicationContext();
+    public abstract ClassLoader getClassLoader();
+    public final @Nullable <T> T getSystemService(@NonNull Class<T> serviceClass) { ... }
+
+    public final String getString(@StringRes int resId) { ... }
+    public final int getColor(@ColorRes int id) { ... }
+    public final Drawable getDrawable(@DrawableRes int id) { ... }
+    public abstract Resources.Theme getTheme();
+    public abstract void setTheme(@StyleRes int resid);
+    public final TypedArray obtainStyledAttributes(@StyleableRes int[] attrs) { ... }
+
+    // 作用3：四大组件之间的交互
+    // 如启动 Activity、Broadcast、Service，获取 ContentResolver 等
+    public abstract void startActivity(@RequiresPermission Intent intent);
+    public abstract void sendBroadcast(@RequiresPermission Intent intent);
+    public abstract Intent registerReceiver(@Nullable BroadcastReceiver receiver,
+                                            IntentFilter filter);
+    public abstract void unregisterReceiver(BroadcastReceiver receiver);
+    public abstract ComponentName startService(Intent service);
+    public abstract boolean stopService(Intent service);
+    public abstract boolean bindService(@RequiresPermission Intent service,
+            @NonNull ServiceConnection conn, @BindServiceFlags int flags);
+    public abstract void unbindService(@NonNull ServiceConnection conn);
+    public abstract ContentResolver getContentResolver();
+    
+    // 作用4：文件相关
+    // 如：获取缓存文件夹、删除文件、SharedPreference 相关等
+    public abstract File getSharedPreferencesPath(String name);
+    public abstract File getDataDir();
+    public abstract boolean deleteFile(String name);
+    public abstract File getExternalFilesDir(@Nullable String type);
+    public abstract File getCacheDir();
+    ...
+    public abstract SharedPreferences getSharedPreferences(String name, @PreferencesMode int mode);
+    public abstract boolean deleteSharedPreferences(String name);
+
+    // 作用5：数据库
+    // 如打开数据库、删除数据库、获取数据库路径等
+    public abstract SQLiteDatabase openOrCreateDatabase(...);
+    public abstract boolean deleteDatabase(String name);
+    public abstract File getDatabasePath(String name);
+   
+    ...
+}
+```
+
+------
+
+# 3. 不同类型的Context的应用场景是什么？
+
+从上面可知，最终的Context类型主要包括：Activity、Service & Application，那么使用这三者的应用场景区别是什么呢
+
+##### case1：与UI相关的场景，都使用Activity类型Context
+
+因为是针对当前UI界面资源进行操作 & 继承自ContextThemeWrapper（可自定义主题样式），如show a dialog、 Layout Inflation等。
+
+##### case2：生命周期较长的对象，都使用Application类型Context
+
+因为Application Context的生命周期与应用保持一致，可避免出现Context引用的内存泄漏
+
+##### 其余场景，三种类型 基本可视为共用。
+
+------
+
+# 4. 关于Context的几个常见关键知识点
+
+### 4.1 为什么Activity通过ContextThemeWrapper间接继承ContextWrapper，而Service跟Application直接继承ContextWrapper呢？
+
+答：ContextThemeWrapper类包含了与主题Theme相关的接口，而只有Activity才需要主题，Service跟Application不需要。以下是ContextThemeWrapper的源码
+
+
+
+```java
+public class ContextThemeWrapper extends ContextWrapper {
+    private int mThemeResource;
+    private Resources.Theme mTheme;
+    private LayoutInflater mInflater;
+    private Configuration mOverrideConfiguration;
+    private Resources mResources;
+
+    public ContextThemeWrapper() {
+        super(null);
+    }
+
+    public ContextThemeWrapper(Context base, @StyleRes int themeResId) {
+        super(base);
+        mThemeResource = themeResId;
+    }
+
+    public ContextThemeWrapper(Context base, Resources.Theme theme) {
+        super(base);
+        mTheme = theme;
+    }
+    
+   // 包含了大量跟主题相关的接口方法
+    @Override
+    protected void attachBaseContext(Context newBase) {
+        super.attachBaseContext(newBase);
+    }
+
+    public void applyOverrideConfiguration(Configuration overrideConfiguration) {...}
+
+    public Configuration getOverrideConfiguration() {...}
+
+    @Override
+    public AssetManager getAssets() {...}
+
+    @Override
+    public Resources getResources() {...}
+
+    private Resources getResourcesInternal() {...}
+
+    @Override
+    public void setTheme(int resid) {...}
+
+    @Override
+    public int getThemeResId() {...}
+
+    @Override
+    public Resources.Theme getTheme() {...}
+
+    @Override
+    public Object getSystemService(String name) {...}
+
+    protected void onApplyThemeResource(Resources.Theme theme, int resId, boolean first) {
+
+    private void initializeTheme() {...}
+}
+```
+
+------
+
+### 4.2 getApplication() 与 getApplicationContext()有什么区别？
+
+返回的是同一个Applicatoin对象，但作用域不同：
+
+- getApplicatoin()的作用域：Activity、Service，但不能在BroadcastReceiver里使用；
+- getApplicationContext()的作用域会广一些，如包括BroadcastReceiver等。
+
+### 4.3 getApplicationContext()、getBaseContext()和Activity.this的区别是什么？
+
+- getApplicationContext()：返回的是Application类型的Context
+- Activity.this：返回的是当前Activity的Context
+- getBaseContext()：返回构造函数指定的Context / setBaseContext()里传入的Context
 
 
 
@@ -245,33 +429,11 @@ public class SampleActivity extends Activity {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # FAQ：常见问题
 
 Q：谈一下你对Android中的context的理解
 
 Q：在一个应用程序中有多少个context实例？
-
-
-
-
-
-
 
 
 
@@ -305,21 +467,6 @@ ContextThemeWrapper 类中新增了theme的相关的内容，这个是Activity�
 
 
 
-# 总结
-
-1、
-
-## 【精益求精】我还能做（补充）些什么？
-
-自我提问：
-
-Context继承结构这样设计的好处？能否借鉴到项目中？
-
-
-
-# 脑图
-
-
-
 # 参考
 
+[Carson带你学Android：如何理解 Context 对于Activity的意义？](https://www.jianshu.com/p/e70822bc29fb)

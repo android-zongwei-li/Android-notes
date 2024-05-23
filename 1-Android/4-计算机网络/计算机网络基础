@@ -1,0 +1,311 @@
+# 前言
+
+- 计算机网络基础 该是程序猿需掌握的知识，但往往会被忽略
+- 今天，我将献上一份详细 & 清晰的计算机网络基础 学习指南，涵盖 `TCP / UDP`协议、`Http`协议、`Socket`等，希望你们会喜欢。
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-7471fd0460dcd80e.png?imageMogr2/auto-orient/strip|imageView2/2/w/1130/format/webp)
+
+示意图
+
+------
+
+# 1. 计算机网络体系结构
+
+### 1.1 简介
+
+- 定义
+   计算机网络的各层 + 其协议的集合
+- 作用
+   定义该计算机网络的所能完成的功能
+
+### 1.2 结构介绍
+
+- 计算机网络体系结构分为3种：`OSI`体系结构、`TCP` / `IP`体系结构、五层体系结构
+
+> - `OSI`体系结构：概念清楚 & 理念完整，但复杂 & 不实用
+> - `TCP` / `IP`体系结构：含了一系列构成互联网基础的网络协议，是`Internet`的核心协议 & 被广泛应用于局域网 和 广域网
+> - 五层体系结构：融合了`OSI` 与 `TCP` / `IP`的体系结构，目的是为了学习 & 讲解计算机原理
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8f04f1321143fd6a.png?imageMogr2/auto-orient/strip|imageView2/2/w/620/format/webp)
+
+示意图
+
+低三层为通信子网，负责数据传输
+ 高三层为资源子网，相当于计算机系统，完成数据处理；
+ 传输层承上启下
+
+- `TCP` / `IP`的体系结构详细介绍
+   由于 `TCP` / `IP`体系结构较为广泛，故主要讲解
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-429360cb75ec4cef.png?imageMogr2/auto-orient/strip|imageView2/2/w/700/format/webp)
+
+示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-67e745b520aaf63b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1160/format/webp)
+
+示意图
+
+- `OSI`的体系结构详细介绍
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-528b5fa6679a99c6.png?imageMogr2/auto-orient/strip|imageView2/2/w/400/format/webp)
+
+示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-5278b003549ed53a.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 2. TCP协议
+
+`Transmission Control Protocol`，即 传输控制协议
+
+> 1. 属于 传输层通信协议
+> 2. 基于`TCP`的应用层协议有`HTTP`、`SMTP`、`FTP`、`Telnet` 和 `POP3`
+
+关于`TCP`的其他知识：如三次握手、四次挥手、无差错控制原理等，具体请看文章：[计算机网络：这是一份全面 & 详细 的TCP协议攻略](https://www.jianshu.com/p/65605622234b)
+
+------
+
+# 3. UDP协议
+
+### 3.1 定义
+
+`User Datagram Protocol`，即 用户数据报协议
+
+> 1. 属于 传输层通信协议
+> 2. 基于`UDP`的应用层协议有 `TFTP`、`SNMP` 与 `DNS`
+
+### 3.2 特点
+
+无连接的、不可靠的、面向报文、无拥塞控制，具体介绍如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-c866224a8d13b796.png?imageMogr2/auto-orient/strip|imageView2/2/w/520/format/webp)
+
+示意图
+
+### 3.3 优缺点
+
+- 优点：速度快
+- 缺点：消息易丢失（特别是 网络较差时）
+
+### 3.4 应用场景（对应应用层协议）
+
+要求通信速度高
+
+> 如：
+>  域名转换：`DNS`协议
+>  文件传输：`FTP`协议
+>  网络管理：`SNMP`协议
+>  远程文件服务器：`NFS`协议
+
+### 3.5 报文段格式
+
+- UDP的报文段共有2个字段：数据字段 & 首部字段
+- 下面主要介绍首部（8字节、4个字段）
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-b4884846f0f0f3dd.png?imageMogr2/auto-orient/strip|imageView2/2/w/882/format/webp)
+
+示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-0b3d3971bfb14565.png?imageMogr2/auto-orient/strip|imageView2/2/w/560/format/webp)
+
+示意图
+
+### 3.6 TCP、UDP协议的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-53f4b3bc1ed4d17e.png?imageMogr2/auto-orient/strip|imageView2/2/w/860/format/webp)
+
+示意图
+
+------
+
+# 4. HTTP协议
+
+- 简介
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-a6c6e24b7bb7bfc7.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+  示意图
+
+- 关于其工作方式、报文段等知识，请看文章：[这是一份全面& 详细 HTTP知识讲解](https://www.jianshu.com/p/a6d086a3997d)
+
+------
+
+# 5. Socket
+
+### 5.1 简介
+
+- 即套接字，**是应用层 与 `TCP/IP` 协议族通信的中间软件抽象层，表现为一个封装了 TCP / IP协议族 的编程接口（API）**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-1a92e10c6c694d0f.png?imageMogr2/auto-orient/strip|imageView2/2/w/545/format/webp)
+
+示意图
+
+> 1. `Socket`不是一种协议，而是一个编程调用接口（`API`），属于传输层（主要解决数据如何在网络中传输）
+> 2. 即：通过`Socket`，我们才能在Andorid平台上通过 `TCP/IP`协议进行开发
+> 3. 对用户来说，只需调用Socket去组织数据，以符合指定的协议，即可通信
+
+- 成对出现，一对套接字：
+
+
+
+```ruby
+Socket ={(IP地址1:PORT端口号)，(IP地址2:PORT端口号)}
+```
+
+- 一个 `Socket` 实例 唯一代表一个主机上的一个应用程序的通信链路
+
+### 5.2 其他知识
+
+关于`Socket`的原理、机制过程 & 使用方式，具体请看文章：[Android：这是一份很详细的Socket使用攻略](https://www.jianshu.com/p/089fb79e308b)
+
+------
+
+# 6. 其他知识
+
+### 6.1 在浏览器中输入`url`地址 ->> 显示主页的过程
+
+> 打开一个网页，整个过程会使用哪些协议
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-817f97420b0a8ce6.png?imageMogr2/auto-orient/strip|imageView2/2/w/580/format/webp)
+
+示意图
+
+### 6.2 IP地址（IPv4地址）
+
+- 定义
+   连接在`Internet`中的每一台主机（或 路由器）的全球唯一的标识符
+- 组成
+   IP地址 = 32位 = 网络号 + 主机号；即IP地址::={<网络号>，<主机号>}
+
+> 其中：
+>
+> 1. 网络号：标志主机（或路由器）所连接到的网络。一个网络号在整个因特网范围内必须是唯一的。
+> 2. 主机号：标志该主机（或路由器）。一个主机号在它面前的网络号所指明的网络范围必须是唯一的。
+
+不同类型的IP地址，其主机号 & 网络号所占字节数不同；**故：一个IP地址在整个网络范围内是唯一的**
+
+- 分类
+   传统的IP地址是分类的地址，分为A，B，C，D，E五类
+
+> 区别在于网络号 & 主机号占的字节数不同
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-3557f350b12ee630.png?imageMogr2/auto-orient/strip|imageView2/2/w/764/format/webp)
+
+示意图
+
+- 特别注意：在各类IP地址中，有一些IP地址用于特殊用途，不能用于做主机IP地址
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-89674031175d5ab7.png?imageMogr2/auto-orient/strip|imageView2/2/w/550/format/webp)
+
+示意图
+
+### 6.3 ICMP协议
+
+- 定义
+   `Internet Control Message Protocol`，即 网际控制报文协议
+
+> 1. 属于IP层协议
+> 2. 注：ICMP报文不是高层协议，而是作为IP层数据报的数据，加上数据报首部，组成IP数据报发出去
+
+- 作用
+   更有效地转发IP数据包 & 提高交付成功的机会
+
+> 同时允许主机 / 路由器报告差错 & 异常情况
+
+- 分类
+   `ICMP`差错报告报文 & `ICMP`询问报文
+- 主要应用
+   PING（分组网间探测）、Traceroute（跟踪1个分组从源点到终点的路径，原理 = 从源主机向目的主机发送一连串的IP数据报）
+
+下面，将主要介绍`Ping`的过程
+
+### 6.4 Ping的过程
+
+- 定义
+   `Packet InterNet Groper`，即分组网间探测
+
+> 1. 是 `ICMP`报文的1个重要应用：使用了IPCM回送请求 & 回送回答报文
+
+1. 是应用层直接使用网络层ICMP的1个例子，无经过传输层的TCP、UDP
+
+- 作用
+   测试2个主机的连通性
+- 原理
+  1. 向目的主机发送多个ICMP回送请求报文
+  2. 根据 目的主机返回的ICMP回送回答报文中的时间戳，从而计算出往返时间
+  3. 最终显示的结果：发送到目的主机的IP地址、发送 & 收到 & 丢失的分组数、往返时间的最小、最大 & 平均值
+- 过程
+   假设有两台主机：
+   （目的主机）PC1：IP = 192.168.1.1
+   （源主机）PC2：IP = 192.168.1.2
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-1108b1350259e199.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 6.5 路由器与交换机的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-270eee050e83f7d3.png?imageMogr2/auto-orient/strip|imageView2/2/w/720/format/webp)
+
+示意图
+
+### 6.6 Cookie 与 Session
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-933ffd60ffcc3e90.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 区别 & 对比
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-58d2a205e7736569.png?imageMogr2/auto-orient/strip|imageView2/2/w/990/format/webp)
+
+示意图
+
+### 6.7 Cookie 与 Token
+
+- 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-86354713be22e5bc.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 基于`Cookie`的身份验证 & 验证流程
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-bda2ea768a164aad.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-141a61258c4b260d.png?imageMogr2/auto-orient/strip|imageView2/2/w/622/format/webp)
+
+示意图
+
+- 基于`Token`的身份验证 & 验证流程
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-87ab6876215379ae.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-18069b635edcf60f.png?imageMogr2/auto-orient/strip|imageView2/2/w/622/format/webp)
+
+示意图
+
+------
+
+# 7. 总结
+
+- 本文全面讲解了 开发的基础知识：计算机网络
+
+
+
+# 参考
+
+[这是一份详细 & 清晰的计算机网络基础 学习指南](https://www.jianshu.com/p/45d27f3e1196)

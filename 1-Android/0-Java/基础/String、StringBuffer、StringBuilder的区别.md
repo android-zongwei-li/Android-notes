@@ -266,13 +266,108 @@ new String("abc");至少创建一个，或者创建2个。
 
 
 
-# 总结
 
-1、
 
-## 【精益求精】我还能做（补充）些什么？
+# 概述
 
-1、
+关于String类的必知必会主要包括：
+
+- String的常用函数
+- equals()与==的区别
+- String、StringBuffer 与 StringBuilder的区别
+- Switch能否用string做参数？
+
+------
+
+# 1. String 常用函数
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-92f4917dae9295fe.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 2. equals()与==的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-eff8e7467c425887.png?imageMogr2/auto-orient/strip|imageView2/2/w/790/format/webp)
+
+示意图
+
+附：
+
+
+
+```csharp
+ /**
+   * 附1：Object的equals（）原函数实现
+   * 作用 = 比较的是对象的内存地址（内部实现实际 是 “==”，故作用同 “==”作用）
+   */
+  public boolean equals (Object obj）{
+    return （this == obj）；
+     }
+
+ /**
+   * 附2：复写了Object equals（）原函数的String 类中的equals
+   * 作用：比较两个字符串的内容是否相同
+   */
+public boolean equals(Object obj){
+  // 若2者指向同一个地址，那么它们的内容肯定相同
+  // 使用 “==” 比较
+  if (this == obj){
+    return true;
+   }
+
+  // 若不指向同一地址，则判断规则为：
+      // 1. 类型是否相同（ 即，传入对象是否是String类型，采用 instanceof 比较）
+      // 2. 内容是否相同 = 字符串序列是否相同（String类 内部存储 采用char[]实现）
+      if (anObject instanceof String) {
+
+                  String anotherString = (String)anObject;
+                   int n = value.length; // 注：比较次数 = 第1个String对象的长度n，而不是传入参数中的String对象长度
+                   if (n == anotherString.value.length) {
+                   char v1[] = value;
+                   char v2[] = anotherString.value;
+
+                   // 遍历过程中只要有1个字符不同，就返回false
+                   int i = 0;
+                    while (n-- != 0) {
+                      if (v1[i] != v2[i])
+                          return false;
+                        i++;
+                      }
+                   return true;
+                  }
+              }
+           return false;
+        }
+```
+
+------
+
+# 3. String、StringBuffer 与 StringBuilder的区别
+
+3者 同样用于储存 & 操作字符串，区别如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-0dc3197cc9ae63d5.png?imageMogr2/auto-orient/strip|imageView2/2/w/1160/format/webp)
+
+示意图
+
+------
+
+# 4. Switch能否用string做参数？
+
+- 在`Java7` 前，不支持；在Java 7后，支持
+
+> `Java7` 前支持的类型：枚举、`byte`、`short`、`char`、`int` & 对应的封装类
+
+至此，关于关于Java String类的必知必会讲解完毕。
+
+作者：Carson带你学安卓
+链接：
+来源：简书
+著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
+
+
 
 
 
@@ -281,3 +376,4 @@ new String("abc");至少创建一个，或者创建2个。
 1、[https://blog.csdn.net/u011702479/article/details/82262823](https://blog.csdn.net/u011702479/article/details/82262823)
 2、[https://blog.csdn.net/alankin/article/details/80406975](https://blog.csdn.net/alankin/article/details/80406975)
 
+[Carson带你学Java：关于String类的必知必会](https://www.jianshu.com/p/f23fec94c5fb)

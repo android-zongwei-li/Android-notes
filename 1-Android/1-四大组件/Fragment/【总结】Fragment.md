@@ -265,3 +265,369 @@ ExampleFragment fragment = (ExampleFragment) getFragmentManager().findFragmentBy
 
 > [点击查看答案](https://www.cnblogs.com/nbls/p/7252307.html)
 
+
+
+
+
+# 前言
+
+- `Fragment`在 `Android`开发中非常常用
+- 今天，我将讲解关于`Fragment`的使用
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9a6422b22416b298.png?imageMogr2/auto-orient/strip|imageView2/2/w/482/format/webp)
+
+Fragment介绍&使用方法解析.png
+
+------
+
+# 1. 定义
+
+```
+Activity`界面中的一部分，可理解为模块化的`Activity
+```
+
+> 1. `Fragment`不能独立存在，必须嵌入到`Activity`中
+> 2. `Fragment`具有自己的生命周期，接收它自己的事件，并可以在`Activity`运行时被添加或删除
+> 3. `Fragment`的生命周期直接受所在的`Activity`的影响。如：当`Activity`暂停时，它拥有的所有`Fragment`们都暂停
+
+------
+
+# 2. 作用
+
+支持动态、灵活的界面设计
+
+> 1. `Fragment`从 `Android 3.0`后引入
+> 2. 在低版本`Android 3.0`前使用 `Fragment`，需要采用`android-support-v4.jar`兼容包
+
+------
+
+# 3. 生命周期解析
+
+- 先来看官方说明图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-cc85e7626552d866.png?imageMogr2/auto-orient/strip|imageView2/2/w/317/format/webp)
+
+示意图
+
+### 详解每个方法的调用场景
+
+- onAttach方法
+   Fragment和Activity建立关联的时候调用（获得activity的传递的值）
+- onCreateView方法
+   为Fragment创建视图（加载布局）时调用（给当前的fragment绘制UI布局，可以使用线程更新UI）
+- onActivityCreated方法
+   当Activity中的onCreate方法执行完后调用（表示activity执行oncreate方法完成了的时候会调用此方法）
+- onDestroyView方法
+   Fragment中的布局被移除时调用（表示fragment销毁相关联的UI布局）
+- onDetach方法
+   Fragment和Activity解除关联的时候调用（脱离activity）
+
+### Fragment生命周期解析
+
+- 当一个fragment被创建的时候：
+   onAttach()
+   onCreate()
+   onCreateView()
+   onActivityCreated()
+- 当这个fragment对用户可见的时候，它会经历以下状态。
+   onStart()
+   onResume()
+
+> 1.2可以理解为从创建到显示（或切换）
+
+- 当这个fragment进入“后台模式”的时候，它会经历以下状态。
+   onPause()
+   onStop()
+- 当这个fragment被销毁了（或者持有它的activity被销毁了）：
+   onPause()
+   onStop()
+   onDestroyView()
+   onDestroy()
+   onDetach()
+- 就像Activity一样，在以下的状态中，可以使用Bundle对象保存一个fragment的对象。
+   onCreate()
+   onCreateView()
+   onActivityCreated()
+
+### 其他场景的调用
+
+- 屏幕灭掉
+   onPause() onSaveInstanceState() onStop()
+- 屏幕解锁
+   onStart() onResume()
+- 切换到其他Fragment
+   onPause() onStop() onDestroyView()
+- 切换回本身的Fragment
+   onCreateView() onActivityCreated() onStart() onResume()
+- 回到桌面
+   onPause() onSaveInstanceState() onStop()
+- 回到应用
+   onStart() onResume()
+- 退出应用
+   onPause() onStop() onDestroyView() onDestroy() onDetach()
+
+### Fragment和Activity的生命周期很相似，以下是对比图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-0f9670e55a52403c.png?imageMogr2/auto-orient/strip|imageView2/2/w/340/format/webp)
+
+------
+
+# 4. 具体使用
+
+- 由于`Fragment`作为`Activity`一部分，所以`Fragment`的使用一般是添加到`Activity`中
+
+- 将
+
+  ```
+  Fragment
+  ```
+
+  添加到
+
+  ```
+  Activity
+  ```
+
+  中一般有2种方法:
+
+  1. 在`Activity`的`layout.xml`布局文件中静态添加
+  2. 在`Activity`的`.java`文件中动态添加
+
+### 方法1：在`Activity`的`layout.xml`布局文件中静态添加
+
+- `Activity`的布局文件
+
+*fragment_layout_test.xml*
+
+
+
+```jsx
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+// 该fragment类定义在包名为"com.skywang.app"中的FragmentLayoutTest类的内部类ExampleFragment中
+   <fragment android:name="com.skywang.app.FragmentLayoutTest$ExampleFragment"
+        android:id="@+id/list"
+        android:layout_weight="1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+  
+</LinearLayout>
+```
+
+- `Fragment`的布局文件
+
+*example_fragment.xml*
+
+
+
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <TextView
+        android:text="@string/example_fragment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+   
+</LinearLayout>
+```
+
+- `Activity`的.java文件
+
+*FragmentLayoutTest.java*
+
+
+
+```java
+// 在Activity使用Fragment时，需要考虑版本兼容问题
+// 1. Android 3.0后，Activity可直接继承自Activity，并且在其中嵌入使用Fragment
+// 2. Android 3.0前，Activity需FragmentActivity（其也继承自Activity），同时需要导入android-support-v4.jar兼容包，这样在Activity中才能嵌入Fragment
+
+public class FragmentLayoutTest extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.fragment_layout_test);
+        // 设置上述布局文件
+    }
+
+    // 继承自Fragment
+    // 布局文件中的Fragment通过该FragmentLayoutTest的内部类ExampleFragment实现
+    public static class ExampleFragment extends Fragment {
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            
+            return inflater.inflate(R.layout.example_fragment, container, false);
+             // 将example_fragment.xml作为该Fragment的布局文件
+            // 即相当于FragmentLayoutTest直接调用example_fragment.xml来显示到Fragment中
+        }
+    }
+}
+```
+
+至此，方法1讲解完毕。
+
+------
+
+# 方法2：在Activity的.java文件中动态添加
+
+- 步骤1：在`Activity`的布局文件定义1占位符（`FrameLayout`）
+   这样做的好处是：可动态在`Activity`中添加不同的 `Fragment`，更加灵活
+
+*fragment_transaction_test.xml*
+
+
+
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+    
+    <FrameLayout
+        android:id="@+id/about_fragment_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
+    
+</LinearLayout>
+```
+
+- 步骤2：设置`Fragment`的布局文件
+
+*example_fragment.xml*
+
+
+
+```xml
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical" >
+
+    <TextView
+        android:text="@string/example_fragment"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+   
+</LinearLayout>
+```
+
+- 步骤3：在`Activity`的`.java`文件中动态添加`Fragment`
+
+*FragmentTransactionTest*
+
+
+
+```java
+public class FragmentTransactionTest extends Activity {
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.fragment_transaction_test);
+        
+        // 步骤1：获取FragmentManager
+        FragmentManager fragmentManager = getFragmentManager();
+
+        // 步骤2：获取FragmentTransaction        
+        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+        
+        // 步骤3：创建需要添加的Fragment ：ExampleFragment
+        ExampleFragment fragment = new ExampleFragment();
+
+        // 步骤4：动态添加fragment
+        // 即将创建的fragment添加到Activity布局文件中定义的占位符中（FrameLayout）
+        fragmentTransaction.add(R.id.about_fragment_container, fragment);
+        fragmentTransaction.commit();
+    }
+    
+    // 继承与Fragment
+    public static class ExampleFragment extends Fragment {
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                                 Bundle savedInstanceState) {
+            
+            return inflater.inflate(R.layout.example_fragment, container, false);
+            // 将example_fragment.xml作为该Fragment的布局文件
+        }
+    }
+}
+```
+
+至此，方法2讲解完毕
+
+------
+
+# 5. 总结
+
+
+
+# Carson带你学Android：3分钟全面解析Fragment生命周期
+
+# 前言
+
+- `Android`开发中，会经常接触 `Fragment`，所以深入了解`Fragment`生命周期非常重要
+- 本文将深入讲解`Fragment`生命周期 的相关内容
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-fdaa1e7f3f78771c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 1. 生命周期流程 & 方法详解
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-db402563d4da3a2c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 2. 常见场景的生命周期调用方式
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-64745b22288f10a4.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 3. 与Activity生命周期对比
+
+- `Fragment`、`Activity`的生命周期非常相似
+- 具体对比如下图：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-0f9670e55a52403c.png?imageMogr2/auto-orient/strip|imageView2/2/w/340/format/webp)
+
+------
+
+# 4. 总结
+
+- 本文对 `Android` 的 `Fragment`的生命周期进行了全面介绍
+
+
+
+
+
+# 参考
+
+[Carson带你学Android：Fragment最全面介绍 & 使用方法解析](https://www.jianshu.com/p/2bf21cefb763)
+
+[Carson带你学Android：3分钟全面解析Fragment生命周期](https://www.jianshu.com/p/dd37c4dca5ea)

@@ -111,15 +111,205 @@ finally{
 
 
 
-# 总结
+# 前言
 
-1、
+- 在`Java`中，不同情形下`return` 和 `finally`的执行顺序很多人混淆不清
+- 本文全面 & 详细解析不同情形下`return` 和 `finally`的执行顺序，希望你们会喜欢
 
-## 【精益求精】我还能做（补充）些什么？
+------
 
-1、
+# 目录
+
+- 储备知识
+- 终极结论
+- 场景分析
+- 总结
+- 额外补充：final、finally和finallize的区别
+
+------
+
+# 1. 储备知识
+
+- `try / catch`是常见的捕捉异常 & 处理的语句
+- 只有`try`语句中抛出异常，才会执行`catch`中的语句
+
+
+
+```php
+/**
+  * try中无抛出异常，则catch中的代码不执行 
+  */
+    try{ 
+        // 代码无抛出异常 
+        return  result; 
+
+      }catch(Exception e){ 
+        // catch代码 
+     }
+
+ /**
+   * try中抛出异常，则执行catch中的语句
+   */
+     try{ 
+        //代码抛出异常 
+        throw Exception; 
+        return1  result1; 
+
+      } catch(Exception e){ 
+       return2  result2; // 执行catch中的语句
+     }
+```
+
+------
+
+# 2. 终极结论
+
+无论什么情况（异常与否、`try / catch` 前面存在`return`），`finally`块代码一定会执行
+
+> 必须谨记！！
+
+------
+
+# 3. 具体场景分析
+
+下面，我将根据具体的使用场景来全面解析不同情形下`return` 和 `finally`的执行顺序
+
+### 3.1  try 或 catch中存在return语句、finally无return语句
+
+- 执行顺序 结论
+   `return`后的语句-> `finally`语句 -> `return`结束函数 & 返回值
+
+> `finally`语句不影响最终返回值，即返回值在`finally`前就决定
+
+- 详细讲解
+   此处细分为2种情况：
+   a. `try`中有`return`、无抛出异常
+   b. `try`中有`return`、抛出异常 、`catch`有`return`
+
+
+
+```dart
+/**
+  * 情况1：try中有return、无抛出异常 
+  * 实际执行顺序：
+  *            1. 执行 try块语句
+  *            2. 执行 return后 的语句：得到结果result & 保存下来
+  *            3. 执行 finally块语句：不影响上述保存的返回值，哪怕修改了变量的值
+  *            4. 执行 return，结束函数，返回result的值：依旧返回步骤2保存的结果
+  */
+    try{ 
+      //代码无抛出异常 
+      return  result; 
+
+        }catch(Exception e){ 
+     
+         }finally{ 
+          // finally代码 
+     }
+
+/**
+  * 情况2：try中有return、抛出异常 、catch有return
+  * 实际执行顺序：
+  *            1. 执行 try块语句
+  *            2. 执行 throw 语句 ：此时已抛出异常，运行因异常而终止，故不执行return1
+  *            3. 执行 catch块语句 
+  *            4. 执行 return2后 的语句：得到结果result2 & 保存下来
+  *          5. 执行 finally块语句：不影响上述保存的返回值，哪怕修改了变量的值
+  *          6. 执行 return2，结束函数，返回result2的值：依旧返回步骤4保存的结果   
+  */
+    try{ 
+      //代码抛出异常 
+      throw Exception; 
+      return1  result1; 
+
+       }catch(Exception e){ 
+        return2  result2; 
+
+       }finally{ 
+         // finally代码 
+      }
+```
+
+### 3.2 finally中存在return语句（无论 try 或 catch之一 或 都存在return语句 ）
+
+- 执行顺序 结论
+   当执行到`finally`语句的 `return`时，程序就直接返回
+
+> ```
+> finally`中的`return`会覆盖掉其它位置的`return
+> ```
+
+- 详细讲解
+   此处细分为2种情况：
+   a. `try` & `catch`中都无`return`、无抛出异常  & `finally`中 有 `return`
+   b. `try` / `catch`中任意1者 或 都有`return`（`try`中的`return`和`catch`中的`return`最多只有1个会执行）、`finally`中 有 `return`
+
+
+
+```python
+/**
+  * 情况1：try & catch中都无return、无抛出异常 & finally中 有 return
+  * 实际执行顺序：
+  *            1. 执行 try块语句
+  *            2. 执行 finally块语句：会影响返回值
+  *            3. 执行 return，结束函数，返回result的值
+  */
+    try{ 
+
+      }catch(Exception e){ 
+
+      }finally{ 
+         return result ;
+     }
+
+/**
+  * 情况2：try / catch中任意1者 或 都有return（try中的return和catch中的return最多只有1个会执行）、finally中 有 return
+  * 实际执行顺序：
+  *            1. 执行 try块语句：设无抛出异常，则不执行catch语句 & return2
+  *            2. 执行 return1 后 的语句：得到结果result & 保存下来
+  *            3. 执行 finally块语句：不影响上述保存的返回值，哪怕修改了变量的值
+  *            4. 执行finally内的 return3 后语句：finally中的return会覆盖掉其它位置的return
+  *            5. 执行return3 ，结束函数，返回result3的值
+  */
+    try{ 
+      //throw Exception; 
+      return1 result1; 
+
+        }catch(){ 
+             return2 result2;
+         
+        }finally{ 
+             return3 result3; 
+        }
+```
+
+### 特别注意
+
+`finally`中的语句最好：
+
+1. 不要包含`return`语句，否则程序会提前退出
+2. 返回值 ≠ `try` 或 `catch`中保存的返回值
+
+至此，关于不同情形下`return` 和 `finally`的执行顺序 情况讲解完毕。
+
+------
+
+# 4. 总结
+
+本文主要讲解了不同情形下`return` 和 `finally`的执行顺序，总结如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-93ea35900afafa71.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 5. 额外补充：final、finally和finallize的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-5d52bf1396f75fa4.png?imageMogr2/auto-orient/strip|imageView2/2/w/963/format/webp)
 
 
 
 # 参考
 
+[Carson带你学Java：一文带你了解多种情形下return 和 finally的执行顺序](https://www.jianshu.com/p/f87ce04b429e)

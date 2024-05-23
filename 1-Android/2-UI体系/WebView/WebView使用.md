@@ -1,4 +1,1537 @@
-demo地址：
+# 前言
+
+- 现在很多`App`里都内置了Web网页（`Hybrid App`），比如说很多电商平台，淘宝、京东、聚划算等等，如下图
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-4512e70dbf996c34.png?imageMogr2/auto-orient/strip|imageView2/2/w/297/format/webp)
+
+  京东首页
+
+  
+
+- 那么这种该如何实现呢？其实这是`Android`里一个叫`WebView`组件实现
+
+- 今天，我将献上一份全面 & 详细的 `WebView`攻略，含具体介绍、使用教程、与前端`JS`交互、缓存机制构建等等，希望您们会喜欢。
+
+> **Carson带你学WebView系列文章**
+>  [Carson带你学Android：这是一份全面&详细的WebView学习攻略](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：最全面、最易懂的Webview使用详解](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：全面总结WebView与 JS 的交互方式](https://www.jianshu.com/p/345f4d8a5cfa)
+>  [Carson带你学Android：手把手构建WebView缓存机制及资源预加载方案](https://www.jianshu.com/p/5e7075f4875f)
+>  [Carson带你学Android：盘点你不知道的WebView漏洞](https://www.jianshu.com/p/3a345d27cd42)
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-7bd8554be2869181.png?imageMogr2/auto-orient/strip|imageView2/2/w/996/format/webp)
+
+示意图
+
+------
+
+# 1. 简介
+
+一个基于`webkit`引擎、展现`web`页面的控件
+
+> a. `Android 4.4`前：`Android Webview`在低版本 & 高版本采用了不同的`webkit`版本的内核
+>  b. `Android 4.4`后：直接使用了`Chrome`内核
+
+------
+
+# 2. 作用
+
+- 在 `Android` 客户端上加载`h5`页面
+- 在本地 与 `h5`页面实现交互 & 调用
+- 其他：对 `url` 请求、页面加载、渲染、对话框 进行额外处理。
+
+------
+
+# 3. 具体使用
+
+- `Webview`的使用主要包括：`Webview`类 及其 工具类（`WebSettings`类、`WebViewClient`类、`WebChromeClient`类）
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-6e249d5a3cc7d343.png?imageMogr2/auto-orient/strip|imageView2/2/w/730/format/webp)
+
+示意图
+
+- 下面我将详细介绍上述4个使用类 & 使用方法
+- 具体请看文章：[Carson带你学Android：最全面、最易懂的Webview使用详解](https://www.jianshu.com/p/3c94ae673e2a)
+
+------
+
+# 4. WebView与 JS 的交互方式
+
+- 在`Android WebView`的使用中，与前端`h5`页面交互的需求十分常见
+- `Android` 与 `JS` 通过WebView互相调用方法，实际上是：`Android` 去调用`JS`的代码 + `JS`去调用`Android`的代码
+
+> 二者沟通的桥梁是`WebView`
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-2757946772481525.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 具体介绍请看文章：[Carson带你学Android：全面总结WebView与 JS 的交互方式](https://www.jianshu.com/p/345f4d8a5cfa)
+
+------
+
+# 5. 使用漏洞
+
+- `WebView` 使用过程中存在许多漏洞，容易造成用户数据泄露等等危险，而很多人往往会忽视这个问题
+- `WebView`中，主要漏洞有3类：**任意代码执行漏洞、密码明文存储漏洞、域控制不严格漏洞**
+- 漏洞具体介绍 & 修复方式请看文章：[Carson带你学Android：盘点你不知道的WebView漏洞](https://www.jianshu.com/p/3a345d27cd42)
+
+------
+
+# 6. 缓存机制构建
+
+- `Android WebView`由于前端`h5`本身的原因，存在加载效率慢 & 流量耗费的性能问题，具体介绍如下：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-d0e842a6e92eef2c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 本文通过 **`H5`缓存机制 + 资源预加载 + 资源拦截**的方式 构建了一套`WebView`缓存机制，从而解决`Android WebView`的性能问题，最终提高用户使用体验
+- 具体缓存机制的讲解请看文章：[Carson带你学Android：手把手构建WebView缓存机制及资源预加载方案](https://www.jianshu.com/p/5e7075f4875f)
+
+至此，关于`Android WebView`的所有知识讲解完毕。
+
+------
+
+# 7. 总结
+
+- 本文全面讲解了 `WebView`的相关知识，含具体介绍、使用教程、与前端`JS`交互、缓存机制构建等等，相信你对`Android WebView`的使用已经非常熟悉了。
+
+
+
+# 前言
+
+- 现在很多`App`里都内置了Web网页（`Hybrid App`），比如说很多电商平台，淘宝、京东、聚划算等等，如下图
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-4512e70dbf996c34.png?imageMogr2/auto-orient/strip|imageView2/2/w/297/format/webp)
+
+  京东首页
+
+  
+
+- 那么这种该如何实现呢？其实这是`Android`里一个叫`WebView`组件实现
+
+- 今天，我将献上一份全面介绍 `WebView`的常见用法。
+
+> **Carson带你学WebView系列文章**
+>  [Carson带你学Android：这是一份全面&详细的WebView学习攻略](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：最全面、易懂的Webview使用教程](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：全面总结WebView与 JS 的交互方式](https://www.jianshu.com/p/345f4d8a5cfa)
+>  [Carson带你学Android：手把手构建WebView缓存机制及资源预加载方案](https://www.jianshu.com/p/5e7075f4875f)
+>  [Carson带你学Android：盘点你不知道的WebView漏洞](https://www.jianshu.com/p/3a345d27cd42)
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-b163bc8e9d87c16c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 1. 简介
+
+`WebView`是一个基于`webkit`引擎、展现`web`页面的控件。
+
+> Android的Webview在低版本和高版本采用了不同的webkit版本内核，4.4后直接使用了Chrome。
+
+------
+
+# 2. 作用
+
+- 显示和渲染Web页面
+- 直接使用html文件（网络上或本地assets中）作布局
+- 可和JavaScript交互调用
+
+> WebView控件功能强大，除了具有一般View的属性和设置外，还可以对url请求、页面加载、渲染、页面交互进行强大的处理。
+
+------
+
+# 3. 使用介绍
+
+一般来说Webview可单独使用，可联合其工具类一起使用，所以接下来，我会介绍：
+
+- Webview类自身的常见方法
+- Webview的最常用的工具类：WebSettings类、WebViewClient类、WebChromeClient类
+- Android 和 Js的交互
+
+## 3.1 Webview类常用方法
+
+#### 3.1.1 加载url
+
+加载方式根据资源分为三种
+
+
+
+```dart
+  //方式1. 加载一个网页：
+  webView.loadUrl("http://www.google.com/");
+
+  //方式2：加载apk包中的html页面
+  webView.loadUrl("file:///android_asset/test.html");
+
+  //方式3：加载手机本地的html页面
+   webView.loadUrl("content://com.android.htmlfileprovider/sdcard/test.html");
+
+   // 方式4： 加载 HTML 页面的一小段内容
+  WebView.loadData(String data, String mimeType, String encoding)
+// 参数说明：
+// 参数1：需要截取展示的内容
+// 内容里不能出现 ’#’, ‘%’, ‘\’ , ‘?’ 这四个字符，若出现了需用 %23, %25, %27, %3f 对应来替代，否则会出现异常
+// 参数2：展示内容的类型
+// 参数3：字节码
+```
+
+#### 3.1.1 WebView的状态
+
+
+
+```cpp
+//激活WebView为活跃状态，能正常执行网页的响应
+webView.onResume() ；
+
+//当页面被失去焦点被切换到后台不可见状态，需要执行onPause
+//通过onPause动作通知内核暂停所有的动作，比如DOM的解析、plugin的执行、JavaScript执行。
+webView.onPause()；
+
+//当应用程序(存在webview)被切换到后台时，这个方法不仅仅针对当前的webview而是全局的全应用程序的webview
+//它会暂停所有webview的layout，parsing，javascripttimer。降低CPU功耗。
+webView.pauseTimers()
+//恢复pauseTimers状态
+webView.resumeTimers()；
+
+//销毁Webview
+//在关闭了Activity时，如果Webview的音乐或视频，还在播放。就必须销毁Webview
+//但是注意：webview调用destory时,webview仍绑定在Activity上
+//这是由于自定义webview构建时传入了该Activity的context对象
+//因此需要先从父容器中移除webview,然后再销毁webview:
+rootLayout.removeView(webView); 
+webView.destroy();
+```
+
+#### 3.1.2 关于前进 / 后退网页
+
+
+
+```cpp
+//是否可以后退
+Webview.canGoBack() 
+//后退网页
+Webview.goBack()
+
+//是否可以前进                     
+Webview.canGoForward()
+//前进网页
+Webview.goForward()
+
+//以当前的index为起始点前进或者后退到历史记录中指定的steps
+//如果steps为负数则为后退，正数则为前进
+Webview.goBackOrForward(intsteps) 
+```
+
+**常见用法：Back键控制网页后退**
+
+- 问题：在不做任何处理前提下 ，浏览网页时点击系统的“Back”键,整个 Browser 会调用 finish()而结束自身
+- 目标：点击返回后，是网页回退而不是推出浏览器
+- 解决方案：在当前Activity中处理并消费掉该 Back 事件
+
+
+
+```csharp
+public boolean onKeyDown(int keyCode, KeyEvent event) {
+    if ((keyCode == KEYCODE_BACK) && mWebView.canGoBack()) { 
+        mWebView.goBack();
+        return true;
+    }
+    return super.onKeyDown(keyCode, event);
+}
+```
+
+#### 3.1.3 清除缓存数据
+
+
+
+```cpp
+//清除网页访问留下的缓存
+//由于内核缓存是全局的因此这个方法不仅仅针对webview而是针对整个应用程序.
+Webview.clearCache(true);
+
+//清除当前webview访问的历史记录
+//只会webview访问历史记录里的所有记录除了当前访问记录
+Webview.clearHistory()；
+
+//这个api仅仅清除自动完成填充的表单数据，并不会清除WebView存储到本地的数据
+Webview.clearFormData()；
+```
+
+## 3.2 常用工具类
+
+#### 3.2.1 WebSettings类
+
+- 作用：对WebView进行配置和管理
+- 配置步骤 & 常见方法：
+
+**配置步骤1：添加访问网络权限**（AndroidManifest.xml）
+
+> 这是前提！这是前提！这是前提！
+
+
+
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+```
+
+**配置步骤2：生成一个WebView组件（有两种方式）**
+
+
+
+```cpp
+//方式1：直接在在Activity中生成
+WebView webView = new WebView(this)
+
+//方法2：在Activity的layout文件里添加webview控件：
+WebView webview = (WebView) findViewById(R.id.webView1);
+```
+
+**配置步骤3：进行配置-利用WebSettings子类**（常见方法）
+
+
+
+```cpp
+//声明WebSettings子类
+WebSettings webSettings = webView.getSettings();
+
+//如果访问的页面中要与Javascript交互，则webview必须设置支持Javascript
+webSettings.setJavaScriptEnabled(true);  
+// 若加载的 html 里有JS 在执行动画等操作，会造成资源浪费（CPU、电量）
+// 在 onStop 和 onResume 里分别把 setJavaScriptEnabled() 给设置成 false 和 true 即可
+
+//支持插件
+webSettings.setPluginsEnabled(true); 
+
+//设置自适应屏幕，两者合用
+webSettings.setUseWideViewPort(true); //将图片调整到适合webview的大小 
+webSettings.setLoadWithOverviewMode(true); // 缩放至屏幕的大小
+
+//缩放操作
+webSettings.setSupportZoom(true); //支持缩放，默认为true。是下面那个的前提。
+webSettings.setBuiltInZoomControls(true); //设置内置的缩放控件。若为false，则该WebView不可缩放
+webSettings.setDisplayZoomControls(false); //隐藏原生的缩放控件
+
+//其他细节操作
+webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK); //关闭webview中缓存 
+webSettings.setAllowFileAccess(true); //设置可以访问文件 
+webSettings.setJavaScriptCanOpenWindowsAutomatically(true); //支持通过JS打开新窗口 
+webSettings.setLoadsImagesAutomatically(true); //支持自动加载图片
+webSettings.setDefaultTextEncodingName("utf-8");//设置编码格式
+```
+
+**常见用法：设置WebView缓存**
+
+- 当加载 html 页面时，WebView会在/data/data/包名目录下生成 database 与 cache 两个文件夹
+- 请求的 URL记录保存在 WebViewCache.db，而 URL的内容是保存在 WebViewCache 文件夹下
+- 是否启用缓存：
+
+
+
+```cpp
+    //优先使用缓存: 
+    WebView.getSettings().setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK); 
+        //缓存模式如下：
+        //LOAD_CACHE_ONLY: 不使用网络，只读取本地缓存数据
+        //LOAD_DEFAULT: （默认）根据cache-control决定是否从网络上取数据。
+        //LOAD_NO_CACHE: 不使用缓存，只从网络获取数据.
+        //LOAD_CACHE_ELSE_NETWORK，只要本地有，无论是否过期，或者no-cache，都使用缓存中的数据。
+
+    //不使用缓存: 
+    WebView.getSettings().setCacheMode(WebSettings.LOAD_NO_CACHE);
+```
+
+- 结合使用（离线加载）
+
+
+
+```dart
+if (NetStatusUtil.isConnected(getApplicationContext())) {
+    webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);//根据cache-control决定是否从网络上取数据。
+} else {
+    webSettings.setCacheMode(WebSettings.LOAD_CACHE_ELSE_NETWORK);//没网，则从本地获取，即离线加载
+}
+
+webSettings.setDomStorageEnabled(true); // 开启 DOM storage API 功能
+webSettings.setDatabaseEnabled(true);   //开启 database storage API 功能
+webSettings.setAppCacheEnabled(true);//开启 Application Caches 功能
+
+String cacheDirPath = getFilesDir().getAbsolutePath() + APP_CACAHE_DIRNAME;
+webSettings.setAppCachePath(cacheDirPath); //设置  Application Caches 缓存目录
+```
+
+**注意：** 每个 Application 只调用一次 WebSettings.setAppCachePath()，WebSettings.setAppCacheMaxSize()
+
+#### 3.2.2 WebViewClient类
+
+- 作用：处理各种通知 & 请求事件
+- 常见方法：
+
+**常见方法1：shouldOverrideUrlLoading()**
+
+- 作用：打开网页时不调用系统浏览器， 而是在本WebView中显示；在网页上的所有加载都经过这个方法,这个函数我们可以做很多操作。
+
+
+
+```java
+//步骤1. 定义Webview组件
+Webview webview = (WebView) findViewById(R.id.webView1);
+
+//步骤2. 选择加载方式
+  //方式1. 加载一个网页：
+  webView.loadUrl("http://www.google.com/");
+
+  //方式2：加载apk包中的html页面
+  webView.loadUrl("file:///android_asset/test.html");
+
+  //方式3：加载手机本地的html页面
+   webView.loadUrl("content://com.android.htmlfileprovider/sdcard/test.html");
+
+//步骤3. 复写shouldOverrideUrlLoading()方法，使得打开网页时不调用系统浏览器， 而是在本WebView中显示
+    webView.setWebViewClient(new WebViewClient(){
+      @Override
+      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+          view.loadUrl(url);
+      return true;
+      }
+  });
+```
+
+**常见方法2：onPageStarted()**
+
+- 作用：开始载入页面调用的，我们可以设定一个loading的页面，告诉用户程序在等待网络响应。
+
+
+
+```java
+   webView.setWebViewClient(new WebViewClient(){
+     @Override
+     public void  onPageStarted(WebView view, String url, Bitmap favicon) {
+        //设定加载开始的操作
+     }
+ });
+```
+
+**常见方法3：onPageFinished()**
+
+- 作用：在页面加载结束时调用。我们可以关闭loading 条，切换程序动作。
+
+
+
+```java
+    webView.setWebViewClient(new WebViewClient(){
+      @Override
+      public void onPageFinished(WebView view, String url) {
+         //设定加载结束的操作
+      }
+  });
+```
+
+**常见方法4：onLoadResource()**
+
+- 作用：在加载页面资源时会调用，每一个资源（比如图片）的加载都会调用一次。
+
+
+
+```java
+    webView.setWebViewClient(new WebViewClient(){
+      @Override
+      public boolean onLoadResource(WebView view, String url) {
+         //设定加载资源的操作
+      }
+  });
+```
+
+**常见方法5：onReceivedError（）**
+
+- 作用：加载页面的服务器出现错误时（如404）调用。
+
+> App里面使用webview控件的时候遇到了诸如404这类的错误的时候，若也显示浏览器里面的那种错误提示页面就显得很丑陋了，那么这个时候我们的app就需要加载一个本地的错误提示页面，即webview如何加载一个本地的页面
+
+
+
+```dart
+//步骤1：写一个html文件（error_handle.html），用于出错时展示给用户看的提示页面
+//步骤2：将该html文件放置到代码根目录的assets文件夹下
+
+//步骤3：复写WebViewClient的onRecievedError方法
+//该方法传回了错误码，根据错误类型可以进行不同的错误分类处理
+    webView.setWebViewClient(new WebViewClient(){
+      @Override
+      public void onReceivedError(WebView view, int errorCode, String description, String failingUrl){
+switch(errorCode)
+                {
+                case HttpStatus.SC_NOT_FOUND:
+                    view.loadUrl("file:///android_assets/error_handle.html");
+                    break;
+                }
+            }
+        });
+```
+
+**常见方法6：onReceivedSslError()**
+
+- 作用：处理https请求
+
+> webView默认是不处理https请求的，页面显示空白，需要进行如下设置：
+
+
+
+```java
+webView.setWebViewClient(new WebViewClient() {    
+        @Override    
+        public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {    
+            handler.proceed();    //表示等待证书响应
+        // handler.cancel();      //表示挂起连接，为默认方式
+        // handler.handleMessage(null);    //可做其他处理
+        }    
+    });  
+
+// 特别注意：5.1以上默认禁止了https和http混用，以下方式是开启
+if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+mWebView.getSettings().setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+}
+```
+
+#### 3.2.3 WebChromeClient类
+
+- 作用：辅助 WebView 处理 Javascript 的对话框,网站图标,网站标题等等。
+- 常见使用：
+
+**常见方法1： onProgressChanged（）**
+
+- 作用：获得网页的加载进度并显示
+
+
+
+```java
+webview.setWebChromeClient(new WebChromeClient(){
+
+      @Override
+      public void onProgressChanged(WebView view, int newProgress) {
+          if (newProgress < 100) {
+              String progress = newProgress + "%";
+              progress.setText(progress);
+            } else {
+        }
+    });
+```
+
+**常见方法2： onReceivedTitle（）**
+
+- 作用：获取Web页中的标题
+
+> 每个网页的页面都有一个标题，比如[www.baidu.com](https://links.jianshu.com/go?to=http%3A%2F%2Fwww.baidu.com)这个页面的标题即“百度一下，你就知道”，那么如何知道当前webview正在加载的页面的title并进行设置呢？
+
+
+
+```java
+webview.setWebChromeClient(new WebChromeClient(){
+
+    @Override
+    public void onReceivedTitle(WebView view, String title) {
+       titleview.setText(title)；
+    }
+```
+
+**常见方法3： onJsAlert（）**
+
+- 作用：支持javascript的警告框
+
+> 一般情况下在 Android 中为 Toast，在文本里面加入\n就可以换行
+
+
+
+```java
+webview.setWebChromeClient(new WebChromeClient() {
+            
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, final JsResult result)  {
+    new AlertDialog.Builder(MainActivity.this)
+            .setTitle("JsAlert")
+            .setMessage(message)
+            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    result.confirm();
+                }
+            })
+            .setCancelable(false)
+            .show();
+    return true;
+            }
+```
+
+**常见方法4： onJsConfirm（）**
+
+- 作用：支持javascript的确认框
+
+
+
+```java
+webview.setWebChromeClient(new WebChromeClient() {
+        
+            @Override
+public boolean onJsConfirm(WebView view, String url, String message, final JsResult result) {
+    new AlertDialog.Builder(MainActivity.this)
+            .setTitle("JsConfirm")
+            .setMessage(message)
+            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    result.confirm();
+                }
+            })
+            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    result.cancel();
+                }
+            })
+            .setCancelable(false)
+            .show();
+// 返回布尔值：判断点击时确认还是取消
+// true表示点击了确认；false表示点击了取消；
+    return true;
+}
+
+            
+```
+
+**常见方法5： onJsPrompt（）**
+
+- 作用：支持javascript输入框
+
+> 点击确认返回输入框中的值，点击取消返回 null。
+
+
+
+```java
+webview.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, final JsPromptResult result) {
+    final EditText et = new EditText(MainActivity.this);
+    et.setText(defaultValue);
+    new AlertDialog.Builder(MainActivity.this)
+            .setTitle(message)
+            .setView(et)
+            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    result.confirm(et.getText().toString());
+                }
+            })
+            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    result.cancel();
+                }
+            })
+            .setCancelable(false)
+            .show();
+
+    return true;
+}
+            
+```
+
+# 3.3 WebView与JavaScript的交互
+
+具体请看我写的文章：[最全面 & 最详细的 Android WebView与JS的交互方式 汇总](https://www.jianshu.com/p/345f4d8a5cfa)
+
+# 3.4 注意事项：如何避免WebView内存泄露？
+
+**3.4.1 不在xml中定义 Webview ，而是在需要的时候在Activity中创建，并且Context使用 getApplicationgContext()**
+
+
+
+```csharp
+LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        mWebView = new WebView(getApplicationContext());
+        mWebView.setLayoutParams(params);
+        mLayout.addView(mWebView);
+```
+
+**3.4.2 在 Activity 销毁（ WebView ）的时候，先让 WebView 加载null内容，然后移除 WebView，再销毁 WebView，最后置空。**
+
+
+
+```java
+@Override
+    protected void onDestroy() {
+        if (mWebView != null) {
+            mWebView.loadDataWithBaseURL(null, "", "text/html", "utf-8", null);
+            mWebView.clearHistory();
+
+            ((ViewGroup) mWebView.getParent()).removeView(mWebView);
+            mWebView.destroy();
+            mWebView = null;
+        }
+        super.onDestroy();
+    }
+```
+
+------
+
+# 4. 实例
+
+- 目标：实现显示“[www.baidu.com](https://links.jianshu.com/go?to=http%3A%2F%2Fwww.baidu.com)”、获取其标题、提示加载开始 & 结束和获取加载进度
+- 具体实现：
+
+**步骤1：添加访问网络权限**
+
+> 这是前提！这是前提！这是前提！
+
+*AndroidManifest.xml*
+
+
+
+```xml
+<uses-permission android:name="android.permission.INTERNET"/>
+```
+
+**步骤2：主布局**
+ *activity_main.xml*
+
+
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.carson_ho.webview_demo.MainActivity">
+
+
+   <!-- 获取网站的标题-->
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""/>
+
+    <!--开始加载提示-->
+    <TextView
+        android:id="@+id/text_beginLoading"
+        android:layout_below="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""/>
+
+    <!--获取加载进度-->
+    <TextView
+        android:layout_below="@+id/text_beginLoading"
+        android:id="@+id/text_Loading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""/>
+
+    <!--结束加载提示-->
+    <TextView
+        android:layout_below="@+id/text_Loading"
+        android:id="@+id/text_endLoading"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""/>
+    
+    <!--显示网页区域-->
+    <WebView
+        android:id="@+id/webView1"
+        android:layout_below="@+id/text_endLoading"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent"
+        android:layout_marginTop="10dp" />
+</RelativeLayout>
+```
+
+**步骤3：根据需要实现的功能从而使用相应的子类及其方法（注释很清楚了）**
+ *MainActivity.java*
+
+
+
+```java
+package com.example.carson_ho.webview_demo;
+
+import android.graphics.Bitmap;
+import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
+import android.view.KeyEvent;
+import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.TextView;
+
+
+public class MainActivity extends AppCompatActivity {
+    WebView mWebview;
+    WebSettings mWebSettings;
+    TextView beginLoading,endLoading,loading,mtitle;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+
+        mWebview = (WebView) findViewById(R.id.webView1);
+        beginLoading = (TextView) findViewById(R.id.text_beginLoading);
+        endLoading = (TextView) findViewById(R.id.text_endLoading);
+        loading = (TextView) findViewById(R.id.text_Loading);
+        mtitle = (TextView) findViewById(R.id.title);
+
+        mWebSettings = mWebview.getSettings();
+
+        mWebview.loadUrl("http://www.baidu.com/");
+
+        
+        //设置不用系统浏览器打开,直接显示在当前Webview
+        mWebview.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                view.loadUrl(url);
+                return true;
+            }
+        });
+
+        //设置WebChromeClient类
+        mWebview.setWebChromeClient(new WebChromeClient() {
+
+
+            //获取网站标题
+            @Override
+            public void onReceivedTitle(WebView view, String title) {
+                System.out.println("标题在这里");
+                mtitle.setText(title);
+            }
+
+
+            //获取加载进度
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                if (newProgress < 100) {
+                    String progress = newProgress + "%";
+                    loading.setText(progress);
+                } else if (newProgress == 100) {
+                    String progress = newProgress + "%";
+                    loading.setText(progress);
+                }
+            }
+        });
+
+
+        //设置WebViewClient类
+        mWebview.setWebViewClient(new WebViewClient() {
+            //设置加载前的函数
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                System.out.println("开始加载了");
+                beginLoading.setText("开始加载了");
+
+            }
+
+            //设置结束加载函数
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                endLoading.setText("结束加载了");
+
+            }
+        });
+    }
+
+    //点击返回上一页面而不是退出浏览器
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_BACK && mWebview.canGoBack()) {
+            mWebview.goBack();
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    //销毁Webview
+    @Override
+    protected void onDestroy() {
+        if (mWebview != null) {
+            mWebview.loadDataWithBaseURL(null, "", "text/html", "utf-8", null);
+            mWebview.clearHistory();
+
+            ((ViewGroup) mWebview.getParent()).removeView(mWebview);
+            mWebview.destroy();
+            mWebview = null;
+        }
+        super.onDestroy();
+    }
+}
+```
+
+### Demo地址
+
+源代码：[Carson_Ho的Github-WebviewDemo](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FCarson-Ho%2FWebview_Cache)
+
+------
+
+# 5. 总结
+
+- 本文全面介绍了`Webview`，总结如下
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-6e249d5a3cc7d343.png?imageMogr2/auto-orient/strip|imageView2/2/w/730/format/webp)
+
+
+
+
+
+# Carson带你学Android：全面总结WebView与 JS 的交互方式
+
+# 前言
+
+- 现在很多App里都内置了Web网页（Hybrid App），比如说很多电商平台，淘宝、京东、聚划算等等，如下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-4512e70dbf996c34.png?imageMogr2/auto-orient/strip|imageView2/2/w/297/format/webp)
+
+京东首页
+
+- 上述功能是由Android的WebView实现的，其中涉及到Android客户端与Web网页交互的实现
+- 今天我将全面介绍**Android通过WebView与JS交互**的全面方式
+
+> **Carson带你学WebView系列文章**
+>  [Carson带你学Android：这是一份全面&详细的WebView学习攻略](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：最全面、易懂的Webview使用教程](https://www.jianshu.com/p/3c94ae673e2a)
+>  [Carson带你学Android：全面总结WebView与 JS 的交互方式](https://www.jianshu.com/p/345f4d8a5cfa)
+>  [Carson带你学Android：手把手构建WebView缓存机制及资源预加载方案](https://www.jianshu.com/p/5e7075f4875f)
+>  [Carson带你学Android：盘点你不知道的WebView漏洞](https://www.jianshu.com/p/3a345d27cd42)
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-29c6a46c81304f4f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+目录
+
+------
+
+# 1. 交互方式总结
+
+Android与JS通过WebView互相调用方法，实际上是：
+
+- Android去调用JS的代码
+- JS去调用Android的代码
+
+> 二者沟通的桥梁是WebView
+
+**对于Android调用JS代码的方法有2种：**
+
+1. 通过`WebView`的`loadUrl（）`
+2. 通过`WebView`的`evaluateJavascript（）`
+
+**对于JS调用Android代码的方法有3种：**
+
+1. 通过`WebView`的`addJavascriptInterface（）`进行对象映射
+2. 通过 `WebViewClient` 的`shouldOverrideUrlLoading ()`方法回调拦截 url
+3. 通过 `WebChromeClient` 的`onJsAlert()`、`onJsConfirm()`、`onJsPrompt（）`方法回调拦截JS对话框`alert()`、`confirm()`、`prompt（）` 消息
+
+------
+
+# 2. 具体分析
+
+## 2.1  Android通过WebView调用 JS 代码
+
+对于Android调用JS代码的方法有2种：
+
+1. 通过`WebView`的`loadUrl（）`
+2. 通过`WebView`的`evaluateJavascript（）`
+
+### 方式1：通过`WebView`的`loadUrl（）`
+
+- 实例介绍：点击Android按钮，即调用WebView JS（文本名为`javascript`）中callJS（）
+- 具体使用：
+
+**步骤1：将需要调用的JS代码以`.html`格式放到src/main/assets文件夹里**
+
+> 1. 为了方便展示，本文是采用Andorid调用本地JS代码说明；
+> 2. 实际情况时，Android更多的是调用远程JS代码，即将加载的JS代码路径改成url即可
+
+*需要加载JS代码：javascript.html*
+
+
+
+```xml
+// 文本名：javascript
+<!DOCTYPE html>
+<html>
+
+   <head>
+      <meta charset="utf-8">
+      <title>Carson_Ho</title>
+      
+// JS代码
+     <script>
+// Android需要调用的方法
+   function callJS(){
+      alert("Android调用了JS的callJS方法");
+   }
+</script>
+
+   </head>
+
+</html>
+```
+
+**步骤2：在Android里通过WebView设置调用JS代码**
+
+*Android代码：MainActivity.java*
+
+> 注释已经非常清楚
+
+
+
+```java
+ public class MainActivity extends AppCompatActivity {
+
+    WebView mWebView;
+    Button button;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mWebView =(WebView) findViewById(R.id.webview);
+
+        WebSettings webSettings = mWebView.getSettings();
+
+        // 设置与Js交互的权限
+        webSettings.setJavaScriptEnabled(true);
+        // 设置允许JS弹窗
+        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+
+        // 先载入JS代码
+        // 格式规定为:file:///android_asset/文件名.html
+        mWebView.loadUrl("file:///android_asset/javascript.html");
+
+        button = (Button) findViewById(R.id.button);
+
+
+        button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // 通过Handler发送消息
+                mWebView.post(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        // 注意调用的JS方法名要对应上
+                        // 调用javascript的callJS()方法
+                        mWebView.loadUrl("javascript:callJS()");
+                    }
+                });
+                
+            }
+        });
+
+        // 由于设置了弹窗检验调用结果,所以需要支持js对话框
+        // webview只是载体，内容的渲染需要使用webviewChromClient类去实现
+        // 通过设置WebChromeClient对象处理JavaScript的对话框
+        //设置响应js 的Alert()函数
+        mWebView.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public boolean onJsAlert(WebView view, String url, String message, final JsResult result) {
+                AlertDialog.Builder b = new AlertDialog.Builder(MainActivity.this);
+                b.setTitle("Alert");
+                b.setMessage(message);
+                b.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        result.confirm();
+                    }
+                });
+                b.setCancelable(false);
+                b.create().show();
+                return true;
+            }
+
+        });
+
+
+    }
+}
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-826d0aa065f70cb1.png?imageMogr2/auto-orient/strip|imageView2/2/w/657/format/webp)
+
+效果图
+
+**特别注意：JS代码调用一定要在 `onPageFinished（）` 回调之后才能调用，否则不会调用。**
+
+> `onPageFinished()`属于WebViewClient类的方法，主要在页面加载结束时调用
+
+# 方式2：通过`WebView`的`evaluateJavascript（）`
+
+- 优点：该方法比第一种方法效率更高、使用更简洁。
+
+> 1. 因为该方法的执行不会使页面刷新，而第一种方法（loadUrl ）的执行则会。
+> 2. Android 4.4 后才可使用
+
+- 具体使用
+
+
+
+```tsx
+// 只需要将第一种方法的loadUrl()换成下面该方法即可
+    mWebView.evaluateJavascript（"javascript:callJS()", new ValueCallback<String>() {
+        @Override
+        public void onReceiveValue(String value) {
+            //此处为 js 返回的结果
+        }
+    });
+}
+```
+
+## 2.1.2 方法对比
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-30f095d4c9e638fd.png?imageMogr2/auto-orient/strip|imageView2/2/w/760/format/webp)
+
+方式对比图
+
+## 2.1.3 使用建议
+
+两种方法混合使用，即Android 4.4以下使用方法1，Android 4.4以上方法2
+
+
+
+```dart
+// Android版本变量
+final int version = Build.VERSION.SDK_INT;
+// 因为该方法在 Android 4.4 版本才可使用，所以使用时需进行版本判断
+if (version < 18) {
+    mWebView.loadUrl("javascript:callJS()");
+} else {
+    mWebView.evaluateJavascript（"javascript:callJS()", new ValueCallback<String>() {
+        @Override
+        public void onReceiveValue(String value) {
+            //此处为 js 返回的结果
+        }
+    });
+}
+```
+
+# 2.2 JS通过WebView调用 Android 代码
+
+对于JS调用Android代码的方法有3种：
+
+1. 通过`WebView`的`addJavascriptInterface（）`进行对象映射
+2. 通过 `WebViewClient` 的`shouldOverrideUrlLoading ()`方法回调拦截 url
+3. 通过 `WebChromeClient` 的`onJsAlert()`、`onJsConfirm()`、`onJsPrompt（）`方法回调拦截JS对话框`alert()`、`confirm()`、`prompt（）` 消息
+
+## 2.2.1 方法分析
+
+#### 方式1：通过 `WebView`的`addJavascriptInterface（）`进行对象映射
+
+**步骤1：定义一个与JS对象映射关系的Android类：AndroidtoJs**
+
+*AndroidtoJs.java*（注释已经非常清楚）
+
+
+
+```java
+// 继承自Object类
+public class AndroidtoJs extends Object {
+
+    // 定义JS需要调用的方法
+    // 被JS调用的方法必须加入@JavascriptInterface注解
+    @JavascriptInterface
+    public void hello(String msg) {
+        System.out.println("JS调用了Android的hello方法");
+    }
+}
+```
+
+**步骤2：将需要调用的JS代码以`.html`格式放到src/main/assets文件夹里**
+
+*需要加载JS代码：javascript.html*
+
+
+
+```xml
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta charset="utf-8">
+      <title>Carson</title>  
+      <script>
+         
+        
+         function callAndroid(){
+        // 由于对象映射，所以调用test对象等于调用Android映射的对象
+            test.hello("js调用了android中的hello方法");
+         }
+      </script>
+   </head>
+   <body>
+      //点击按钮则调用callAndroid函数
+      <button type="button" id="button1" onclick="callAndroid()"></button>
+   </body>
+</html>
+```
+
+**步骤3：在Android里通过WebView设置Android类与JS代码的映射**
+
+> 详细请看注释
+
+
+
+```java
+public class MainActivity extends AppCompatActivity {
+
+    WebView mWebView;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mWebView = (WebView) findViewById(R.id.webview);
+        WebSettings webSettings = mWebView.getSettings();
+
+        // 设置与Js交互的权限
+        webSettings.setJavaScriptEnabled(true);
+
+        // 通过addJavascriptInterface()将Java对象映射到JS对象
+        //参数1：Javascript对象名
+        //参数2：Java对象名
+        mWebView.addJavascriptInterface(new AndroidtoJs(), "test");//AndroidtoJS类对象映射到js的test对象
+
+        // 加载JS代码
+        // 格式规定为:file:///android_asset/文件名.html
+        mWebView.loadUrl("file:///android_asset/javascript.html");
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-7fe5cb840286e867.png?imageMogr2/auto-orient/strip|imageView2/2/w/736/format/webp)
+
+效果图
+
+# 特点
+
+- 优点：使用简单
+
+> 仅将Android对象和JS对象映射即可
+
+- 缺点：存在严重的漏洞问题，具体请看文章：[你不知道的 Android WebView 使用漏洞](https://www.jianshu.com/p/3a345d27cd42)
+
+# 方式2：通过 `WebViewClient` 的方法`shouldOverrideUrlLoading ()`回调拦截 url
+
+- 具体原理：
+
+1. Android通过 `WebViewClient` 的回调方法`shouldOverrideUrlLoading ()`拦截 url
+2. 解析该 url 的协议
+3. 如果检测到是预先约定好的协议，就调用相应方法
+
+> 即JS需要调用Android的方法
+
+- 具体使用：
+   **步骤1：**在JS约定所需要的Url协议
+   *JS代码：javascript.html*
+
+> 以.html格式放到src/main/assets文件夹里
+
+
+
+```xml
+<!DOCTYPE html>
+<html>
+
+   <head>
+      <meta charset="utf-8">
+      <title>Carson_Ho</title>
+      
+     <script>
+         function callAndroid(){
+            /*约定的url协议为：js://webview?arg1=111&arg2=222*/
+            document.location = "js://webview?arg1=111&arg2=222";
+         }
+      </script>
+</head>
+
+<!-- 点击按钮则调用callAndroid（）方法  -->
+   <body>
+     <button type="button" id="button1" onclick="callAndroid()">点击调用Android代码</button>
+   </body>
+</html>
+```
+
+当该JS通过Android的`mWebView.loadUrl("file:///android_asset/javascript.html")`加载后，就会回调`shouldOverrideUrlLoading （）`，接下来继续看步骤2：
+
+**步骤2：在Android通过WebViewClient复写`shouldOverrideUrlLoading （）`**
+
+*MainActivity.java*
+
+
+
+```dart
+public class MainActivity extends AppCompatActivity {
+
+    WebView mWebView;
+//    Button button;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mWebView = (WebView) findViewById(R.id.webview);
+
+        WebSettings webSettings = mWebView.getSettings();
+
+        // 设置与Js交互的权限
+        webSettings.setJavaScriptEnabled(true);
+        // 设置允许JS弹窗
+        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+
+        // 步骤1：加载JS代码
+        // 格式规定为:file:///android_asset/文件名.html
+        mWebView.loadUrl("file:///android_asset/javascript.html");
+
+
+// 复写WebViewClient类的shouldOverrideUrlLoading方法
+mWebView.setWebViewClient(new WebViewClient() {
+                                      @Override
+                                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+
+                                          // 步骤2：根据协议的参数，判断是否是所需要的url
+                                          // 一般根据scheme（协议格式） & authority（协议名）判断（前两个参数）
+                                          //假定传入进来的 url = "js://webview?arg1=111&arg2=222"（同时也是约定好的需要拦截的）
+
+                                          Uri uri = Uri.parse(url);                                 
+                                          // 如果url的协议 = 预先约定的 js 协议
+                                          // 就解析往下解析参数
+                                          if ( uri.getScheme().equals("js")) {
+
+                                              // 如果 authority  = 预先约定协议里的 webview，即代表都符合约定的协议
+                                              // 所以拦截url,下面JS开始调用Android需要的方法
+                                              if (uri.getAuthority().equals("webview")) {
+
+                                                 //  步骤3：
+                                                  // 执行JS所需要调用的逻辑
+                                                  System.out.println("js调用了Android的方法");
+                                                  // 可以在协议上带有参数并传递到Android上
+                                                  HashMap<String, String> params = new HashMap<>();
+                                                  Set<String> collection = uri.getQueryParameterNames();
+
+                                              }
+
+                                              return true;
+                                          }
+                                          return super.shouldOverrideUrlLoading(view, url);
+                                      }
+                                  }
+        );
+   }
+        }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-33d26e9225426020.png?imageMogr2/auto-orient/strip|imageView2/2/w/714/format/webp)
+
+效果图
+
+# 特点
+
+- 优点：不存在方式1的漏洞；
+- 缺点：JS获取Android方法的返回值复杂。
+
+> 如果JS想要得到Android方法的返回值，只能通过 WebView 的 `loadUrl （）`去执行 JS 方法把返回值传递回去，相关的代码如下：
+
+
+
+```jsx
+// Android：MainActivity.java
+mWebView.loadUrl("javascript:returnResult(" + result + ")");
+
+// JS：javascript.html
+function returnResult(result){
+    alert("result is" + result);
+}
+```
+
+# 方式3：通过 `WebChromeClient` 的`onJsAlert()`、`onJsConfirm()`、`onJsPrompt（）`方法回调拦截JS对话框`alert()`、`confirm()`、`prompt（）` 消息
+
+在JS中，有三个常用的对话框方法：
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-1385f748618af886.png?imageMogr2/auto-orient/strip|imageView2/2/w/773/format/webp)
+
+Paste_Image.png
+
+方式3的原理：Android通过 `WebChromeClient` 的`onJsAlert()`、`onJsConfirm()`、`onJsPrompt（）`方法回调分别拦截JS对话框
+ （即上述三个方法），得到他们的消息内容，然后解析即可。
+
+下面的例子将用**拦截 JS的输入框（即`prompt（）`方法）**说明 ：
+
+> 1. 常用的拦截是：拦截 JS的输入框（即`prompt（）`方法）
+> 2. 因为只有`prompt（）`可以返回任意类型的值，操作最全面方便、更加灵活；而alert（）对话框没有返回值；confirm（）对话框只能返回两种状态（确定 / 取消）两个值
+
+**步骤1：加载JS代码，如下：**
+ *javascript.html*
+
+> 以.html格式放到src/main/assets文件夹里
+
+
+
+```xml
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta charset="utf-8">
+      <title>Carson_Ho</title>
+      
+     <script>
+        
+    function clickprompt(){
+    // 调用prompt（）
+    var result=prompt("js://demo?arg1=111&arg2=222");
+    alert("demo " + result);
+}
+
+      </script>
+</head>
+
+<!-- 点击按钮则调用clickprompt()  -->
+   <body>
+     <button type="button" id="button1" onclick="clickprompt()">点击调用Android代码</button>
+   </body>
+</html>
+```
+
+当使用`mWebView.loadUrl("file:///android_asset/javascript.html")`加载了上述JS代码后，就会触发回调`onJsPrompt（）`，具体如下：
+
+> 1. 如果是拦截警告框（即`alert()`），则触发回调`onJsAlert（）`；
+> 2. 如果是拦截确认框（即`confirm()`），则触发回调`onJsConfirm（）`；
+
+**步骤2：在Android通过`WebChromeClient`复写`onJsPrompt（）`**
+
+
+
+```tsx
+public class MainActivity extends AppCompatActivity {
+
+    WebView mWebView;
+//    Button button;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mWebView = (WebView) findViewById(R.id.webview);
+
+        WebSettings webSettings = mWebView.getSettings();
+
+        // 设置与Js交互的权限
+        webSettings.setJavaScriptEnabled(true);
+        // 设置允许JS弹窗
+        webSettings.setJavaScriptCanOpenWindowsAutomatically(true);
+
+// 先加载JS代码
+        // 格式规定为:file:///android_asset/文件名.html
+        mWebView.loadUrl("file:///android_asset/javascript.html");
+
+
+        mWebView.setWebChromeClient(new WebChromeClient() {
+                                        // 拦截输入框(原理同方式2)
+                                        // 参数message:代表promt（）的内容（不是url）
+                                        // 参数result:代表输入框的返回值
+                                        @Override
+                                        public boolean onJsPrompt(WebView view, String url, String message, String defaultValue, JsPromptResult result) {
+                                            // 根据协议的参数，判断是否是所需要的url(原理同方式2)
+                                            // 一般根据scheme（协议格式） & authority（协议名）判断（前两个参数）
+                                            //假定传入进来的 url = "js://webview?arg1=111&arg2=222"（同时也是约定好的需要拦截的）
+
+                                            Uri uri = Uri.parse(message);
+                                            // 如果url的协议 = 预先约定的 js 协议
+                                            // 就解析往下解析参数
+                                            if ( uri.getScheme().equals("js")) {
+
+                                                // 如果 authority  = 预先约定协议里的 webview，即代表都符合约定的协议
+                                                // 所以拦截url,下面JS开始调用Android需要的方法
+                                                if (uri.getAuthority().equals("webview")) {
+
+                                                    //
+                                                    // 执行JS所需要调用的逻辑
+                                                    System.out.println("js调用了Android的方法");
+                                                    // 可以在协议上带有参数并传递到Android上
+                                                    HashMap<String, String> params = new HashMap<>();
+                                                    Set<String> collection = uri.getQueryParameterNames();
+
+                                                    //参数result:代表消息框的返回值(输入值)
+                                                    result.confirm("js调用了Android的方法成功啦");
+                                                }
+                                                return true;
+                                            }
+                                            return super.onJsPrompt(view, url, message, defaultValue, result);
+                                        }
+
+// 通过alert()和confirm()拦截的原理相同，此处不作过多讲述
+
+                                        // 拦截JS的警告框
+                                        @Override
+                                        public boolean onJsAlert(WebView view, String url, String message, JsResult result) {
+                                            return super.onJsAlert(view, url, message, result);
+                                        }
+
+                                        // 拦截JS的确认框
+                                        @Override
+                                        public boolean onJsConfirm(WebView view, String url, String message, JsResult result) {
+                                            return super.onJsConfirm(view, url, message, result);
+                                        }
+                                    }
+        );
+
+
+            }
+
+        }
+```
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-018de3f2ba1828c0.png?imageMogr2/auto-orient/strip|imageView2/2/w/764/format/webp)
+
+效果图
+
+- Demo地址
+   上述所有代码均存放在：[Carson_Ho的Github地址 ： WebView Demo](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FCarson-Ho%2FWebview_Cache)
+
+## 2.2.2 三种方式的对比 & 使用场景
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8c91481325a5253e.png?imageMogr2/auto-orient/strip|imageView2/2/w/890/format/webp)
+
+示意图
+
+------
+
+# 3. 总结
+
+- 本文主要对**Android通过WebView与JS的交互方式进行了全面介绍**
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-613b57c93dff2eb8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1189/format/webp)
+
+
 
 
 
@@ -761,4 +2294,8 @@ myWebView.loadUrl("http://www.example.com")
 
 1、https://juejin.cn/post/7322229620391510068
 
-2、
+[Carson带你学Android：最全面、易懂的Webview使用教程](https://www.jianshu.com/p/3c94ae673e2a)
+
+[Carson带你学Android：全面总结WebView与 JS 的交互方式](https://www.jianshu.com/p/345f4d8a5cfa)
+
+[Carson带你学Android：这是一份全面&详细的WebView学习攻略](https://www.jianshu.com/p/d2d4f652029d)

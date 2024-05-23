@@ -1,0 +1,146 @@
+# 前言
+
+- 本文主要讲解 数据结构中特殊的线性表结构：栈 & 队列
+- 内容包括其特点、结构等，希望你们会喜欢。
+
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-67af848224117a6d.png?imageMogr2/auto-orient/strip|imageView2/2/w/834/format/webp)
+
+示意图
+
+------
+
+# 1. 栈
+
+### 1.1 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-46f087cbfb0b04bb.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 1.2 存储结构介绍
+
+##### 1.2.1 顺序存储结构
+
+- 结构特点
+   存储线性表的数据元素的方式 = 一段地址连续的存储单元
+
+> 也称：顺序栈
+
+- 示意图（栈状态说明）
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-dc64079f023a08ef.png?imageMogr2/auto-orient/strip|imageView2/2/w/1108/format/webp)
+
+示意图
+
+- 栈操作（入栈、出栈、共享）
+   具体请看下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-5bbbee2e2dc50007.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+#### 1.2.2 链式存储结构
+
+- 结构特点
+   存储线性表的数据元素的方式 = 一段地址不连续、任意的存储单元
+
+> 1. 存储空间 = 离线、单独的，通过指针联系
+> 2. 也称：链栈
+
+- 结构示意图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-afe9f1026b70249f.png?imageMogr2/auto-orient/strip|imageView2/2/w/587/format/webp)
+
+示意图
+
+- 栈操作（入栈 & 出栈）
+   具体请看下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-6748924d13b8e91c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+**注：时间复杂度均为O（1）**
+
+### 1.3 存储结构对比
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-470571bdbbfe6487.png?imageMogr2/auto-orient/strip|imageView2/2/w/730/format/webp)
+
+示意图
+
+------
+
+# 2. 队列
+
+下面，我们来看另外一种特殊的线性表：队列
+
+### 2.1 简介
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-1d703d28af48070f.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/923/format/webp)
+
+队列.jpg
+
+------
+
+### 2.2 存储结构介绍
+
+#### 2.2.1 顺序存储结构
+
+- 定义
+   头尾相接的顺序存储结构 队列，也称：**循环队列**
+- 为什么要有循环队列
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-d0c73673c1f4c917.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 判断队列空/ 满
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9ab22d6d74950d4f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+#### 2.2.2 链式存储结构
+
+- 定义
+   队列的链式存储结构 = 线性表的单链表 + 尾进头出
+
+> 也称：链队列
+
+- 结构说明
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9c4ca4008a64728c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+- 链队列操作说明（入队 & 出队）
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-e50c1c3d74a1250b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+### 2.3 存储结构对比
+
+即， 顺序存储结构（循环队列）  & 链式存储结构（链队列）对比
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-b7609f12fb8d7e14.png?imageMogr2/auto-orient/strip|imageView2/2/w/1050/format/webp)
+
+示意图
+
+------
+
+# 3. 总结
+
+- 本文主要讲解了 数据结构中特殊的线性表结构：栈 & 队列
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-e1090d10b192de97.png?imageMogr2/auto-orient/strip|imageView2/2/w/816/format/webp)
+
+# 参考
+
+[Carson带你学数据结构：特殊的线性表之 栈 & 队列](https://www.jianshu.com/p/6c6b9a260459)

@@ -8,11 +8,130 @@
 
 
 
-前言：（可选）
+# 前言
 
-## 一、预备知识
+- `Android`基础中，`Activity`的启动模式非常重要
+- 本文将全面介绍 `Activity`的启动模式
 
-可选
+------
+
+# 目录
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-7bfcc8a15b5678eb.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+目录
+
+------
+
+# 1. 定义
+
+即Activity启动的方式
+
+------
+
+# 2. 启动模式的类别
+
+Android启动提供了四种启动方式：
+
+- 标准模式（`Standard`）
+- 栈顶复用模式（`SingleTop`）
+- 栈内复用模式（`SingleTask`）
+- 单例模式（`SingleInstance`）
+
+------
+
+# 3. 知识储备
+
+- `Activity`的管理方式 = **任务栈**
+- 任务栈 采用的结构 = “后进先出” 的栈结构
+- 每按一次Back键，就有一个`Activity`出栈
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-3b0c6f5564228c84.png?imageMogr2/auto-orient/strip|imageView2/2/w/600/format/webp)
+
+示意图
+
+------
+
+# 4. 具体介绍
+
+- 如下图
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-8d121b25c3bf65e6.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+- 通俗讲解
+
+  ![img](https:////upload-images.jianshu.io/upload_images/944365-5a53a70c672dcdbd.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/793/format/webp)
+
+  图解
+
+------
+
+# 5. 四种启动模式的区别
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-f8ff1efde0a29112.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+
+示意图
+
+------
+
+# 6. 启动模式的设置
+
+启动模式有2种设置方式：在`AndroidMainifest`设置、通过`Intent`设置标志位
+
+### 6.1 在AndroidMainifest设置
+
+在`AndroidMainifest`的`Activity`配置进行设置
+
+
+
+```cpp
+<activity
+
+android:launchMode="启动模式"
+//属性
+//standard：标准模式
+//singleTop：栈顶复用模式
+//singleTask：栈内复用模式
+//singleInstance：单例模式
+//如不设置，Activity的启动模式默认为**标准模式（standard）**
+</activity>
+```
+
+### 6.2 通过`Intent`设置标志位
+
+
+
+```java
+Intent inten = new Intent (ActivityA.this,ActivityB.class);
+intent,addFlags(Intent,FLAG_ACTIVITY_NEW_TASK);
+startActivity(intent);
+```
+
+标记位属性
+
+| 标记位属性                         |                             含义                             |
+| ---------------------------------- | :----------------------------------------------------------: |
+| FLAG_ACTIVITY_SINGLE_TOP           |          指定启动模式为栈顶复用模式（`SingleTop`）           |
+| FLAG_ACTIVITY_NEW_TASK             |          指定启动模式为栈内复用模式（`SingleTask`）          |
+| FLAG_ACTIVITY_CLEAR_TOP            | 所有位于其上层的Activity都要移除，`SingleTask`模式默认具有此标记效果 |
+| FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS | 具有该标记的Activity不会出现在历史Activity的列表中，即无法通过历史列表回到该Activity上 |
+
+### 6.3 二者设置的区别
+
+- 优先级不同
+   `Intent`设置方式的优先级 > `Manifest`设置方式，即 以前者为准
+- 限定范围不同
+   `Manifest`设置方式无法设定 `FLAG_ACTIVITY_CLEAR_TOP`；`Intent`设置方式 无法设置单例模式（`SingleInstance`）
+
+------
+
+# 7. 总结
+
+- 本文全面介绍了 `Android`的4种 `Activity`启动模式
+
+
+
+
 
 ## 二、Activity 的启动模式
 
@@ -289,6 +408,8 @@ Activity 的启动模式有 4 种，分别是：standard、singleTop、singleTas
 
 
 
-**参考：**
+# 参考
 
 1、[Android：四种启动模式分析](https://blog.csdn.net/elisonx/article/details/80397519)
+
+[Carson带你学Android：最易懂的Activity启动模式详解](https://www.jianshu.com/p/399e83d02e33)

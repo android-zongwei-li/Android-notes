@@ -1,0 +1,78 @@
+服务端用 Node.js 开发。
+
+# 准备工作
+
+## 用户创建
+
+RAM控制访问用户创建
+
+作用：调用函数计算接口时，需要传入相关参数。
+
+需要记下：用户名，登录Password，AccessKeyId，AccessKeySecret
+
+**重要：AccessKeySecret，只会创建时显示一次，为避免后续麻烦，一定要在本地记好**
+
+
+
+
+
+# 环境配置
+
+## 配置环境变量
+
+[配置环境变量](https://help.aliyun.com/zh/functioncompute/user-guide/environment-variables?spm=5176.fcnext.help.dexternal.24cd78c8I5s3MA)
+
+### 使用场景
+
+- 跨平台或跨服务共享代码
+
+  同一份代码，在测试环境和生产环境运行时的配置可能存在差异。**可以通过环境变量的方式选择使用不同的OSS的Bucket、数据库或者表格**。代码在不同平台部署时无需更改代码。
+
+- **配置密钥**
+
+  连接数据库的用户名和密码、您的阿里云AccessKey或者其他安全敏感性的认证信息都可以通过环境变量设置。
+
+- 配置系统变量
+
+  在配置PATH和HOME等目录时能够更灵活地使用系统库。
+
+## 通过控制台配置环境变量
+
+1、[创建函数](https://help.aliyun.com/document_detail/2513527.html#section-b9y-zn1-5wr)
+
+2、在函数页面，**配置环境变量**
+
+![image-20240518103159402](images/函数计算/image-20240518103159402.png)
+
+![image-20240518104231181](images/函数计算/image-20240518104231181.png)
+
+上面配置了环境变量：
+
+key：TABLE_NAME
+
+value：user
+
+3、验证（写代码、部署、验证）
+
+在 index.js 中验证
+
+```js
+exports.handler = (event, context, callback) => {
+  var value = process.env.INSTANCE_NAME
+  console.log(value)
+  // 返回数据
+  callback(null, value);
+}
+```
+
+### 在代码中使用环境变量
+
+假设配置的环境变量为`{"key":"val"}`，以下为各运行环境读取并打印此环境变量值的方法。
+
+```javascript
+var value = process.env.key
+console.log(value)
+```
+
+
+

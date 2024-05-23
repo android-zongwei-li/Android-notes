@@ -1354,3 +1354,8 @@ static class Android extends Platform {
 
 ![img](images/Retrofit 源码解析/webp-1706462834371-44.webp)
 
+
+
+# 参考
+
+[Carson带你学Android：手把手带你深入读懂Retrofit 2.0源码](https://www.jianshu.com/p/0c055ad46b6c)

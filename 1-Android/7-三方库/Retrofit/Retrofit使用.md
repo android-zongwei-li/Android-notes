@@ -970,4 +970,4 @@ Retrofit retrofit = new Retrofit.Builder()
 
 # 参考
 
-1、https://www.jianshu.com/p/a3e162261ab6
+[Carson带你学Android：网络请求库Retrofit使用教程(含实例讲解)](https://www.jianshu.com/p/a3e162261ab6)
