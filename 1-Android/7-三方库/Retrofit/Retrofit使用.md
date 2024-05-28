@@ -8,15 +8,12 @@
 
 ![示意图](images/Retrofit使用/1.png)
 
-- 准确来说，**Retrofit 是一个 RESTful 的 HTTP 网络请求框架的封装。**
-- 原因：网络请求的工作本质上是 `OkHttp` 完成，而 Retrofit 仅负责 网络请求接口的封装
+- 网络请求的工作本质上是 `OkHttp` 完成，而 Retrofit 仅负责 网络请求接口的封装
 
 ![本质过程](images/Retrofit使用/2.png)
 
 - App应用程序通过 Retrofit 请求网络，实际上是使用 Retrofit 接口层封装请求参数、Header、Url 等信息，之后由 OkHttp 完成后续的请求操作
 - 在服务端返回数据之后，OkHttp 将原始的结果交给 Retrofit，Retrofit根据用户的需求对结果进行解析
-
-
 
 # 二、使用介绍
 
@@ -86,6 +83,10 @@ public interface GetRequest_Interface {
 下面详细介绍Retrofit 网络请求接口 的注解类型。
 
 ### 注解类型
+
+#### GET
+
+GET 和 baseurl 一样，则填一样的。都不能空着。
 
 ![img](images/Retrofit使用/webp-1706442368937-11.webp)
 
@@ -491,7 +492,21 @@ Response<Reception> response = call.execute();
   response.body().show();
 ```
 
-------
+# 添加Okhttp日志
+
+```kotlin
+		// 版本号必须匹配
+    implementation("com.squareup.okhttp3:logging-interceptor:4.5.0")
+    implementation("com.squareup.okhttp3:okhttp:4.5.0")
+```
+
+```kotlin
+    private val okhttpClient: OkHttpClient = OkHttpClient.Builder()
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .build()
+```
 
 # 三、示例讲解
 
@@ -674,8 +689,6 @@ compile 'com.squareup.retrofit2:converter-gson:2.0.2'
 ### Demo地址
 
 Carson_Ho的Github：[https://github.com/Carson-Ho/RetrofitDemo](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FCarson-Ho%2FRetrofitDemo)
-
-------
 
 ## 2、实例2
 
@@ -918,8 +931,6 @@ compile 'com.squareup.retrofit2:converter-gson:2.0.2'
 
 Carson_Ho的Github：[https://github.com/Carson-Ho/RetrofitDemo](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FCarson-Ho%2FRetrofitDemo)
 
-------
-
 # 四. Retrofit 的拓展使用
 
 - Retrofit的使用场景非常丰富，如支持`RxJava`和`Prototocobuff`
@@ -937,36 +948,56 @@ Retrofit retrofit = new Retrofit.Builder()
 
 
 
-# 五、与其他开源请求库对比
+# 五、问题记录
 
-除了Retrofit，如今Android中主流的网络请求框架有：
+1、接口方法需要添加 suspend 修饰符
 
-- Android-Async-Http
-- Volley
-- OkHttp
+如果在协程作用域中调用了接口方法，则需要添加 suspend 关键字修饰方法
 
-下面是简单介绍：
+```kotlin
+interface LoginApi {
+    @GET("")
+    suspend fun login(
+    ): ResultModel<LoginModel>
+}
+```
 
-![img](images/Retrofit使用/webp-1706438077956-5.webp)
+报错：
 
-网络请求加载 - 介绍
+```kotlin
+java.lang.IllegalArgumentException: Unable to create call adapter for com.lizw.usefulwords.data.beans.login.ResultModel<com.lizw.usefulwords.data.beans.login.LoginModel>
+                                             for method LoginApi.login
+                                         	at retrofit2.Utils.methodError(Utils.java:56)
 
-一图让你了解全部的网络请求库和他们之间的区别！
+Caused by: java.lang.IllegalArgumentException: Could not locate call adapter for com.lizw.usefulwords.data.beans.login.ResultModel<com.lizw.usefulwords.data.beans.login.LoginModel>.
+                                           Tried:
+```
 
-![img](images/Retrofit使用/webp-1706438087301-8.webp)
+2、没有指定 ConverterFactory
 
-网络请求库 - 对比
+报错：
 
-------
+```kotlin
+java.lang.IllegalArgumentException: Unable to create converter for com.lizw.usefulwords.data.beans.login.ResultModel<com.lizw.usefulwords.data.beans.login.LoginModel>
+                                             for method LoginApi.login
 
-附：各个主流网络请求库的Github地址
+Caused by: java.lang.IllegalArgumentException: Could not locate ResponseBody converter for com.lizw.usefulwords.data.beans.login.ResultModel<com.lizw.usefulwords.data.beans.login.LoginModel>.
+                                           Tried:
+                                            * retrofit2.BuiltInConverters
+                                            * retrofit2.OptionalConverterFactory
+```
 
-- [Android-Async-Http](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Floopj%2Fandroid-async-http)
-- [Volley](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fstormzhang%2FAndroidVolley)
-- [OkHttp](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fsquare%2Fokhttp)
-- [Retrofit](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fsquare%2Fretrofit)
+解决：
 
+如果是用的 Gson，添加依赖库：com.squareup.retrofit2:converter-gson:2.0.2
 
+并配置：
+
+```kotlin
+        Retrofit.Builder().client(okhttpClient)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+```
 
 # 参考
 

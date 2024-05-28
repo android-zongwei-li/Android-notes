@@ -2,31 +2,35 @@
 >
 > review：
 
+# 简介
 
+ `volatile` 是 `Java` 中的1个关键字 / 修饰符
 
-目录
+作用：用来保证被修饰的共享变量的 **可见性 & 有序性**，但不保证原子性
 
-[TOC]
+# 具体描述
 
+`volatile`是如何保证 “共享变量” 的**可见性 & 有序性**，但不保证原子性”的具体原理
 
+### 储备知识：原子性、可见性 & 有序性
 
-# 关键词
+![img](https:////upload-images.jianshu.io/upload_images/944365-aae6879f89769c4a.png?imageMogr2/auto-orient/strip|imageView2/2/w/790/format/webp)
 
+### 3.1 保证可见性
 
+- 具体描述
+   `volatile`修饰的属性保证每次读取都能读到最新的值
 
-# 一、前置知识
+> 但不会 & 无法更新已经读了的值
 
-不论什么样的库，或者项目，都是有不同的基础知识点组织起来的，因此先掌握基础是很有必要的。
+- 原理
+   线程A在工作内存中修改的**共享属性值会立即刷新到主存**，线程B/C/D每次通过读写栅栏来达到类似于直接从主存中读取属性值
 
-基础知识这块可以不写。
+> 1. 只是类似，网上有些说volatile修饰的变量读写直接在主存中操作，这种说法是不对的，只是表现出类似的行为
+> 2. 读写栅栏是一条CPU指令；插入一个读写栅栏 = 告诉CPU & 编译器先于这个命令的必须先执行，后于这个命令的必须后执行（有序性）
+> 3. 读写栅栏另一个作用是强制更新一次不同CPU的缓存。例如，一个写栅栏会把这个栅栏前写入的数据刷新到缓存，以此保证可见性
 
-# 一、概述
-
-
-
-二、可见性问题
-
-先看如下示例：
+#### 可见性问题示例
 
 ```kotlin
 class Test {
@@ -51,110 +55,11 @@ class Test {
     }
 ```
 
-这个程序不会停止运行。
-
-因为
+这个程序不会停止运行。因为
 
 ![a6b77716c2395b28dea06ccb87e0844](images/volatile/a6b77716c2395b28dea06ccb87e0844.png)
 
 所以在另一个线程中，去修改flag的值，并不会影响到while循环，在mian线程中，flag始终是true。解决方式就是给flag加上volatile关键字。
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 相关问题
-
-<font color='orange'>Q：volatile的作用？</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-
-
-# 前言
-
-- 在`Java`中，`Java`中`volatile`关键字十分重要
-- 本文全面 & 详细解析`volatile`关键字，希望你们会喜欢
-
-------
-
-# 目录
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-864e3b4689298e9f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1048/format/webp)
-
-示意图
-
-------
-
-# 1. 定义
-
-`Java` 中的1个关键字 / 修饰符
-
-------
-
-# 2. 作用
-
-保证 被 `volatile`修饰的共享变量 的**可见性 & 有序性**，但不保证原子性
-
-------
-
-# 3. 具体描述
-
-下面，我将详细讲解 `volatile`是如何保证 “共享变量 的**可见性 & 有序性**，但不保证原子性”的具体原理
-
-### 储备知识：原子性、可见性 & 有序性
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-aae6879f89769c4a.png?imageMogr2/auto-orient/strip|imageView2/2/w/790/format/webp)
-
-示意图
-
-### 3.1 保证可见性
-
-- 具体描述
-   `volatile`修饰的属性保证每次读取都能读到最新的值
-
-> 但不会 & 无法更新已经读了的值
-
-- 原理
-   线程A在工作内存中修改的**共享属性值会立即刷新到主存**，线程B/C/D每次通过读写栅栏来达到类似于直接从主存中读取属性值
-
-> 1. 只是类似，网上有些说volatile修饰的变量读写直接在主存中操作，这种说法是不对的，只是表现出类似的行为
-> 2. 读写栅栏是一条CPU指令；插入一个读写栅栏 = 告诉CPU & 编译器先于这个命令的必须先执行，后于这个命令的必须后执行（有序性）
-> 3. 读写栅栏另一个作用是强制更新一次不同CPU的缓存。例如，一个写栅栏会 把这个栅栏前写入的数据刷新到缓存，以此保证可见性
 
 ### 3.2 保证有序性
 
@@ -172,8 +77,6 @@ class Test {
 
 - 原理
 
-
-
 ```php
 // 变量a 被volatile修饰 
 volatile static int a=0;
@@ -184,27 +87,19 @@ a++;
 // 即 a++执行了2次，但2次都是从0变为1，故a的值最终为1
 ```
 
-------
-
 # 4. 应用场景
 
 由于`volatile`保证可见性和有序性，被`volatile`修饰的共享属性一般并发读/写没有问题，可看做是一种轻量级的`synchronized`实现
 
-> 关于`synchronized`的讲解具体请看文章：[Java：这是一份全面 & 详细的 Synchronized关键字 学习指南](https://links.jianshu.com/go?to=https%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F82992269)
-
-至此，关于`Java`中的`volatile`关键字讲解完毕。
-
-------
-
 # 5. 总结
 
-本文主要讲解了`Java`中`volatile`关键字，其作用为 **保证 “共享变量 的可见性 & 有序性**，具体总结如下：
+本文主要讲解了`Java`中`volatile`关键字，其作用为 **保证 “共享变量” 的可见性 & 有序性**，具体总结如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-ac37066fc9786f05.png?imageMogr2/auto-orient/strip|imageView2/2/w/830/format/webp)
 
+# 相关问题
 
-
-
+<font color='orange'>Q：volatile的作用？</font>
 
 # 参考
 
