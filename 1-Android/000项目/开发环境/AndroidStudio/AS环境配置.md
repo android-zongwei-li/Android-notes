@@ -14,11 +14,4 @@ translation
 
 在这个弹窗中点击下拉列表，选中一个和你的Android studio匹配的版本下载下来然后安装，重启AS就可以了。
 
-3、CodeLocator
-
-很方便开发调试，快速定位到 UI 界面。
-
-https://github.com/bytedance/CodeLocator
-
 4、
-

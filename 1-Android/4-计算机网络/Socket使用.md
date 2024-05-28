@@ -3,8 +3,6 @@
 - `Socket`的使用在 `Android`网络编程中非常重要
 - 今天我将带大家全面了解 `Socket` 及 其使用方法
 
-------
-
 # 目录
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-59926986f3c800e0.png?imageMogr2/auto-orient/strip|imageView2/2/w/994/format/webp)
@@ -34,8 +32,6 @@
 
 - 成对出现，一对套接字：
 
-
-
 ```ruby
 Socket ={(IP地址1:PORT端口号)，(IP地址2:PORT端口号)}
 ```
@@ -62,10 +58,6 @@ Socket ={(IP地址1:PORT端口号)，(IP地址2:PORT端口号)}
 具体原理图如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-8df0ed7afe6b32d1.png?imageMogr2/auto-orient/strip|imageView2/2/w/610/format/webp)
-
-原理图
-
-------
 
 # 5. Socket 与 Http 对比
 
@@ -474,8 +466,6 @@ public class MainActivity extends AppCompatActivity {
 **步骤2：创建服务器线程**
  *TestHandler.java*
 
-
-
 ```java
 package mina;
 // 导入包
@@ -518,8 +508,6 @@ public class TestHandler extends IoHandlerAdapter {
 **步骤3：创建服务器主代码**
  *TestHandler.java*
 
-
-
 ```java
 package mina;
 
@@ -548,21 +536,15 @@ public class TestServer {
 
 至此，客户端 & 服务器的代码均实现完毕。
 
-------
-
 ### 7.3 测试结果
 
 - 点击 `Connect`按钮： 连接成功
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-0f69bb561fbca4f1.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
 - 输入发送的消息，点击 `Send` 按钮发送
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-7438aa8f57a738ed.png?imageMogr2/auto-orient/strip|imageView2/2/w/374/format/webp)
-
-示意图
 
 - 服务器接收到客户端发送的消息
 
@@ -592,7 +574,7 @@ public class TestServer {
 
 # 8. 总结
 
-- 相信大家已经非常了解关于Socket的使用
+
 
 
 
