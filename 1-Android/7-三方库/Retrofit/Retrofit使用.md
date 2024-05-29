@@ -1,7 +1,3 @@
-使用示例看：第四节
-
-
-
 # 一、简介
 
 `Retrofit`是一个网络请求库。
@@ -15,7 +11,7 @@
 - App应用程序通过 Retrofit 请求网络，实际上是使用 Retrofit 接口层封装请求参数、Header、Url 等信息，之后由 OkHttp 完成后续的请求操作
 - 在服务端返回数据之后，OkHttp 将原始的结果交给 Retrofit，Retrofit根据用户的需求对结果进行解析
 
-# 二、使用介绍
+# 二、快速使用
 
 使用 Retrofit 的步骤共有7个：
 
@@ -26,20 +22,15 @@
 **步骤5：**创建 网络请求接口实例 并 配置网络请求参数
 **步骤6：**发送网络请求（异步 / 同步）
 
-> 封装了 数据转换、线程切换的操作
-
 **步骤7： **处理服务器返回的数据
 
-## 步骤1：添加Retrofit库的依赖
-
-##### 仓库地址
-
-https://github.com/square/retrofit
+## 步骤1：添加依赖
 
 **1. 在 build.gradle加入`Retrofit`库的依赖**
 
 ```csharp
 dependencies {
+  	// https://github.com/square/retrofit
     compile 'com.squareup.retrofit2:retrofit:2.9.0'
     // Retrofit库
   }
@@ -80,25 +71,92 @@ public interface GetRequest_Interface {
 }
 ```
 
-下面详细介绍Retrofit 网络请求接口 的注解类型。
+后面会详细介绍 Retrofit 网络请求接口 的注解类型。
 
-### 注解类型
+## 步骤4：创建 Retrofit 实例
 
-#### GET
+```cpp
+ Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl("http://fanyi.youdao.com/") // 设置网络请求的Url地址
+                .addConverterFactory(GsonConverterFactory.create()) // 设置数据解析器
+                .build();
+```
 
-GET 和 baseurl 一样，则填一样的。都不能空着。
+## 步骤5：创建 网络请求接口实例
+
+```java
+        // 创建 网络请求接口 的实例
+        GetRequest_Interface request = retrofit.create(GetRequest_Interface.class);
+
+        //对 发送请求 进行封装
+        Call<Reception> call = request.getCall();
+```
+
+## 步骤6：发送网络请求（异步 / 同步）
+
+> 封装了 数据转换、线程切换的操作
+
+```java
+//发送网络请求(异步)
+        call.enqueue(new Callback<Translation>() {
+            //请求成功时回调
+            @Override
+            public void onResponse(Call<Translation> call, Response<Translation> response) {
+                //请求处理,输出结果
+                response.body().show();
+            }
+
+            //请求失败时候的回调
+            @Override
+            public void onFailure(Call<Translation> call, Throwable throwable) {
+                System.out.println("连接失败");
+            }
+        });
+
+// 发送网络请求（同步）
+Response<Reception> response = call.execute();
+```
+
+## 步骤7：处理返回数据
+
+通过`response`类的 `body（）`对返回的数据进行处理
+
+```java
+// 发送网络请求(异步)
+        call.enqueue(new Callback<Translation>() {
+            //请求成功时回调
+            @Override
+            public void onResponse(Call<Translation> call, Response<Translation> response) {
+                // 对返回数据进行处理
+                response.body().show();
+            }
+
+            //请求失败时候的回调
+            @Override
+            public void onFailure(Call<Translation> call, Throwable throwable) {
+                System.out.println("连接失败");
+            }
+        });
+
+	// 发送网络请求（同步）
+  Response<Reception> response = call.execute();
+  // 对返回数据进行处理
+  response.body().show();
+```
+
+# 注解类型
 
 ![img](images/Retrofit使用/webp-1706442368937-11.webp)
 
-### 注解说明
+## 注解说明
 
-#### 第一类：网络请求方法
+## 第一类：网络请求方法
 
 ![img](images/Retrofit使用/webp-1706442408329-14.webp)
 
-**详细说明：**
- a. @GET、@POST、@PUT、@DELETE、@HEAD
- 以上方法分别对应 HTTP 中的网络请求方式
+### @GET、@POST、@PUT、@DELETE、@HEAD
+
+如果 GET 和 baseurl 一样的话，则填一样的。都不能空着。
 
 ```java
 public interface GetRequest_Interface {
@@ -138,7 +196,7 @@ URL整合规则
 
 > 建议采用第三种方式来配置，并尽量使用同一种路径形式。
 
-b. @HTTP
+### @HTTP
 
 - 作用：替换**@GET、@POST、@PUT、@DELETE、@HEAD**注解的作用 及 更多功能拓展
 - 具体使用：通过属性**method、path、hasBody**进行设置
@@ -157,17 +215,17 @@ public interface GetRequest_Interface {
 }
 ```
 
-#### 第二类：标记
+## 第二类：标记
 
 ![img](images/Retrofit使用/webp-1706445774583-20.webp)
 
-a. @FormUrlEncoded
+### @FormUrlEncoded
 
 - 作用：表示发送form-encoded的数据
 
 > 每个键值对需要用@Filed来注解键名，随后的对象需要提供值。
 
-b. @Multipart
+### @Multipart
 
 - 作用：表示发送form-encoded的数据（适用于 有文件 上传的场景）
 
@@ -195,7 +253,7 @@ public interface GetRequest_Interface {
 
 }
 
-// 具体使用
+			// 具体使用
        GetRequest_Interface service = retrofit.create(GetRequest_Interface.class);
         // @FormUrlEncoded 
         Call<ResponseBody> call1 = service.testFormUrlEncoded1("Carson", 24);
@@ -208,13 +266,11 @@ public interface GetRequest_Interface {
         Call<ResponseBody> call3 = service.testFileUpload1(name, age, filePart);
 ```
 
-#### 第三类：网络请求参数
+## 第三类：网络请求参数
 
 ![img](images/Retrofit使用/webp-1706445861388-23.webp)
 
-#### 详细说明
-
-a. @Header & @Headers
+### @Header & @Headers
 
 - 作用：添加请求头 &添加不固定的请求头
 - 具体使用如下：
@@ -235,7 +291,7 @@ Call<User> getUser()
 // 2. 使用方式：@Header作用于方法的参数；@Headers作用于方法
 ```
 
-b. @Body
+### @Body
 
 - 作用：以 `Post`方式 传递 自定义数据类型 给服务器
 - 特别注意：如果提交的是一个Map，那么作用相当于 `@Field`
@@ -247,7 +303,7 @@ FormBody.Builder builder = new FormBody.Builder();
 builder.add("key","value");
 ```
 
-c. @Field & @FieldMap
+### @Field & @FieldMap
 
 - 作用：发送 Post请求 时提交请求的表单字段
 - 具体使用：与 `@FormUrlEncoded` 注解配合使用
@@ -283,7 +339,7 @@ public interface GetRequest_Interface {
         Call<ResponseBody> call2 = service.testFormUrlEncoded2(map);
 ```
 
-d. @Part & @PartMap
+### @Part & @PartMap
 
 - 作用：发送 Post请求 时提交请求的表单字段
 
@@ -339,7 +395,7 @@ public interface GetRequest_Interface {
 }
 ```
 
-e. @Query和@QueryMap
+### @Query和@QueryMap
 
 - 作用：用于 `@GET` 方法的查询参数（Query =  Url 中 ‘?’ 后面的 key-value）
 
@@ -355,7 +411,7 @@ e. @Query和@QueryMap
 // 其使用方式同 @Field与@FieldMap，这里不作过多描述
 ```
 
-f. @Path
+### @Path
 
 - 作用：URL地址的缺省值
 - 具体使用：
@@ -370,7 +426,7 @@ public interface GetRequest_Interface {
     }
 ```
 
-g. @Url
+### @Url
 
 - 作用：直接传入一个请求的 URL变量 用于URL设置
 - 具体使用：
@@ -386,21 +442,13 @@ public interface GetRequest_Interface {
 }
 ```
 
-### 汇总
+## 汇总
 
 ![img](images/Retrofit使用/webp-1706445964445-26.webp)
 
-## 步骤4：创建 Retrofit 实例
+# Converter 与 CallAdapter
 
-```cpp
- Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl("http://fanyi.youdao.com/") // 设置网络请求的Url地址
-                .addConverterFactory(GsonConverterFactory.create()) // 设置数据解析器
-                .addCallAdapterFactory(RxJavaCallAdapterFactory.create()) // 支持RxJava平台
-                .build();
-```
-
-### a. 关于数据解析器（Converter）
+## 数据解析器（Converter）
 
 - Retrofit支持多种数据解析方式
 - 使用时需要在Gradle添加依赖
@@ -415,12 +463,12 @@ public interface GetRequest_Interface {
 | Wire       |   com.squareup.retrofit2:converter-wire:2.0.2    |
 | Scalars    |  com.squareup.retrofit2:converter-scalars:2.0.2  |
 
-### b. 关于网络请求适配器（CallAdapter）
+## 网络请求适配器（CallAdapter）
 
 - Retrofit支持多种网络请求适配器方式：guava、Java8和rxjava
 
 > 使用时如使用的是 `Android` 默认的 `CallAdapter`，则不需要添加网络请求适配器的依赖，否则则需要按照需求进行添加
->  Retrofit 提供的 `CallAdapter`
+> Retrofit 提供的 `CallAdapter`
 
 - 使用时需要在Gradle添加依赖：
 
@@ -430,66 +478,16 @@ public interface GetRequest_Interface {
 | Java8          | com.squareup.retrofit2:adapter-java8:2.0.2  |
 | rxjava         | com.squareup.retrofit2:adapter-rxjava:2.0.2 |
 
-## 步骤5：创建 网络请求接口实例
+## 使用
 
-```java
-        // 创建 网络请求接口 的实例
-        GetRequest_Interface request = retrofit.create(GetRequest_Interface.class);
-
-        //对 发送请求 进行封装
-        Call<Reception> call = request.getCall();
-```
-
-## 步骤6：发送网络请求（异步 / 同步）
-
-> 封装了 数据转换、线程切换的操作
-
-```java
-//发送网络请求(异步)
-        call.enqueue(new Callback<Translation>() {
-            //请求成功时回调
-            @Override
-            public void onResponse(Call<Translation> call, Response<Translation> response) {
-                //请求处理,输出结果
-                response.body().show();
-            }
-
-            //请求失败时候的回调
-            @Override
-            public void onFailure(Call<Translation> call, Throwable throwable) {
-                System.out.println("连接失败");
-            }
-        });
-
-// 发送网络请求（同步）
-Response<Reception> response = call.execute();
-```
-
-## 步骤7：处理返回数据
-
-通过`response`类的 `body（）`对返回的数据进行处理
-
-```java
-//发送网络请求(异步)
-        call.enqueue(new Callback<Translation>() {
-            //请求成功时回调
-            @Override
-            public void onResponse(Call<Translation> call, Response<Translation> response) {
-                // 对返回数据进行处理
-                response.body().show();
-            }
-
-            //请求失败时候的回调
-            @Override
-            public void onFailure(Call<Translation> call, Throwable throwable) {
-                System.out.println("连接失败");
-            }
-        });
-
-// 发送网络请求（同步）
-  Response<Reception> response = call.execute();
-  // 对返回数据进行处理
-  response.body().show();
+```cpp
+<-- 主要在创建Retrofit对象中设置 -->
+Retrofit retrofit = new Retrofit.Builder()
+  .baseUrl(""http://fanyi.youdao.com/"")
+  .addConverterFactory(ProtoConverterFactory.create()) // 支持Prototocobuff解析
+  .addConverterFactory(GsonConverterFactory.create()) // 支持Gson解析
+  .addCallAdapterFactory(RxJavaCallAdapterFactory.create()) // 支持RxJava
+  .build();
 ```
 
 # 添加Okhttp日志
@@ -508,9 +506,9 @@ Response<Reception> response = call.execute();
             .build()
 ```
 
-# 三、示例讲解
+# 示例讲解
 
-接下来，我将用两个实例分别对 Retrofit  GET方式 和 POST方式进行 网络请求 讲解。
+下面用两个实例分别对 Retrofit  GET方式 和 POST方式进行 网络请求 讲解。
 
 ## 1、实例1
 
@@ -518,27 +516,6 @@ Response<Reception> response = call.execute();
 - 实现方案：采用`Get`方法对 金山词霸API 发送网络请求
 
 > 采用 `Gson` 进行数据解析
-
-![img](images/Retrofit使用/webp-1706446402662-29.webp)
-
-金山词典
-
-- 步骤说明
-
-**步骤1：**添加Retrofit库的依赖
-**步骤2：**创建 接收服务器返回数据 的类
-**步骤3：**创建 用于描述网络请求 的接口
-**步骤4：**创建 Retrofit 实例
-**步骤5：**创建 网络请求接口实例 并 配置网络请求参数
-**步骤6：**发送网络请求（采用最常用的异步方式）
-
-> 封装了 数据转换、线程切换的操作
-
-**步骤7： **处理服务器返回的数据
-
-接下来，我们一步步进行讲解。
-
-- ## 具体使用
 
 ### 步骤1：添加Retrofit库的依赖
 
@@ -575,13 +552,15 @@ http://fy.iciba.com/ajax.php?a=fy&f=auto&t=auto&w=hello%20world
 // w：查询内容
 ```
 
-数据格式说明：![API格式说明](images/Retrofit使用/webp-1706446517213-32.webp)
+数据格式说明：
+
+![API格式说明](images/Retrofit使用/webp-1706446517213-32.webp)
 
 - 根据 金山词霸API 的数据格式，创建 接收服务器返回数据 的类：
 
 ```csharp
 public class Translation {
-        private int status;
+    private int status;
 
     private content content;
     private static class content {
@@ -702,21 +681,6 @@ Carson_Ho的Github：[https://github.com/Carson-Ho/RetrofitDemo](https://links.j
 有道翻译
 
 - 使用步骤
-
-**步骤1：**添加Retrofit库的依赖
-**步骤2：**创建 接收服务器返回数据 的类
-**步骤3：**创建 用于描述网络请求 的接口
-**步骤4：**创建 Retrofit 实例
-**步骤5：**创建 网络请求接口实例 并 配置网络请求参数
-**步骤6：**发送网络请求（采用最常用的异步方式）
-
-> 封装了 数据转换、线程切换的操作
-
-**步骤7： **处理服务器返回的数据
-
-接下来，我们一步步进行Retrofit的使用。
-
-- 具体使用
 
 ### 步骤1：添加Retrofit库的依赖
 
@@ -931,24 +895,7 @@ compile 'com.squareup.retrofit2:converter-gson:2.0.2'
 
 Carson_Ho的Github：[https://github.com/Carson-Ho/RetrofitDemo](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2FCarson-Ho%2FRetrofitDemo)
 
-# 四. Retrofit 的拓展使用
-
-- Retrofit的使用场景非常丰富，如支持`RxJava`和`Prototocobuff`
-- 具体设置也非常简单 & 方便：
-
-```cpp
-<-- 主要在创建Retrofit对象中设置 -->
-Retrofit retrofit = new Retrofit.Builder()
-  .baseUrl(""http://fanyi.youdao.com/"")
-  .addConverterFactory(ProtoConverterFactory.create()) // 支持Prototocobuff解析
-  .addConverterFactory(GsonConverterFactory.create()) // 支持Gson解析
-  .addCallAdapterFactory(RxJavaCallAdapterFactory.create()) // 支持RxJava
-  .build();
-```
-
-
-
-# 五、问题记录
+# 问题记录
 
 1、接口方法需要添加 suspend 修饰符
 
