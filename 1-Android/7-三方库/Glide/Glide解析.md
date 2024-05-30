@@ -12,7 +12,9 @@ GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，Refere
 
 生命周期管理：androidx.lifecycle 中的 LifecycleRegistry、Lifecycle
 
-这也可以说明一点，即掌握Glide原理可以给我们带了什么？首先就是对上面这些知识点的原理和运用理解的更加深刻，同时对Glide的理解也更加深入。
+> 基于 4.16.0
+>
+> 不分析 @Deprecated 标记的方法或类，比如 with() 就有几个弃用的。
 
 # Glide流程分析
 
@@ -316,15 +318,11 @@ Glide.with(this)
 
 # 模块介绍
 
-------
-
 根据模块学习事半功倍，先看看 Glide 的分包结构：
 
 ![img](images/Glide解析/6.png)
 
 ## Glide
-
-------
 
 Glide 是**单例类**，通过 Glide#get(Context) 方法可以获取到实例。
 
@@ -344,11 +342,7 @@ Glide#with() 方法会将 RequestManager 的创建委托给 RequestManagerRetrie
 
 ## GlideBuilder
 
-------
-
-GlideBuilder 是用来创建 Glide 实例的类，其中包含了很多个 get/set 方法，例如设置 BitmapPool、MemoryCache、ArrayPool 等等，最终通过这些设置调用 build 方法构建 Glide，可以截取 build 方法中的一段代码来看一下：
-
-
+GlideBuilder 是用来创建 Glide 实例的类，其中包含了很多个 get/set 方法，例如设置 BitmapPool、MemoryCache、ArrayPool 等，最终通过这些设置调用 build 方法构建 Glide，可以截取 build 方法中的一段代码来看一下：
 
 ```java
 if (bitmapPool == null) {
@@ -377,7 +371,7 @@ if (diskCacheFactory == null) {
 }
 ```
 
-上面截取的几行代码很具有代表性，这些数组池、缓存实现等等最终都会当做 Glide 构造器的参数创建 Glide 实例。
+上面截取的几行代码很具有代表性，这些数组池、缓存实现等最终都会当做 Glide 构造器的参数创建 Glide 实例。
 
 ## RequestManagerRetriever
 
@@ -1690,107 +1684,137 @@ DIRTY、CLEAN 代表操作类型，除了这两个还有 REMOVE 以及 READ，�
 
 
 
-# 前言
+# Glide 初始化流程分析
 
-- `Glide`，该功能非常强大 `Android`  图片加载开源框架 相信大家并不陌生
+从 Glide.with() 到 Glide.get(context) 获取 Glide 实例
 
-  ![img](https:////upload-images.jianshu.io/upload_images/944365-e2ba626030d121a5.png?imageMogr2/auto-orient/strip|imageView2/2/w/1065/format/webp)
+```kotlin
+  	public static RequestManager with(@NonNull Context context) {
+      // 步骤1：调用 getRetriever 获得 RequestManagerRetriever 对象 - 单例实现
+      // 步骤2：调用RequestManagerRetriever实例的get()获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析2
+    	return getRetriever(context).get(context);
+  	}  
 
-  Github截图
+  	private static RequestManagerRetriever getRetriever(@Nullable Context context) {
+    	Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
+    	return Glide.get(context).getRequestManagerRetriever();
+  	}
 
-  
+// 获取 Glide 单例，双重校验锁（Double checked locking）实现。
+public static Glide get(@NonNull Context context) {
+    if (glide == null) {
+      // 分析1：GeneratedAppGlideModule的作用
+      GeneratedAppGlideModule annotationGeneratedModule =
+          getAnnotationGeneratedGlideModules(context.getApplicationContext());
+      synchronized (Glide.class) {
+        if (glide == null) {
+          checkAndInitializeGlide(context, annotationGeneratedModule);
+        }
+      }
+    }
 
-- 正由于他的功能强大，所以它的源码非常复杂，这导致很多人望而却步
+    return glide;
+  }
 
-- **本人尝试将 `Glide` 的功能进行分解，并单独针对每个功能进行源码分析，从而降低`Glide`源码的复杂度。**
+  static void checkAndInitializeGlide(
+      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
+    ...
+    isInitializing = true;
+    try {
+      initializeGlide(context, generatedAppGlideModule);
+    } finally {
+      isInitializing = false;
+    }
+  }
 
-> 接下来，我将推出一系列关于 `Glide`的功能源码分析，有兴趣可以继续关注
+  private static void initializeGlide(
+      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
+    initializeGlide(context, new GlideBuilder(), generatedAppGlideModule);
+  }
 
-- 今天，我将主要源码分析`Glide`的基础功能：**图片加载** ，希望你们会喜欢。
+  private static void initializeGlide(
+      @NonNull Context context,
+      @NonNull GlideBuilder builder,
+      @Nullable GeneratedAppGlideModule annotationGeneratedModule) {
+    // 分析0：无论with()传入的参数是什么，用于初始化 Glide 的 Context 总是 ApplicationContext
+    Context applicationContext = context.getApplicationContext();
+    
+    // 分析1.1-start
+    List<GlideModule> manifestModules = Collections.emptyList();
+    if (annotationGeneratedModule == null || annotationGeneratedModule.isManifestParsingEnabled()) {
+      // 解析清单文件配置的自定义GlideModule的metadata标签，返回一个GlideModule集合
+      manifestModules = new ManifestParser(applicationContext).parse();
+    }
 
-> 由于文章较长，希望读者先收藏 & 预留足够时间进行查看。
+    if (annotationGeneratedModule != null
+        && !annotationGeneratedModule.getExcludedModuleClasses().isEmpty()) {
+      Set<Class<?>> excludedModuleClasses = annotationGeneratedModule.getExcludedModuleClasses();
+      Iterator<GlideModule> iterator = manifestModules.iterator();
+      while (iterator.hasNext()) {
+        GlideModule current = iterator.next();
+        if (!excludedModuleClasses.contains(current.getClass())) {
+          continue;
+        }
+        ...
+        iterator.remove();
+      }
+    }
+...
+    RequestManagerRetriever.RequestManagerFactory factory =
+        annotationGeneratedModule != null
+            ? annotationGeneratedModule.getRequestManagerFactory()
+            : null;
+    builder.setRequestManagerFactory(factory);
+    for (GlideModule module : manifestModules) {
+      module.applyOptions(applicationContext, builder);
+    }
+    if (annotationGeneratedModule != null) {
+      annotationGeneratedModule.applyOptions(applicationContext, builder);
+    }
+    // 分析1.1-end
+    
+    // 分析2：GlideBuilder的作用
+    // GlideBuilder会为Glide设置一默认配置，如：Engine，RequestOptions，GlideExecutor，MemorySizeCalculator
+    Glide glide = builder.build(applicationContext, manifestModules, annotationGeneratedModule);
+    // 分析3
+    applicationContext.registerComponentCallbacks(glide);
+    Glide.glide = glide;
+  }
+```
 
-------
+分析0：无论with()传入的参数是什么，用于初始化 Glide 的 Context 总是 ApplicationContext
 
-# 目录
+### 分析1：GeneratedAppGlideModule的作用
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-47c59ff1f5e5adfd.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+支持应用自定义 AppGlideModule（用注解@GlideModule标记） 来配置 Glide。比如项目中常用的给 Glide 添加 OkHttp 日志。
 
-目录
+分析1.1-start —— 分析1.1-end：
 
-------
+GlideModule接口 和 AppGlideModule 作用一样，都是为了给 Glide 作自定义配置。
 
-# 1. 简介
+> 注意：这里的 GlideModule 是接口，跟注解@GlideModule是两个东西，Glide 用了相同的命名）
 
-- 定义：`Google`开发者`Sam sjudd`出品的 一个`Android`开源库
-- 作用：图片加载
-- 具体功能列表
+但是 GlideModule 已经被 AppGlideModule 替代了。因为 GlideModule 是通过 Manifest 配置的，在运行时还需要解析 xml。而 AppGlideModule 则是利用了编译时注解生成类，在运行时通过反射生成类，然后获取到我们的配置类。
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-8452907ae5057ae7.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+### 分析2：GlideBuilder的作用
 
-功能列表
+通过 build() 构造 Glide 所需的对象实例，比如RequestManagerRetriever、Engine、MemoryCache、BitmapPool、ArrayPool等，最后通过参数传给 Glide 构造方法，并完成 Glide 的创建。
 
-注：从上面可看出，`Glide`不仅解决了 图片异步加载 的问题，还解决了`Android`加载图片时的一些常见问题，功能十分强大。
+### 分析3：Glide 实现 ComponentCallbacks2 接口
 
-------
+Glide 实现了 ComponentCallbacks2 接口来实现内存的管理，系统内存变化时回调到 onTrimMemory 方法。
 
-# 2. 与主流图片开源库对比
+# 图片加载源码分析
 
-关于`Glide`与主流图片开源库（`Universal-Image-Loader`、`Picasso`、`Fresco`），请看文章：[3分钟全面了解Android主流图片加载库](https://www.jianshu.com/p/97994c9693f9)
+`Glide`源码较为难懂、难分析的其中一个原因是：许多对象都是很早之前就初始化好，而并非在使用前才初始化。所以当真正使用该对象时，开发者可能已经忘记是在哪里初始化、该对象是作什么用的了。**所以本文会在每个阶段进行一次总结，而读者则需要经常往返看该总结，从而解决上述问题。**
 
-------
-
-# 3. 具体使用
-
-关于`Glide`的各种使用方法，请看文章：[Android图片加载库：最全面解析Glide用法
- ](https://www.jianshu.com/p/c3a5518b58b2)
-
-------
-
-# 4. 源码分析
-
-在进行源码分析前，有几点需要特别说明：
-
-1. 本次源码分析是基于 `Glide 3.7.0`，[版本下载地址](https://links.jianshu.com/go?to=https%3A%2F%2Fgithub.com%2Fbumptech%2Fglide%2Ftree%2Fv3.7.0)
-2. 本次源码分析是主要分析`Glide`的基本功能：图片加载，所以关于其他功能的代码本文一律忽略
-
-> 因为`Glide`的功能实在太多了，所以源码非常复杂，无法同时分析多个功能。但其他功能将下`Glide`的系列文章继续分析。
-
-1. `Glide`源码较为难懂、难分析的其中一个原因是：许多对象都是很早之前就初始化好，而并非在使用前才初始化。所以当真正使用该对象时，开发者可能已经忘记是在哪里初始化、该对象是作什么用的了。**所以本文会在每个阶段进行一次总结，而读者则需要经常往返看该总结，从而解决上述问题。**
-
-下面，我们将根据 `Glide` 的加载图片的使用步骤一步步源码分析。
-
-- `Glide` 的使用步骤如下：
-
-
+下面将根据 `Glide` 加载图片的使用步骤分析源码：
 
 ```csharp
 Glide.with(this).load(url).into(imageView);
-// 参数说明
-// 参数1：Context context
-// Context对于很多Android API的调用都是必须的，这里就不多说了
-
-// 参数2：String imageUrl：被加载图像的Url地址
-// 大多情况下，一个字符串代表一个网络图片的URL
-
-// 参数3：ImageView targetImageView：图片最终要展示的地方。
 ```
 
-- 所以
-
-  ```
-  Glide
-  ```
-
-  的源码分析分为三步：
-
-  1. `.with（）`
-  2. `.load（）`
-  3. `.into（）`
-
-------
-
-# 4.1 with（）
+## with()
 
 - 定义：`Glide` 类中的静态方法，根据传入 不同参数 进行 方法重载
 - 作用：
@@ -1800,219 +1824,140 @@ Glide.with(this).load(url).into(imageView);
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-057fc1354b98ec1c.png?imageMogr2/auto-orient/strip|imageView2/2/w/770/format/webp)
 
-示意图
+问题
+
+Q：为什么支持传入不同的参数？
+
+Q：不同的参数是被怎么处理的
 
 - 具体源码
 
-
+### 分析1：从 Glide.with() 开始
 
 ```java
 public class Glide {
-    ...
-
     // with()重载种类非常多，根据传入的参数可分为：
     // 1. 非Application类型的参数（Activity & Fragment  ）
     // 2. Application类型的参数（Context）
     // 下面将详细分析
 
-// 参数1：Application类型
- public static RequestManager with(Context context) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        // 步骤1：调用RequestManagerRetriever类的静态get()获得RequestManagerRetriever对象 - 单例实现
-        return retriever.get(context);
-        // 步骤2：调用RequestManagerRetriever实例的get()获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析1
-    }
-
-// 参数2：非Application类型（Activity & Fragment ）
-    public static RequestManager with(Activity activity) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(activity);
-    }
-
-    public static RequestManager with(Fragment fragment) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(fragment);
-
-  @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static RequestManager with(android.app.Fragment fragment) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(fragment);
-    }
-
-    }
+ 		// 参数1：Application类型
+  	public static RequestManager with(@NonNull Context context) {
+      // 步骤1：调用 getRetriever 获得 RequestManagerRetriever 对象 - 单例实现
+      // 步骤2：调用RequestManagerRetriever实例的get()获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析2
+    	return getRetriever(context).get(context);
+  	}
+    
+  	// 参数2：非Application类型（Activity & Fragment ）
+    public static RequestManager with(@NonNull FragmentActivity activity) {
+    	return getRetriever(activity).get(activity);
+  	}
+    
+  	public static RequestManager with(@NonNull Fragment fragment) {
+    	return getRetriever(fragment.getContext()).get(fragment);
+  	}
+      
+   	public static RequestManager with(@NonNull View view) {
+  	  return getRetriever(view.getContext()).get(view);
+ 	 	}
+  	
+  	private static RequestManagerRetriever getRetriever(@Nullable Context context) {
+    	Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
+    	return Glide.get(context).getRequestManagerRetriever();
+  	}
 }
-
-<-- 分析1：RequestManagerRetriever对象的实例 get（）-->
-// 作用：
-  // 1. 获取RequestManager对象
-  // 2. 将图片加载的生命周期与Activity/Fragment的生命周期进行绑定
-
-  public class RequestManagerRetriever implements Handler.Callback {
-      ...
-
-    // 实例的get（）重载种类很多，参数分为：（与with（）类似）
-    // 1. Application类型（Context）
-    // 2. 非Application类型（Activity & Fragment ）- >>分析3
-    // 下面会详细分析
-
-// 参数1：Application类型（Context） 
-   public RequestManager get(Context context) {
-        return getApplicationManager(context);
-        // 调用getApplicationManager（）最终获取一个RequestManager对象 ->>分析2
-        // 因为Application对象的生命周期即App的生命周期
-        // 所以Glide加载图片的生命周期是自动与应用程序的生命周期绑定，不需要做特殊处理（若应用程序关闭，Glide的加载也会终止）
-    }
-
-// 参数2：非Application类型（Activity & Fragment  ）
-// 将Glide加载图片的生命周期与Activity生命周期同步的具体做法：向当前的Activity添加一个隐藏的Fragment
-// 原因：因Fragment的生命周期 与 Activity 的是同步的，通过添加隐藏的Fragment 从而监听Activity的生命周期，从而实现Glide加载图片的生命周期与Activity的生命周期 进行同步。
- @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public RequestManager get(Activity activity) {
-        if (Util.isOnBackgroundThread() || Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
-            return get(activity.getApplicationContext());
-        } else {
-
-            assertNotDestroyed(activity);
-             //判断activity是否已经销毁
-
-            android.app.FragmentManager fm = activity.getFragmentManager();
-            // 获取FragmentManager 对象
-            
-            return fragmentGet(activity, fm);
-           // 通过fragmentGet返回RequestManager->>分析4
-           
-           
-        }
-    }
-
-    public RequestManager get(FragmentActivity activity) {
-      // 逻辑同上，此处不作过多描述
-      ...
-
-    }
-
-    public RequestManager get(Fragment fragment) {
-        // 逻辑同上，此处不作过多描述
-      ...
-    }
-
-}
-
-<-- 分析2：getApplicationManager（context）-->
-private RequestManager getApplicationManager(Context context) {
-
-      ...
-
-        Glide glide = Glide.get(context);
-        // 通过单例模式创建Glide实例 ->>分析3
-        applicationManager =
-            new RequestManager(
-                glide, new ApplicationLifecycle(), new EmptyRequestManagerTreeNode());
-      }
-    }
-  }
-  return applicationManager;
-}
-
-<-- 分析3：Glide.get(context) -->
-public static Glide get(Context context) {
-  if (glide == null) {
-  // 单例模式的体现
-    synchronized (Glide.class) {
-      if (glide == null) {
-        Context applicationContext = context.getApplicationContext();
-        
-        List<GlideModule> modules = new ManifestParser(applicationContext).parse();
-        // 解析清单文件配置的自定义GlideModule的metadata标签，返回一个GlideModule集合
-
-        GlideBuilder builder = new GlideBuilder(applicationContext);
-        // 步骤1：创建GlideBuilder对象
-        for (GlideModule module : modules) {
-          module.applyOptions(applicationContext, builder);
-        }
-        glide = builder.createGlide();
-        // 步骤2：根据GlideBuilder对象创建Glide实例
-        // GlideBuilder会为Glide设置一默认配置，如：Engine，RequestOptions，GlideExecutor，MemorySizeCalculator
-       
-        for (GlideModule module : modules) {
-          module.registerComponents(applicationContext, glide.registry);
-           // 步骤3：利用GlideModule 进行延迟性的配置和ModelLoaders的注册
-        }
-      }
-    }
-  }
-  return glide;
-}
-// 回到分析1 进入 分析2的地方
-
-
-<--分析4：fragmentGet(） -->
-// 作用：
-           // 1. 创建Fragment
-           // 2. 向当前的Activity中添加一个隐藏的Fragment
-           // 3. 将RequestManager与该隐藏的Fragment进行绑定
- RequestManager fragmentGet(Context context, android.app.FragmentManager fm) {
-     
-        RequestManagerFragment current = getRequestManagerFragment(fm);
-        // 获取RequestManagerFragment
-        // 作用：利用Fragment进行请求的生命周期管理 
-
-        RequestManager requestManager = current.getRequestManager();
-
-        // 若requestManager 为空，即首次加载初始化requestManager 
-        if (requestManager == null) {
-            // 创建RequestManager传入Lifecycle实现类，如ActivityFragmentLifecycle
-            requestManager = new RequestManager(context, current.getLifecycle(), current.getRequestManagerTreeNode());
-            current.setRequestManager(requestManager);
-            // 调用setRequestManager设置到RequestManagerFragment 
-        }
-        return requestManager;
-    }
 ```
 
-### 总结
+将请求参数转交给 RequestManagerRetriever 处理，并通过 RequestManagerRetriever.get(Context | FragmentActivity | Fragment | View) 获取 RequestManager。
 
-`with（）`是为得到一个`RequestManager`对象 从而将`Glide`加载图片周期 与`Activity` 和`Fragment`进行绑定，从而管理`Glide`加载图片周期
+Glide.get(context) 在【Glide初始化流程分析】一节分析。
 
-> 1. 最终返回`RequestManager`对象
-> 2. 由于本文主要讲解图片加载的功能，所以关于加载图片生命周期的内容暂时不讲解。
+### 分析2：RequestManagerRetriever 的作用
 
-------
+```kotlin
 
-# 4.2 load（）
+	// 作用：
+  // 1. 获取RequestManager对象
+  // 2. 将图片加载的生命周期与Activity/Fragment的生命周期进行绑定
+public class RequestManagerRetriever implements Handler.Callback {
+...
+   public RequestManager get(Context context) {
+     // 在子类中找是否有匹配的类型，优先使用 FragmentActivity、ContextWrapper 来创建 RequestManager
+         if (context == null) {
+      throw new IllegalArgumentException("You cannot start a load on a null Context");
+    } else if (Util.isOnMainThread() && !(context instanceof Application)) {
+      if (context instanceof FragmentActivity) {
+        return get((FragmentActivity) context);
+      } else if (context instanceof ContextWrapper
+          && ((ContextWrapper) context).getBaseContext().getApplicationContext() != null) {
+        return get(((ContextWrapper) context).getBaseContext());
+      }
+    }
+    // 调用getApplicationManager（）最终获取一个RequestManager对象 ->>分析2
+    // 因为Application对象的生命周期即App的生命周期
+    // 所以Glide加载图片的生命周期是自动与应用程序的生命周期绑定，不需要做特殊处理（若应用程序关闭，Glide的加载也会终止）
+    return getApplicationManager(context);
+    }
 
-- 定义
-   由于 `.with()` 返回的是一个`RequestManager`对象，所以 第2步中调用的是 `RequestManager` 类的 `load()`
-- 作用
-   预先创建好对图片进行一系列操作（加载、编解码、转码）的对象，并全部封装到 `DrawableTypeRequest` `对象中。
+  @NonNull
+  public RequestManager get(@NonNull FragmentActivity activity) {
+    if (Util.isOnBackgroundThread()) {
+      return get(activity.getApplicationContext());
+    }
+    // 判断activity是否已经销毁
+    assertNotDestroyed(activity);
+    frameWaiter.registerSelf(activity);
+    boolean isActivityVisible = isActivityVisible(activity);
+    Glide glide = Glide.get(activity.getApplicationContext());
+    return lifecycleRequestManagerRetriever.getOrCreate(
+        activity,
+        glide,
+      	// 获取 activity 的 Lifecycle
+        activity.getLifecycle(),
+      	// 获取FragmentManager 对象
+        activity.getSupportFragmentManager(),
+        isActivityVisible);
+  }
+  
+    public RequestManager get(Fragment fragment) {
+      // 逻辑同上
+    }
+}
+```
+
+### 小结
+
+1. 创建 Glide 实例（第一次）
+2. 得到一个`RequestManager`对象（其实现了 LifecycleListener 接口），因此可以响应 `Activity` 和 `Fragment` 的生命周期方法。
+
+## load()
+
+RequestManager#load() 会预先创建好对图片进行一系列操作（加载、编解码、转码）的对象，并全部封装到 `DrawableTypeRequest` 对象中。
 
 > 1. `Glide` 支持加载 图片的URL字符串、图片本地路径等，因此`RequestManager` 类 存在`load()`的重载
 > 2. 此处主要讲解 最常见的加载图片 `URL` 字符串的`load()`，即`load(String url)`
 
 - 具体过程
 
-
-
 ```java
 public class RequestManager implements LifecycleListener {
 
     // 仅贴出关键代码
     ...
-
-     public DrawableTypeRequest<String> load(String string) {
-        return (DrawableTypeRequest<String>) fromString().load(string);
-        // 先调用fromString（）再调用load（）
-        // load（）作用：传入图片URL地址
-       // fromString（）作用 ->>分析1
-       
-    }
-
-<-- 分析1：fromString（）-->
-    public DrawableTypeRequest<String> fromString() {
-        return loadGeneric(String.class);
-         // loadGeneric（）的作用 ->>分析2
-    }
-
+      
+  public RequestBuilder<Drawable> load(@Nullable String string) {
+    return asDrawable().load(string);
+  }
+  
+  public RequestBuilder<Drawable> asDrawable() {
+    return as(Drawable.class);
+  }
+  
+  public <ResourceType> RequestBuilder<ResourceType> as(
+      @NonNull Class<ResourceType> resourceClass) {
+    return new RequestBuilder<>(glide, this, resourceClass, context);
+  }
+  
 <-- 分析2：loadGeneric（）-->
     private <T> DrawableTypeRequest<T> loadGeneric(Class<T> modelClass) {
 
@@ -2033,7 +1978,6 @@ public class RequestManager implements LifecycleListener {
     }
 
     ...
-
 
 <-- 分析3：DrawableTypeRequest类（）-->
 public class DrawableTypeRequest<ModelType> extends DrawableRequestBuilder<ModelType> implements DownloadOptions {
@@ -2099,6 +2043,42 @@ private static <A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProv
       // 回到分析3的关注点2
 ```
 
+
+
+```kotlin
+class RequestBuilder {
+    @Nullable private Object model;
+  
+  public RequestBuilder<TranscodeType> load(@Nullable String string) {
+    return loadGeneric(string);
+  }
+  
+  private RequestBuilder<TranscodeType> loadGeneric(@Nullable Object model) {
+    if (isAutoCloneEnabled()) {
+      return clone().loadGeneric(model);
+    }
+    this.model = model;
+    isModelSet = true;
+    return selfOrThrowIfLocked();
+  }
+  
+  protected final T selfOrThrowIfLocked() {
+    if (isLocked) {
+      throw new IllegalStateException("You cannot modify locked T, consider clone()");
+    }
+    return self();
+  }
+  
+    private T self() {
+    return (T) this;
+  }
+}  
+```
+
+### 小结
+
+通过 load 将要加载的资源地址保存到 RequestBuilder.model 字段中。
+
 - 在`RequestManager`的`load()`中，通过`fromString()`最终返回一个`DrawableTypeRequest`对象，并调用该对象的`load()` 传入图片的URL地址
 
 > 请回看分析1上面的代码
@@ -2106,10 +2086,6 @@ private static <A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProv
 - 但从上面的分析3可看出，`DrawableTypeRequest`类中并没有`load()`和第3步需要分析的`into（）`，所以`load()` 和 `into（）` 是在`DrawableTypeRequest`类的父类中：`DrawableRequestBuilder`类中。继承关系如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-f5780a3e42011902.png?imageMogr2/auto-orient/strip|imageView2/2/w/180/format/webp)
-
-示意图
-
-
 
 ```java
 public class DrawableRequestBuilder<ModelType>
@@ -2131,19 +2107,13 @@ public class DrawableRequestBuilder<ModelType>
 
 至此，第2步的 `load（）`分析完成
 
-------
-
 ### 总结
 
 `load（）`中预先创建好对图片进行一系列操作（加载、编解码、转码）的对象，并全部封装到 `DrawableTypeRequest`对象中。
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-b3b2dae583d9a690.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
-------
-
-## 4.3 into（）
+## into()
 
 - 作用：构建网络请求对象 并 执行 该网络请求
 
@@ -2173,602 +2143,659 @@ public class DrawableRequestBuilder<ModelType>
 
 
 
-```java
-public class DrawableRequestBuilder<ModelType>
-        extends GenericRequestBuilder<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable>
-        implements BitmapOptions, DrawableOptions {
-
- @Override
-    public Target<GlideDrawable> into(ImageView view) {
-        return super.into(view);
-  // 调用DrawableRequestBuilder的父类GenericRequestBuilder的into() ->>分析1
-    }
-}
-
-<-- 分析1：GenericRequestBuilder类的into（）-->
-public class GenericRequestBuilder<ModelType> {
-
-  ...
-
-  public Target<TranscodeType> into(ImageView view) {
-
-  // 判断是否在主线程(跟新UI只能在主线程)
-  // 此处逻辑先不讲解，后面会详细说明，直接跳到方法的最后一行
+```kotlin
+  @NonNull
+  public ViewTarget<ImageView, TranscodeType> into(@NonNull ImageView view) {
     Util.assertMainThread();
-    if (view == null) {
-        throw new IllegalArgumentException("You must pass in a non null View");
+    Preconditions.checkNotNull(view);
+
+    // 分析1：配置 BaseRequestOptions
+    BaseRequestOptions<?> requestOptions = this;
+    if (!requestOptions.isTransformationSet()
+        && requestOptions.isTransformationAllowed()
+        && view.getScaleType() != null) {
+      // Clone in this method so that if we use this RequestBuilder to load into a View and then
+      // into a different target, we don't retain the transformation applied based on the previous
+      // View's scale type.
+      switch (view.getScaleType()) {
+        case CENTER_CROP:
+          requestOptions = requestOptions.clone().optionalCenterCrop();
+          break;
+        case CENTER_INSIDE:
+          requestOptions = requestOptions.clone().optionalCenterInside();
+          break;
+        case FIT_CENTER:
+        case FIT_START:
+        case FIT_END:
+          requestOptions = requestOptions.clone().optionalFitCenter();
+          break;
+        case FIT_XY:
+          requestOptions = requestOptions.clone().optionalCenterInside();
+          break;
+        case CENTER:
+        case MATRIX:
+        default:
+          // Do nothing.
+      }
     }
-    if (!isTransformationSet && view.getScaleType() != null) {
-        switch (view.getScaleType()) {
-            case CENTER_CROP:
-                applyCenterCrop();
-                break;
-            case FIT_CENTER:
-            case FIT_START:
-            case FIT_END:
-                applyFitCenter();
-                break;
-            //$CASES-OMITTED$
-            default:
-                // Do nothing.
-        }
+
+    return into(
+      	// 分析2：构建 Target，buildImageViewTarget
+     		// target 就是最终图片的使用者
+        glideContext.buildImageViewTarget(view, transcodeClass),
+        /* targetListener= */ null,
+        requestOptions,
+        Executors.mainThreadExecutor());
+  }
+
+  private <Y extends Target<TranscodeType>> Y into(
+      @NonNull Y target,
+      @Nullable RequestListener<TranscodeType> targetListener,
+      BaseRequestOptions<?> options,
+      Executor callbackExecutor) {
+    Preconditions.checkNotNull(target);
+    if (!isModelSet) {
+      throw new IllegalArgumentException("You must call #load() before calling #into()");
     }
-    return into(glide.buildImageViewTarget(view, transcodeClass));
-    // 创建Target对象：用于最终展示图片 ->>分析2
-    // 从分析3回来
+
+    // 分析3：buildRequest
+    Request request = buildRequest(target, targetListener, options, callbackExecutor);
+
+    Request previous = target.getRequest();
+    if (request.isEquivalentTo(previous)
+        && !isSkipMemoryCacheWithCompletePreviousRequest(options, previous)) {
+      if (!Preconditions.checkNotNull(previous).isRunning()) {
+        previous.begin();
+      }
+      return target;
+    }
+
+    requestManager.clear(target);
+    target.setRequest(request);
+    
+    // 分析4：将请求交给 requestManager
+    requestManager.track(target, request);
+
+    return target;
+  }
+
+```
+
+### 分析1：配置 BaseRequestOptions
+
+### 分析2：构建 Target，buildImageViewTarget
+
+```kotlin
+  public <X> ViewTarget<ImageView, X> buildImageViewTarget(
+      @NonNull ImageView imageView, @NonNull Class<X> transcodeClass) {
+		// 分析2.1 transcodeClass 是传给 Target 的资源类型，默认是Drawable.class
+    return imageViewTargetFactory.buildTarget(imageView, transcodeClass);
+  }
+
+public class ImageViewTargetFactory {
+  @NonNull
+  @SuppressWarnings("unchecked")
+  public <Z> ViewTarget<ImageView, Z> buildTarget(
+      @NonNull ImageView view, @NonNull Class<Z> clazz) {
+    if (Bitmap.class.equals(clazz)) {
+      return (ViewTarget<ImageView, Z>) new BitmapImageViewTarget(view);
+    } else if (Drawable.class.isAssignableFrom(clazz)) {
+      return (ViewTarget<ImageView, Z>) new DrawableImageViewTarget(view);
+    } else {
+      throw new IllegalArgumentException(
+          "Unhandled class: " + clazz + ", try .as*(Class).transcode(ResourceTranscoder)");
+    }
   }
 }
 
-<-- 分析2：buildImageViewTarget（）-->
-<R> Target<R> buildImageViewTarget(ImageView imageView, Class<R> transcodedClass) {
-    return imageViewTargetFactory.buildTarget(imageView, transcodedClass);
-    // ->>分析3
+public class DrawableImageViewTarget extends ImageViewTarget<Drawable> {
+  public DrawableImageViewTarget(ImageView view) {
+    super(view);
+  }
 
+  public DrawableImageViewTarget(ImageView view, boolean waitForLayout) {
+    super(view, waitForLayout);
+  }
+
+  @Override
+  protected void setResource(@Nullable Drawable resource) {
+    // 分析2.2
+    view.setImageDrawable(resource);
+  }
 }
+```
 
-<-- 分析3：ImageViewTargetFactory的buildTarget()-->
+分析2.2：所以等图片资源准备完成后，把图片通过 setResource 交给 Target，就能完成图片的设置。
 
-public class ImageViewTargetFactory {
+### 分析3：buildRequest
 
-    public <Z> Target<Z> buildTarget(ImageView view, Class<Z> clazz) {
-
-
-        // 根据传入的class参数构建不同的Target对象，分为三种情况：
-        // 情况1：若加载图片时调用了asBitmap()，那么构建的是BitmapImageViewTarget对象
-       // 情况2：否则构建的是GlideDrawableImageViewTarget对象
-       // 情况3：DrawableImageViewTarget对象基本用不到，此处忽略
-       // 具体请看以下代码
-        if (GlideDrawable.class.isAssignableFrom(clazz)) {
-            return (Target<Z>) new GlideDrawableImageViewTarget(view);
-        } else if (Bitmap.class.equals(clazz)) {
-            return (Target<Z>) new BitmapImageViewTarget(view);    
-        } else if (Drawable.class.isAssignableFrom(clazz)) {
-            return (Target<Z>) new DrawableImageViewTarget(view);   
-        } else {
-            throw new IllegalArgumentException("Unhandled class: " + clazz
-                    + ", try .as*(Class).transcode(ResourceTranscoder)");
-        }
+```kotlin
+  private Request buildThumbnailRequestRecursive(
+      Object requestLock,
+      Target<TranscodeType> target,
+      RequestListener<TranscodeType> targetListener,
+      @Nullable RequestCoordinator parentCoordinator,
+      TransitionOptions<?, ? super TranscodeType> transitionOptions,
+      Priority priority,
+      int overrideWidth,
+      int overrideHeight,
+      BaseRequestOptions<?> requestOptions,
+      Executor callbackExecutor) {
+    if (thumbnailBuilder != null) {
+...
+    } else if (thumbSizeMultiplier != null) {
+...
+    } else {
+      // Base case: no thumbnail.
+      return obtainRequest(
+          requestLock,
+          target,
+          targetListener,
+          requestOptions,
+          parentCoordinator,
+          transitionOptions,
+          priority,
+          overrideWidth,
+          overrideHeight,
+          callbackExecutor);
     }
-}
+  }
+
+  private Request obtainRequest(
+      Object requestLock,
+      Target<TranscodeType> target,
+      RequestListener<TranscodeType> targetListener,
+      BaseRequestOptions<?> requestOptions,
+      RequestCoordinator requestCoordinator,
+      TransitionOptions<?, ? super TranscodeType> transitionOptions,
+      Priority priority,
+      int overrideWidth,
+      int overrideHeight,
+      Executor callbackExecutor) {
+    return SingleRequest.obtain(
+        context,
+        glideContext,
+        requestLock,
+      // load()设置的资源地址
+        model,
+        transcodeClass,
+        requestOptions,
+        overrideWidth,
+        overrideHeight,
+        priority,
+        target,
+        targetListener,
+        requestListeners,
+        requestCoordinator,
+        glideContext.getEngine(),
+        transitionOptions.getTransitionFactory(),
+        callbackExecutor);
+  }
 ```
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-0652f9192bc6fb50.png?imageMogr2/auto-orient/strip|imageView2/2/w/1070/format/webp)
+在没有设置缩略图时，最终只会构建一个 SingleRequest。
 
-示意图
+### 分析4：将请求交给 requestManager
 
-- 此处得到了`GlideDrawableImageViewTarget`对象（大多数情况下）
-- 回到上面分析1 - `GenericRequestBuilder` 类的 `into（）`最后一行：将`GlideDrawableImageViewTarget`对象传入到`GenericRequestBuilder`的`into(Target target)`中
+RequestManager#requestTracker
 
-我们继续看 `GenericRequestBuilder`的`into(Target target)` 的源码：
-
-
-
-```cpp
-public <Y extends Target<TranscodeType>> Y into(Y target) {
-
-    Request request = buildRequest(target);
-    // 关注1：构建Request对象：发出加载图片请求
-    target.setRequest(request);
-    // 将请求设置到target
-    lifecycle.addListener(target);
-    // 将target加入到lifecycle
+```kotlin
+synchronized void track(@NonNull Target<?> target, @NonNull Request request) {
+    targetTracker.track(target);
     requestTracker.runRequest(request);
-    // 关注2：执行网络请求Request
-    return target;
-
-}
+  }
 ```
 
-- 此处是 **发送加载图片网络请求**
-- 有2个关注点：构建 `Request` 对象 & 执行 `Request`
+RequestTracker#runRequest：执行请求获取图片资源
 
-### 4.3.1 构建Request对象
-
-- 作用
-   创建 `GenericRequest` 对象 & 初始化（即将 `load（）`中的`API`参数赋值到`GenericRequest`对象中）
-
-
-
-```java
-<-- 分析4：buildRequest() -->
-// 作用：构建Request对象
-private Request buildRequest(Target<TranscodeType> target) {
-    return buildRequestRecursive(target, null);
-    // 往下调用
-}
-
-private Request buildRequestRecursive(Target<TranscodeType> target, ThumbnailRequestCoordinator parentCoordinator) {
-        // 90%的代码用于处理缩略图，此处仅关注主流程，即如何构建Request对象
-        // 仅贴出关键代码（如何构建Request对象）  
-        ... 
-
-        ThumbnailRequestCoordinator coordinator = new ThumbnailRequestCoordinator(parentCoordinator);
-        Request fullRequest = obtainRequest(target, sizeMultiplier, priority, coordinator);
-        // 往下调用
-        
-private Request obtainRequest(Target<TranscodeType> target, float sizeMultiplier, Priority priority,
-        RequestCoordinator requestCoordinator) {
-
-    return GenericRequest.obtain(
-            loadProvider,
-            model,
-            signature,
-            context,
-            priority,
-            target,
-            sizeMultiplier,
-            placeholderDrawable,
-            placeholderId,
-            errorPlaceholder,
-            errorId,
-            fallbackDrawable,
-            fallbackResource,
-            requestListener,
-            requestCoordinator,
-            glide.getEngine(),
-            transformation,
-            transcodeClass,
-            isCacheable,
-            animationFactory,
-            overrideWidth,
-            overrideHeight,
-            diskCacheStrategy);
-    // 调用了GenericRequest的obtain()
-    // 作用：将在load()中调用的所有API参数都组装到Request对象当中 -->分析5
-}
-
-<-- 分析5：GenericRequest的obtain()  -->
-public final class GenericRequest<A, T, Z, R> implements Request, SizeReadyCallback,
-        ResourceCallback {
-    // 仅贴出关键代码
-    ...
-
-    public static <A, T, Z, R> GenericRequest<A, T, Z, R> obtain(
-            LoadProvider<A, T, Z, R> loadProvider,
-            A model,
-            Key signature,
-            Context context,
-            Priority priority,
-            Target<R> target,
-            float sizeMultiplier,
-            Drawable placeholderDrawable,
-            int placeholderResourceId,
-            Drawable errorDrawable,
-            int errorResourceId,
-            Drawable fallbackDrawable,
-            int fallbackResourceId,
-            RequestListener<? super A, R> requestListener,
-            RequestCoordinator requestCoordinator,
-            Engine engine,
-            Transformation<Z> transformation,
-            Class<R> transcodeClass,
-            boolean isMemoryCacheable,
-            GlideAnimationFactory<R> animationFactory,
-            int overrideWidth,
-            int overrideHeight,
-            DiskCacheStrategy diskCacheStrategy) {
-        @SuppressWarnings("unchecked")
-        GenericRequest<A, T, Z, R> request = (GenericRequest<A, T, Z, R>) REQUEST_POOL.poll();
-        if (request == null) {
-            request = new GenericRequest<A, T, Z, R>();
-            // 创建GenericRequest对象
-        }
-        // init（）作用：将传入的Load（）中的API参数赋值到GenericRequest的成员变量
-        request.init(loadProvider,
-                model,
-                signature,
-                context,
-                priority,
-                target,
-                sizeMultiplier,
-                placeholderDrawable,
-                placeholderResourceId,
-                errorDrawable,
-                errorResourceId,
-                fallbackDrawable,
-                fallbackResourceId,
-                requestListener,
-                requestCoordinator,
-                engine,
-                transformation,
-                transcodeClass,
-                isMemoryCacheable,
-                animationFactory,
-                overrideWidth,
-                overrideHeight,
-                diskCacheStrategy);
-        return request;
-        // 返回GenericRequest对象
-    }
-
-    ...
-}
-```
-
-至此，一个 发送加载图片的网络请求 `Request` 对象`GenericRequest` 创建完毕。
-
-> 本文主要针对图片加载功能，关于发送加载图片的网络请求细节将在下篇文章进行描述。
-
-### 总结
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-e2f26b3ee9fc3afd.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
-
-------
-
-### 4.3.2 执行网络请求对象Request
-
-
-
-```cpp
-public <Y extends Target<TranscodeType>> Y into(Y target) {
-
-    Request request = buildRequest(target);
-    // 关注1：构建Request对象：发出加载图片请求
-    target.setRequest(request);
-    lifecycle.addListener(target);
-    requestTracker.runRequest(request);
-    // 关注2：执行Request ->>分析6
-    return target;
-}
-```
-
-
-
-```csharp
-/**
-  * 步骤1：加载前
-**/
-<-- 分析6：runRequest(request) -->
-public void runRequest(Request request) {
-    // 此时的Request是GenericRequest对象
-    requests.add(request);
+```kotlin
+  public void runRequest(@NonNull Request request) {
     // 将每个提交的请求加入到一个set中：管理请求
-    
-    // 判断Glide当前是否处于暂停状态    
+    requests.add(request);
     if (!isPaused) {
-        // 若不处于暂停状态，则调用GenericRequest的begin()来执行Request ->>分析7
-        request.begin();
+      request.begin();
     } else {
-        // 若处于暂停，则先将Request添加到待执行队列里面，等暂停状态解除后再执行
-        pendingRequests.add(request);
+      request.clear();
+      // 若处于暂停，则先将Request添加到待执行队列里面，等暂停状态解除后再执行
+      pendingRequests.add(request);
     }
-}
+  }
+```
 
-/**
-  * 步骤2：加载时
-**/
-<-- 分析7：GenericRequest的begin() -->
-public void begin() {
+SingleRequest#begin
 
-// 有2个关注点
-
-// 关注1
-    // model = 第2步load()传入的图片URL地址
-    // 若model（）等于null，会调用onException()
-    // onException()内部调用setErrorPlaceholder()
-    if (model == null) {
-        onException(null);
+```kotlin
+  @Override
+  public void begin() {
+    synchronized (requestLock) {
+      assertNotCallingCallbacks();
+      stateVerifier.throwIfRecycled();
+      startTime = LogTime.getLogTime();
+...
+      // 分析4.1
+      if (status == Status.COMPLETE) {
+        onResourceReady(
+            resource, DataSource.MEMORY_CACHE, /* isLoadedFromAlternateCacheKey= */ false);
         return;
-    }
-    status = Status.WAITING_FOR_SIZE;
-
-// 关注2：
-// 图片加载情况分两种：
-// 1. 开发者使用了override() API为图片指定了一个固定的宽高
-// 2. 无使用
-
-// 情况1：使用了override() API为图片指定了一个固定的宽高
-    if (Util.isValidDimensions(overrideWidth, overrideHeight)) {
-        onSizeReady(overrideWidth, overrideHeight);
-        // 调用onSizeReady()加载
-
-// 否则，则是情况2，调用target.getSize()
-    } else {
-        target.getSize(this);
-        // target.getSize()的内部会根据ImageView的layout_width和layout_height值做一系列的计算，来算出图片显示的宽高
-        // 计算后，也会调用onSizeReady()方法进行加载
-    }
-    if (!isComplete() && !isFailed() && canNotifyStatusChanged()) {
-        target.onLoadStarted(getPlaceholderDrawable());
-        // 从分析8看回来的：在图片请求开始前，会先使用Loading占位图代替最终的图片显示
-    }
-
-}
-```
-
-在`begin（）`方法中有两个关注点：
-
-- 关注点1：若`model`（第2步load()传入的图片URL地址）等于null，会调用`onException()`
-- 关注点2：图片加载情况
-   下面将详细说明
-
-### 关注1
-
-若`model`（第2步`load()`传入的图片`URL`地址）等于`null`，会调用`onException()`（内部调用`setErrorPlaceholder()`）
-
-
-
-```java
-private void setErrorPlaceholder(Exception e) {
-
-    Drawable error = model == null ? getFallbackDrawable() : null;
-
-    // 若有error的占位图，则采用先获取error的占位图
-    if (error == null) {
-      error = getErrorDrawable();
-    }
-    // 若没有error的占位图，则再去获取一个loading占位图
-    if (error == null) {
-        error = getPlaceholderDrawable();
-    }
-    target.onLoadFailed(e, error);
-    // 将占位图（error / loading）传入到onLoadFailed（）中 ->>分析8
-}
-
-<-- 分析8：onLoadFailed（） -->
-public abstract class ImageViewTarget<Z> extends ViewTarget<ImageView, Z> implements GlideAnimation.ViewAdapter {
-    ...
-
-    @Override
-    public void onLoadFailed(Exception e, Drawable errorDrawable) {
-        view.setImageDrawable(errorDrawable);
-        // 将该error占位图显示到ImageView
-    }
-
-    @Override
-    public void onLoadStarted(Drawable placeholder) {
-        view.setImageDrawable(placeholder);
-        // 在图片请求开始前，会先使用Loading占位图代替最终的图片显示
-        // 在begin（）时调用（回看分析7）
-    }
-
-
-
-    ...
-}
-```
-
-所以此处显示出Glide的用法：
-
-- 若传入图片的`url`为 `Null`，会采用`error / loading`的占位图进行代替
-- 图片请求开始前，会先使用 `Loading` 占位图 代替 最终的图片显示
-
-### 关注2
-
-图片加载情况（重点关注）
-
-
-
-```java
-<-- 分析7：GenericRequest的begin() -->
-public void begin() {
-
-// 关注1（请跳过，直接看关注2）
-    // 若model（第2步load()传入的图片URL地址）等于null，会调用onException()
-    // onException()内部调用setErrorPlaceholder()
-    if (model == null) {
-        onException(null);
-        return;
-    }
-    status = Status.WAITING_FOR_SIZE;
-
-// 关注2：
-  // 图片加载情况分两种：
-    // 1. 为图片指定加载固定的宽高（使用override() 的API）
-    // 2. 无指定加载的宽高
-
-// 情况1：为图片指定加载固定的宽高（使用override() 的API）
-    if (Util.isValidDimensions(overrideWidth, overrideHeight)) {
-        onSizeReady(overrideWidth, overrideHeight);
-        // 调用onSizeReady()加载->>分析9
-
-// 否则，则是情况2：无指定加载的宽高
-    } else {
-        target.getSize(this);
-        // target.getSize()会根据ImageView的layout_width和layout_height值做一系列的计算，来算出图片显示的宽高
-        // 计算后，最终也会调用onSizeReady()进行加载
-    }
-    
- 
-}
-
-<-- 分析9：onSizeReady()-->
-public void onSizeReady(int width, int height) {
-
-    // loadProvider 对象 即 第2步load（）中的FixedLoadProvider对象 
-    // 里面封装了GifBitmapWrapperDrawableTranscoder、ImageVideoModelLoader、ImageVideoGifDrawableLoadProvider对象）
-    // ->>请回看第2步load（）中的 分析3：DrawableTypeRequest类
-
-    ModelLoader<A, T> modelLoader = loadProvider.getModelLoader();
-    // 从loadProvider 对象中获取ImageVideoModelLoader对象
-    ResourceTranscoder<Z, R> transcoder = loadProvider.getTranscoder();
-    // 从loadProvider 对象中获取GifBitmapWrapperDrawableTranscoder对象
-
-    final DataFetcher<T> dataFetcher = modelLoader.getResourceFetcher(model, width, height);
-    // ->>分析10
-    // 创建ImageVideoFetcher对象（传入HttpUrlFetcher对象）
-  
-    loadStatus = engine.load(signature, width, height, dataFetcher, loadProvider, transformation, transcoder,
-            priority, isMemoryCacheable, diskCacheStrategy, this);
-    // 将上述获得的ImageVideoFetcher、GifBitmapWrapperDrawableTranscoder等一起传入到了Engine的load()方法中 ->>分析11
-
-    }
-    ...
-}
-
-<--分析10：ImageVideoModelLoader的getResourceFetcher() -->
-
-public class ImageVideoModelLoader<A> implements ModelLoader<A, ImageVideoWrapper> {
-  
-    @Override
-    public DataFetcher<ImageVideoWrapper> getResourceFetcher(A model, int width, int height) {
-        
-         DataFetcher<ParcelFileDescriptor> fileDescriptorFetcher = null;
-         if (fileDescriptorLoader != null) {
-            fileDescriptorFetcher = fileDescriptorLoader.getResourceFetcher(model, width, height);
-            // fileDescriptorLoader是在第2步load（）中创建的FileDescriptorModelLoader：用于加载图片
-           // 调用FileDescriptorModelLoader的getResourceFetcher()会得到一个HttpUrlFetcher对象
-        }
-
-        DataFetcher<InputStream> streamFetcher = null;
-        if (streamLoader != null) {
-            streamFetcher = streamLoader.getResourceFetcher(model, width, height);
-            // streamLoader是在第2步load（）中创建的StreamStringLoader：用于加载图片
-           // 调用streamLoader的getResourceFetcher()会得到一个HttpUrlFetcher对象
-        }
-      
-
-        if (streamFetcher != null || fileDescriptorFetcher != null) {
-            return new ImageVideoFetcher(streamFetcher, fileDescriptorFetcher);
-        // 创建ImageVideoFetcher对象，并把上述获得的2个HttpUrlFetcher对象传进去
-        // 即调用ImageVideoModelLoader的getResourceFetcher()得到的是ImageVideoFetcher
-        } else {
-            return null;
-        }
-    }
-} 
-// 回到分析9原处
-```
-
-
-
-```java
-<-- 分析11：Engine的load() -->
-public class Engine implements EngineJobListener,
-        MemoryCache.ResourceRemovedListener,
-        EngineResource.ResourceListener {
-
-      ...
-      // 省略关键代码
-
-        EngineJob engineJob = engineJobFactory.build(key, isMemoryCacheable);
-        // 创建EngineJob对象
-        // 作用：开启线程（作异步加载图片）
-
-        DecodeJob<T, Z, R> decodeJob = new DecodeJob<T, Z, R>(key, width, height, fetcher, loadProvider, transformation,
-                transcoder, diskCacheProvider, diskCacheStrategy, priority);
-        // 创建DecodeJob对象
-        // 作用：对图片解码（较复杂，下面会详细说明）
-
-        EngineRunnable runnable = new EngineRunnable(engineJob, decodeJob, priority);
-        // 创建EngineRunnable对象
-        jobs.put(key, engineJob);
-        engineJob.addCallback(cb);
-        engineJob.start(runnable);
-        // 执行EngineRunnable对象
-        // 即在子线程中执行EngineRunnable的run()方法 ->>分析12
-
-        return new LoadStatus(cb, engineJob);
-    }
-
-    ...
-}
-
-<--分析12：EngineRunnable的run() -->
-    @Override
-    public void run() {
-   
-    try {
-        resource = decode();
-        // 调用decode() 并 返回了一个Resource对象 ->>分析13
-
-    } catch (Exception e) {
-        if (Log.isLoggable(TAG, Log.VERBOSE)) {
-            Log.v(TAG, "Exception decoding", e);
-        }
-       ...
-}
-
-<--分析13：decode() -->
-private Resource<?> decode() throws Exception {
-
-// 分两种情况：从缓存当中读（解码）图片 & 不从缓存中读（解码）图片
-
-    if (isDecodingFromCache()) {
-    // 若从缓存中decode图片：执行decodeFromCache()
-    // 本文先不讨论缓存情况
-        return decodeFromCache();
-    } else {
-        // 不从缓存中读（解码）图片：执行decodeFromSource()  ->>分析14
-        return decodeFromSource();
-    }
-}
-
-<--分析14：decodeFromSource()  -->
-private Resource<?> decodeFromSource() throws Exception {
-    return decodeJob.decodeFromSource();
-    // 调用了DecodeJob的decodeFromSource()方法 ->>分析15
-}
-
-
-<--分析15：DecodeJob.decodeFromSource() -->
-class DecodeJob<A, T, Z> {
-    ...
-
-   public Resource<Z> decodeFromSource() throws Exception {
-        Resource<T> decoded = decodeSource();
-        // 获得Resource对象 ->>分析16
-        return transformEncodeAndTranscode(decoded);
-        // 调用transformEncodeAndTranscode()方法来处理该Resource对象。
-    }
-
-<--分析16： decodeSource()  -->
-    private Resource<T> decodeSource() throws Exception {
-    ...
-
-        try {
-            final A data = fetcher.loadData(priority);
-            // 该fetcher是在分析10：onSizeReady()中得到的ImageVideoFetcher对象
-            // 即调用ImageVideoFetcher的loadData() - >>分析17
-
-            // 从分析17回来时看这里：
-            decoded = decodeFromSourceData(data);
-            // 将分析17创建的ImageVideoWrapper对象传入到decodeFromSourceData()，解码该对象 -->分析19
-
       }
 
-    ...
-}
+      status = Status.WAITING_FOR_SIZE;
+  
+		// 图片加载情况分两种：
+		// 1. 开发者使用了override() API为图片指定了一个固定的宽高
+		// 2. 无使用
+      
+		// 情况1：使用了override() API为图片指定了一个固定的宽高
+      if (Util.isValidDimensions(overrideWidth, overrideHeight)) {
+        // 调用onSizeReady()加载
+        onSizeReady(overrideWidth, overrideHeight);
+      } else {
+        // 4.2 添加 getSize() 回调
+        // target.getSize()的内部会根据ImageView的layout_width和layout_height值做一系列的计算，来算出图片显示的宽高
+        // 计算后，也会调用onSizeReady()方法进行加载
+        target.getSize(this);
+      }
 
-<--分析17： fetcher.loadData（）  -->
-@Override
-public ImageVideoWrapper loadData(Priority priority) throws Exception {
-    InputStream is = null;
+      if ((status == Status.RUNNING || status == Status.WAITING_FOR_SIZE)
+          && canNotifyStatusChanged()) {
+        // 在图片请求开始时，会先显示Loading占位图
+        target.onLoadStarted(getPlaceholderDrawable());
+      }
+    }
+  }
 
-    if (streamFetcher != null) {
-        try {
-            is = streamFetcher.loadData(priority);
-           // 该streamFetcher是创建ImageVideoFetcher对象时传入的HttpUrlFetcher
-          // 因此这里调用的是HttpUrlFetcher的loadData() ->>分析18
-        } catch (Exception e) {
+Target#getSize
+    void getSize(@NonNull SizeReadyCallback cb) {
+      int currentWidth = getTargetWidth();
+      int currentHeight = getTargetHeight();
+      if (isViewStateAndSizeValid(currentWidth, currentHeight)) {
+        cb.onSizeReady(currentWidth, currentHeight);
+        return;
+      }
 
-    return new ImageVideoWrapper(is, fileDescriptor);
-    // 从分析18回来时看这里
-    // 创建ImageVideoWrapper对象 & 传入分析18创建的InputStream ->>回到分析16
-}
+      if (!cbs.contains(cb)) {
+        cbs.add(cb);
+      }
+      if (layoutListener == null) {
+        ViewTreeObserver observer = view.getViewTreeObserver();
+        layoutListener = new SizeDeterminerLayoutListener(this);
+        observer.addOnPreDrawListener(layoutListener);
+      }
+    }
+```
 
+分析4.1：SingleRequest 会记录自身的请求状态
+
+分析4.2：可以看到在 begin 后请求并没有直接发出，而是先去获取 view 的宽高，只有获取到宽高后，请求才会真正发出
+
+getSize()传入的是一个 callback，当获取到 view 的宽高后，会回调方法 SingleRequest#onSizeReady 去加载资源
+
+```kotlin
+ public void onSizeReady(int width, int height) {
+    stateVerifier.throwIfRecycled();
+    synchronized (requestLock) {
+      if (status != Status.WAITING_FOR_SIZE) {
+        return;
+      }
+      status = Status.RUNNING;
+
+      float sizeMultiplier = requestOptions.getSizeMultiplier();
+      this.width = maybeApplySizeMultiplier(width, sizeMultiplier);
+      this.height = maybeApplySizeMultiplier(height, sizeMultiplier);
+
+      loadStatus =
+      // 分析5
+          engine.load(
+              glideContext,
+              model,
+              requestOptions.getSignature(),
+              this.width,
+              this.height,
+              requestOptions.getResourceClass(),
+              transcodeClass,
+              priority,
+              requestOptions.getDiskCacheStrategy(),
+              requestOptions.getTransformations(),
+              requestOptions.isTransformationRequired(),
+              requestOptions.isScaleOnlyOrNoTransform(),
+              requestOptions.getOptions(),
+              requestOptions.isMemoryCacheable(),
+              requestOptions.getUseUnlimitedSourceGeneratorsPool(),
+              requestOptions.getUseAnimationPool(),
+              requestOptions.getOnlyRetrieveFromCache(),
+              this,
+              callbackExecutor);
+
+      if (status != Status.RUNNING) {
+        loadStatus = null;
+      }
+    }
+  }
+```
+
+### 分析5：engine.load
+
+```kotlin
+   public <R> LoadStatus load(
+      GlideContext glideContext,
+      Object model,
+      Key signature,
+      int width,
+      int height,
+      Class<?> resourceClass,
+      Class<R> transcodeClass,
+      Priority priority,
+      DiskCacheStrategy diskCacheStrategy,
+      Map<Class<?>, Transformation<?>> transformations,
+      boolean isTransformationRequired,
+      boolean isScaleOnlyOrNoTransform,
+      Options options,
+      boolean isMemoryCacheable,
+      boolean useUnlimitedSourceExecutorPool,
+      boolean useAnimationPool,
+      boolean onlyRetrieveFromCache,
+      ResourceCallback cb,
+      Executor callbackExecutor) {
+    long startTime = VERBOSE_IS_LOGGABLE ? LogTime.getLogTime() : 0;
+
+     // 资源Key，用来缓存资源
+    EngineKey key =
+        keyFactory.buildKey(
+            model,
+            signature,
+            width,
+            height,
+            transformations,
+            resourceClass,
+            transcodeClass,
+            options);
+
+    EngineResource<?> memoryResource;
+    synchronized (this) {
+      // 分析6 从内存缓存中获取资源
+      memoryResource = loadFromMemory(key, isMemoryCacheable, startTime);
+
+      if (memoryResource == null) {
+        return waitForExistingOrStartNewJob(
+            glideContext,
+            model,
+            signature,
+            width,
+            height,
+            resourceClass,
+            transcodeClass,
+            priority,
+            diskCacheStrategy,
+            transformations,
+            isTransformationRequired,
+            isScaleOnlyOrNoTransform,
+            options,
+            isMemoryCacheable,
+            useUnlimitedSourceExecutorPool,
+            useAnimationPool,
+            onlyRetrieveFromCache,
+            cb,
+            callbackExecutor,
+            key,
+            startTime);
+      }
+    }
+
+    // Avoid calling back while holding the engine lock, doing so makes it easier for callers to
+    // deadlock.
+    cb.onResourceReady(
+        memoryResource, DataSource.MEMORY_CACHE, /* isLoadedFromAlternateCacheKey= */ false);
+    return null;
+  }
+
+  private <R> LoadStatus waitForExistingOrStartNewJob(
+      GlideContext glideContext,
+      Object model,
+      Key signature,
+      int width,
+      int height,
+      Class<?> resourceClass,
+      Class<R> transcodeClass,
+      Priority priority,
+      DiskCacheStrategy diskCacheStrategy,
+      Map<Class<?>, Transformation<?>> transformations,
+      boolean isTransformationRequired,
+      boolean isScaleOnlyOrNoTransform,
+      Options options,
+      boolean isMemoryCacheable,
+      boolean useUnlimitedSourceExecutorPool,
+      boolean useAnimationPool,
+      boolean onlyRetrieveFromCache,
+      ResourceCallback cb,
+      Executor callbackExecutor,
+      EngineKey key,
+      long startTime) {
+
+    EngineJob<?> current = jobs.get(key, onlyRetrieveFromCache);
+    if (current != null) {
+      current.addCallback(cb, callbackExecutor);
+      return new LoadStatus(cb, current);
+    }
+    
+    // 创建EngineJob对象
+    // 作用：开启线程（作异步加载图片）
+    EngineJob<R> engineJob =
+        engineJobFactory.build(
+            key,
+            isMemoryCacheable,
+            useUnlimitedSourceExecutorPool,
+            useAnimationPool,
+            onlyRetrieveFromCache);
+
+    // 创建DecodeJob对象
+    // 作用：对图片解码（较复杂，下面会详细说明）
+    DecodeJob<R> decodeJob =
+        decodeJobFactory.build(
+            glideContext,
+            model,
+            key,
+            signature,
+            width,
+            height,
+            resourceClass,
+            transcodeClass,
+            priority,
+            diskCacheStrategy,
+            transformations,
+            isTransformationRequired,
+            isScaleOnlyOrNoTransform,
+            onlyRetrieveFromCache,
+            options,
+            engineJob);
+
+    jobs.put(key, engineJob);
+
+    engineJob.addCallback(cb, callbackExecutor);
+    
+    // 执行EngineRunnable对象
+    // 即在子线程中执行EngineRunnable的run()方法
+    // 分析7：
+    engineJob.start(decodeJob);
+    return new LoadStatus(cb, engineJob);
+  }
+```
+
+### 分析6：从内存缓存中获取资源
+
+### 分析7：engineJob.start从磁盘缓存或网络获取资源
+
+engineJob.start
+
+```kotlin
+  public synchronized void start(DecodeJob<R> decodeJob) {
+    this.decodeJob = decodeJob;
+    GlideExecutor executor =
+        decodeJob.willDecodeFromCache() ? diskCacheExecutor : getActiveSourceExecutor();
+    // 分析8：decodeJob
+    executor.execute(decodeJob);
+  }
+```
+
+### 分析8：decodeJob
+
+```kotlin
+  @Override 
+public void run() {
+    DataFetcher<?> localFetcher = currentFetcher;
+      runWrapped();
+  }
+
+  private void runWrapped() {
+    switch (runReason) {
+      case INITIALIZE:
+      // 分析8.1：计算当前状态
+        stage = getNextStage(Stage.INITIALIZE);
+      // 分析8.2 根据当前状态创建对应的资源获取器
+        currentGenerator = getNextGenerator();
+        runGenerators();
+        break;
+      case SWITCH_TO_SOURCE_SERVICE:
+        runGenerators();
+        break;
+      case DECODE_DATA:
+        decodeFromRetrievedData();
+        break;
+      default:
+        throw new IllegalStateException("Unrecognized run reason: " + runReason);
+    }
+  }
+
+  private Stage getNextStage(Stage current) {
+    switch (current) {
+      case INITIALIZE:
+        return diskCacheStrategy.decodeCachedResource()
+            ? Stage.RESOURCE_CACHE
+            : getNextStage(Stage.RESOURCE_CACHE);
+      case RESOURCE_CACHE:
+        return diskCacheStrategy.decodeCachedData()
+            ? Stage.DATA_CACHE
+            : getNextStage(Stage.DATA_CACHE);
+      case DATA_CACHE:
+        // Skip loading from source if the user opted to only retrieve the resource from cache.
+        return onlyRetrieveFromCache ? Stage.FINISHED : Stage.SOURCE;
+      case SOURCE:
+      case FINISHED:
+        return Stage.FINISHED;
+      default:
+        throw new IllegalArgumentException("Unrecognized stage: " + current);
+    }
+  }
+
+  private DataFetcherGenerator getNextGenerator() {
+    switch (stage) {
+      case RESOURCE_CACHE:
+        return new ResourceCacheGenerator(decodeHelper, this);
+      case DATA_CACHE:
+        return new DataCacheGenerator(decodeHelper, this);
+      case SOURCE:
+        return new SourceGenerator(decodeHelper, this);
+      case FINISHED:
+        return null;
+      default:
+        throw new IllegalStateException("Unrecognized stage: " + stage);
+    }
+  }
+
+  private void runGenerators() {
+    currentThread = Thread.currentThread();
+    startFetchTime = LogTime.getLogTime();
+    boolean isStarted = false;
+    while (!isCancelled
+        && currentGenerator != null
+           // 分析9：currentGenerator.startNext() 去获取资源
+        && !(isStarted = currentGenerator.startNext())) {
+      stage = getNextStage(stage);
+      currentGenerator = getNextGenerator();
+
+      if (stage == Stage.SOURCE) {
+        reschedule(RunReason.SWITCH_TO_SOURCE_SERVICE);
+        return;
+      }
+    }
+  }
+```
+
+以首次网络请求为例，则会获取到 SourceGenerator
+
+### 分析9：SourceGenerator获取资源
+
+```kotlin
+  @Override
+  public boolean startNext() {
+    if (dataToCache != null) {
+...首次无缓存
+    }
+    
+    loadData = null;
+    boolean started = false;
+    while (!started && hasNextModelLoader()) {
+      loadData = helper.getLoadData().get(loadDataListIndex++);
+      if (loadData != null
+          && (helper.getDiskCacheStrategy().isDataCacheable(loadData.fetcher.getDataSource())
+              || helper.hasLoadPath(loadData.fetcher.getDataClass()))) {
+        started = true;
+        // 加载资源，loadData 中记录了 load() 传入的资源地址
+        startNextLoad(loadData);
+      }
+    }
+    return started;
+  }
+
+  private void startNextLoad(final LoadData<?> toStart) {
+    loadData.fetcher.loadData(
+        helper.getPriority(),
+        new DataCallback<Object>() {
+          @Override
+          public void onDataReady(@Nullable Object data) {
+            if (isCurrentRequest(toStart)) {
+              // 加载网络资源
+              onDataReadyInternal(toStart, data);
+            }
+          }
+
+          @Override
+          public void onLoadFailed(@NonNull Exception e) {
+            if (isCurrentRequest(toStart)) {
+              onLoadFailedInternal(toStart, e);
+            }
+          }
+        });
+  }
+
+  void onDataReadyInternal(LoadData<?> loadData, Object data) {
+    DiskCacheStrategy diskCacheStrategy = helper.getDiskCacheStrategy();
+    // 
+    if (data != null && diskCacheStrategy.isDataCacheable(loadData.fetcher.getDataSource())) {
+      dataToCache = data;
+      // We might be being called back on someone else's thread. Before doing anything, we should
+      // reschedule to get back onto Glide's thread. Then once we're back on Glide's thread, we'll
+      // get called again and we can write the retrieved data to cache.
+      cb.reschedule();
+    } else {
+      cb.onDataFetcherReady(
+          loadData.sourceKey,
+          data,
+          loadData.fetcher,
+          loadData.fetcher.getDataSource(),
+          originalKey);
+    }
+  }
+```
+
+
+
+
+
+
+
+
+
+```java
 
 <--分析18：HttpUrlFetcher的loadData（）  -->
 // 此处是网络请求的代码
@@ -2831,8 +2858,6 @@ public class HttpUrlFetcher implements DataFetcher<InputStream> {
 ```
 
 ### 分析19：图片的解码
-
-
 
 ```java
 <--分析19：decodeFromSourceData()（）  -->
@@ -3104,8 +3129,6 @@ public abstract class Downsampler implements BitmapDecoder<InputStream> {
    `StreamBitmapDecoder`（分析25）-> `ImageVideoBitmapDecoder`（分析24）-> `GifBitmapWrapperResourceDecoder``decodeBitmapWrapper()`（分析23）
 - 由于隔得太远，我重新把（分析23）`decodeBitmapWrapper()`贴出
 
-
-
 ```java
 <-- 分析23：decodeBitmapWrapper -->
 private GifBitmapWrapper decodeBitmapWrapper(ImageVideoWrapper toDecode, int width, int height) throws IOException {
@@ -3168,8 +3191,6 @@ public class GifBitmapWrapper {
 - 直到返回到`GifBitmapWrapperResourceDecoder的decode()`时（分析20），会对`GifBitmapWrapper`对象再做一次封装，如下所示：
 
 > 此处将上面的分析20再次粘贴过来
-
-
 
 ```java
 <--分析20：GifBitmapWrapperResourceDecoder对象的decode()  -->
@@ -3584,6 +3605,8 @@ image.png
 
 至此，`Glide`的基本功能 **图片加载**的全功能 解析完毕。
 
+
+
 ### 回调和监听
 
 into()方法的源码：
@@ -3754,2298 +3777,14 @@ PreloadTarget的源码非常简单，obtain()方法中就是new了一个PreloadT
 
 
 
+> 源码分析方法：抽丝剥茧、点到即止。应该认准一个功能点，然后去分析这个功能点是如何实现的。但只要去追寻主体的实现逻辑即可，千万不要试图去搞懂每一行代码都是什么意思，那样很容易会陷入到思维黑洞当中，而且越陷越深。因为这些庞大的系统都不是由一个人写出来的，每一行代码都想搞明白，就会感觉自己是在盲人摸象，永远也研究不透。如果只是去分析主体的实现逻辑，那么就有比较明确的目的性，这样阅读源码会更加轻松，也更加有成效。
+>
+> ——郭霖
 
 
 
 
-在本系列的上一篇文章中，我们学习了Glide的基本用法，体验了这个图片加载框架的强大功能，以及它非常简便的API。还没有看过上一篇文章的朋友，建议先去阅读 Android图片加载框架最全解析（一），Glide的基本用法 。
 
-在多数情况下，我们想要在界面上加载并展示一张图片只需要一行代码就能实现，如下所示：
-
-Glide.with(this).load(url).into(imageView);
-1
-虽说只有这简简单单的一行代码，但大家可能不知道的是，Glide在背后帮我们默默执行了成吨的工作。这个形容词我想了很久，因为我觉得用非常多这个形容词不足以描述Glide背后的工作量，我查到的英文资料是用tons of work来进行形容的，因此我觉得这里使用成吨来形容更加贴切一些。
-
-虽说我们在平时使用Glide的时候格外地简单和方便，但是知其然也要知其所以然。那么今天我们就来解析一下Glide的源码，看看它在这些简单用法的背后，到底执行了多么复杂的工作。
-
-如何阅读源码
-在开始解析Glide源码之前，我想先和大家谈一下该如何阅读源码，这个问题也是我平时被问得比较多的，因为很多人都觉得阅读源码是一件比较困难的事情。
-
-那么阅读源码到底困难吗？这个当然主要还是要视具体的源码而定。比如同样是图片加载框架，我读Volley的源码时就感觉酣畅淋漓，并且对Volley的架构设计和代码质量深感佩服。读Glide的源码时却让我相当痛苦，代码极其难懂。当然这里我并不是说Glide的代码写得不好，只是因为Glide和复杂程度和Volley完全不是在一个量级上的。
-
-那么，虽然源码的复杂程度是外在的不可变条件，但我们却可以通过一些技巧来提升自己阅读源码的能力。这里我和大家分享一下我平时阅读源码时所使用的技巧，简单概括就是八个字：抽丝剥茧、点到即止。应该认准一个功能点，然后去分析这个功能点是如何实现的。但只要去追寻主体的实现逻辑即可，千万不要试图去搞懂每一行代码都是什么意思，那样很容易会陷入到思维黑洞当中，而且越陷越深。因为这些庞大的系统都不是由一个人写出来的，每一行代码都想搞明白，就会感觉自己是在盲人摸象，永远也研究不透。如果只是去分析主体的实现逻辑，那么就有比较明确的目的性，这样阅读源码会更加轻松，也更加有成效。
-
-而今天带大家阅读的Glide源码就非常适合使用这个技巧，因为Glide的源码太复杂了，千万不要试图去搞明白它每行代码的作用，而是应该只分析它的主体实现逻辑。那么我们本篇文章就先确立好一个目标，就是要通过阅读源码搞明白下面这行代码：
-
-Glide.with(this).load(url).into(imageView);
-1
-到底是如何实现将一张网络图片展示到ImageView上面的。先将Glide的一整套图片加载机制的基本流程梳理清楚，然后我们再通过后面的几篇文章具体去了解Glide源码方方面面的细节。
-
-准备好了吗？那么我们现在开始。
-
-源码下载
-既然是要阅读Glide的源码，那么我们自然需要先将Glide的源码下载下来。其实如果你是使用在build.gradle中添加依赖的方式将Glide引入到项目中的，那么源码自动就已经下载下来了，在Android Studio中就可以直接进行查看。
-
-不过，使用添加依赖的方式引入的Glide，我们只能看到它的源码，但不能做任何的修改，如果你还需要修改它的源码的话，可以到GitHub上面将它的完整源码下载下来。
-
-Glide的GitHub主页的地址是：https://github.com/bumptech/glide
-
-不过在这个地址下载到的永远都是最新的源码，有可能还正在处于开发当中。而我们整个系列都是使用Glide 3.7.0这个版本来进行讲解的，因此如果你需要专门去下载3.7.0版本的源码，可以到这个地址进行下载：https://github.com/bumptech/glide/tree/v3.7.0
-
-开始阅读
-我们在上一篇文章中已经学习过了，Glide最基本的用法就是三步走：先with()，再load()，最后into()。那么我们开始一步步阅读这三步走的源码，先从with()看起。
-
-1. with()
-with()方法是Glide类中的一组静态方法，它有好几个方法重载，我们来看一下Glide类中所有with()方法的方法重载：
-
-public class Glide {
-
-    ...
-    
-    public static RequestManager with(Context context) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(context);
-    }
-    
-    public static RequestManager with(Activity activity) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(activity);
-    }
-    
-    public static RequestManager with(FragmentActivity activity) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(activity);
-    }
-    
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public static RequestManager with(android.app.Fragment fragment) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(fragment);
-    }
-    
-    public static RequestManager with(Fragment fragment) {
-        RequestManagerRetriever retriever = RequestManagerRetriever.get();
-        return retriever.get(fragment);
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-可以看到，with()方法的重载种类非常多，既可以传入Activity，也可以传入Fragment或者是Context。每一个with()方法重载的代码都非常简单，都是先调用RequestManagerRetriever的静态get()方法得到一个RequestManagerRetriever对象，这个静态get()方法就是一个单例实现，没什么需要解释的。然后再调用RequestManagerRetriever的实例get()方法，去获取RequestManager对象。
-
-而RequestManagerRetriever的实例get()方法中的逻辑是什么样的呢？我们一起来看一看：
-
-public class RequestManagerRetriever implements Handler.Callback {
-
-    private static final RequestManagerRetriever INSTANCE = new RequestManagerRetriever();
-    
-    private volatile RequestManager applicationManager;
-    
-    ...
-    
-    /**
-     * Retrieves and returns the RequestManagerRetriever singleton.
-     */
-    public static RequestManagerRetriever get() {
-        return INSTANCE;
-    }
-    
-    private RequestManager getApplicationManager(Context context) {
-        // Either an application context or we're on a background thread.
-        if (applicationManager == null) {
-            synchronized (this) {
-                if (applicationManager == null) {
-                    // Normally pause/resume is taken care of by the fragment we add to the fragment or activity.
-                    // However, in this case since the manager attached to the application will not receive lifecycle
-                    // events, we must force the manager to start resumed using ApplicationLifecycle.
-                    applicationManager = new RequestManager(context.getApplicationContext(),
-                            new ApplicationLifecycle(), new EmptyRequestManagerTreeNode());
-                }
-            }
-        }
-        return applicationManager;
-    }
-    
-    public RequestManager get(Context context) {
-        if (context == null) {
-            throw new IllegalArgumentException("You cannot start a load on a null Context");
-        } else if (Util.isOnMainThread() && !(context instanceof Application)) {
-            if (context instanceof FragmentActivity) {
-                return get((FragmentActivity) context);
-            } else if (context instanceof Activity) {
-                return get((Activity) context);
-            } else if (context instanceof ContextWrapper) {
-                return get(((ContextWrapper) context).getBaseContext());
-            }
-        }
-        return getApplicationManager(context);
-    }
-    
-    public RequestManager get(FragmentActivity activity) {
-        if (Util.isOnBackgroundThread()) {
-            return get(activity.getApplicationContext());
-        } else {
-            assertNotDestroyed(activity);
-            FragmentManager fm = activity.getSupportFragmentManager();
-            return supportFragmentGet(activity, fm);
-        }
-    }
-    
-    public RequestManager get(Fragment fragment) {
-        if (fragment.getActivity() == null) {
-            throw new IllegalArgumentException("You cannot start a load on a fragment before it is attached");
-        }
-        if (Util.isOnBackgroundThread()) {
-            return get(fragment.getActivity().getApplicationContext());
-        } else {
-            FragmentManager fm = fragment.getChildFragmentManager();
-            return supportFragmentGet(fragment.getActivity(), fm);
-        }
-    }
-    
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    public RequestManager get(Activity activity) {
-        if (Util.isOnBackgroundThread() || Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
-            return get(activity.getApplicationContext());
-        } else {
-            assertNotDestroyed(activity);
-            android.app.FragmentManager fm = activity.getFragmentManager();
-            return fragmentGet(activity, fm);
-        }
-    }
-    
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    private static void assertNotDestroyed(Activity activity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1 && activity.isDestroyed()) {
-            throw new IllegalArgumentException("You cannot start a load for a destroyed activity");
-        }
-    }
-    
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    public RequestManager get(android.app.Fragment fragment) {
-        if (fragment.getActivity() == null) {
-            throw new IllegalArgumentException("You cannot start a load on a fragment before it is attached");
-        }
-        if (Util.isOnBackgroundThread() || Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            return get(fragment.getActivity().getApplicationContext());
-        } else {
-            android.app.FragmentManager fm = fragment.getChildFragmentManager();
-            return fragmentGet(fragment.getActivity(), fm);
-        }
-    }
-    
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
-    RequestManagerFragment getRequestManagerFragment(final android.app.FragmentManager fm) {
-        RequestManagerFragment current = (RequestManagerFragment) fm.findFragmentByTag(FRAGMENT_TAG);
-        if (current == null) {
-            current = pendingRequestManagerFragments.get(fm);
-            if (current == null) {
-                current = new RequestManagerFragment();
-                pendingRequestManagerFragments.put(fm, current);
-                fm.beginTransaction().add(current, FRAGMENT_TAG).commitAllowingStateLoss();
-                handler.obtainMessage(ID_REMOVE_FRAGMENT_MANAGER, fm).sendToTarget();
-            }
-        }
-        return current;
-    }
-    
-    @TargetApi(Build.VERSION_CODES.HONEYCOMB)
-    RequestManager fragmentGet(Context context, android.app.FragmentManager fm) {
-        RequestManagerFragment current = getRequestManagerFragment(fm);
-        RequestManager requestManager = current.getRequestManager();
-        if (requestManager == null) {
-            requestManager = new RequestManager(context, current.getLifecycle(), current.getRequestManagerTreeNode());
-            current.setRequestManager(requestManager);
-        }
-        return requestManager;
-    }
-    
-    SupportRequestManagerFragment getSupportRequestManagerFragment(final FragmentManager fm) {
-        SupportRequestManagerFragment current = (SupportRequestManagerFragment) fm.findFragmentByTag(FRAGMENT_TAG);
-        if (current == null) {
-            current = pendingSupportRequestManagerFragments.get(fm);
-            if (current == null) {
-                current = new SupportRequestManagerFragment();
-                pendingSupportRequestManagerFragments.put(fm, current);
-                fm.beginTransaction().add(current, FRAGMENT_TAG).commitAllowingStateLoss();
-                handler.obtainMessage(ID_REMOVE_SUPPORT_FRAGMENT_MANAGER, fm).sendToTarget();
-            }
-        }
-        return current;
-    }
-    
-    RequestManager supportFragmentGet(Context context, FragmentManager fm) {
-        SupportRequestManagerFragment current = getSupportRequestManagerFragment(fm);
-        RequestManager requestManager = current.getRequestManager();
-        if (requestManager == null) {
-            requestManager = new RequestManager(context, current.getLifecycle(), current.getRequestManagerTreeNode());
-            current.setRequestManager(requestManager);
-        }
-        return requestManager;
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-79
-80
-81
-82
-83
-84
-85
-86
-87
-88
-89
-90
-91
-92
-93
-94
-95
-96
-97
-98
-99
-100
-101
-102
-103
-104
-105
-106
-107
-108
-109
-110
-111
-112
-113
-114
-115
-116
-117
-118
-119
-120
-121
-122
-123
-124
-125
-126
-127
-128
-129
-130
-131
-132
-133
-134
-135
-136
-137
-138
-139
-140
-141
-142
-143
-144
-145
-146
-147
-148
-149
-150
-151
-152
-上述代码虽然看上去逻辑有点复杂，但是将它们梳理清楚后还是很简单的。RequestManagerRetriever类中看似有很多个get()方法的重载，什么Context参数，Activity参数，Fragment参数等等，实际上只有两种情况而已，即传入Application类型的参数，和传入非Application类型的参数。
-
-我们先来看传入Application参数的情况。如果在Glide.with()方法中传入的是一个Application对象，那么这里就会调用带有Context参数的get()方法重载，然后会在第44行调用getApplicationManager()方法来获取一个RequestManager对象。其实这是最简单的一种情况，因为Application对象的生命周期即应用程序的生命周期，因此Glide并不需要做什么特殊的处理，它自动就是和应用程序的生命周期是同步的，如果应用程序关闭的话，Glide的加载也会同时终止。
-
-接下来我们看传入非Application参数的情况。不管你在Glide.with()方法中传入的是Activity、FragmentActivity、v4包下的Fragment、还是app包下的Fragment，最终的流程都是一样的，那就是会向当前的Activity当中添加一个隐藏的Fragment。具体添加的逻辑是在上述代码的第117行和第141行，分别对应的app包和v4包下的两种Fragment的情况。那么这里为什么要添加一个隐藏的Fragment呢？因为Glide需要知道加载的生命周期。很简单的一个道理，如果你在某个Activity上正在加载着一张图片，结果图片还没加载出来，Activity就被用户关掉了，那么图片还应该继续加载吗？当然不应该。可是Glide并没有办法知道Activity的生命周期，于是Glide就使用了添加隐藏Fragment的这种小技巧，因为Fragment的生命周期和Activity是同步的，如果Activity被销毁了，Fragment是可以监听到的，这样Glide就可以捕获这个事件并停止图片加载了。
-
-这里额外再提一句，从第48行代码可以看出，如果我们是在非主线程当中使用的Glide，那么不管你是传入的Activity还是Fragment，都会被强制当成Application来处理。不过其实这就属于是在分析代码的细节了，本篇文章我们将会把目光主要放在Glide的主线工作流程上面，后面不会过多去分析这些细节方面的内容。
-
-总体来说，第一个with()方法的源码还是比较好理解的。其实就是为了得到一个RequestManager对象而已，然后Glide会根据我们传入with()方法的参数来确定图片加载的生命周期，并没有什么特别复杂的逻辑。不过复杂的逻辑还在后面等着我们呢，接下来我们开始分析第二步，load()方法。
-
-2. load()
-由于with()方法返回的是一个RequestManager对象，那么很容易就能想到，load()方法是在RequestManager类当中的，所以说我们首先要看的就是RequestManager这个类。不过在上一篇文章中我们学过，Glide是支持图片URL字符串、图片本地路径等等加载形式的，因此RequestManager中也有很多个load()方法的重载。但是这里我们不可能把每个load()方法的重载都看一遍，因此我们就只选其中一个加载图片URL字符串的load()方法来进行研究吧。
-
-RequestManager类的简化代码如下所示：
-
-public class RequestManager implements LifecycleListener {
-
-    ...
-    
-    /**
-     * Returns a request builder to load the given {@link String}.
-     * signature.
-     *
-     * @see #fromString()
-     * @see #load(Object)
-     *
-     * @param string A file path, or a uri or url handled by {@link com.bumptech.glide.load.model.UriLoader}.
-     */
-    public DrawableTypeRequest<String> load(String string) {
-        return (DrawableTypeRequest<String>) fromString().load(string);
-    }
-    
-    /**
-     * Returns a request builder that loads data from {@link String}s using an empty signature.
-     *
-     * <p>
-     *     Note - this method caches data using only the given String as the cache key. If the data is a Uri outside of
-     *     your control, or you otherwise expect the data represented by the given String to change without the String
-     *     identifier changing, Consider using
-     *     {@link GenericRequestBuilder#signature(Key)} to mixin a signature
-     *     you create that identifies the data currently at the given String that will invalidate the cache if that data
-     *     changes. Alternatively, using {@link DiskCacheStrategy#NONE} and/or
-     *     {@link DrawableRequestBuilder#skipMemoryCache(boolean)} may be appropriate.
-     * </p>
-     *
-     * @see #from(Class)
-     * @see #load(String)
-     */
-    public DrawableTypeRequest<String> fromString() {
-        return loadGeneric(String.class);
-    }
-    
-    private <T> DrawableTypeRequest<T> loadGeneric(Class<T> modelClass) {
-        ModelLoader<T, InputStream> streamModelLoader = Glide.buildStreamModelLoader(modelClass, context);
-        ModelLoader<T, ParcelFileDescriptor> fileDescriptorModelLoader =
-                Glide.buildFileDescriptorModelLoader(modelClass, context);
-        if (modelClass != null && streamModelLoader == null && fileDescriptorModelLoader == null) {
-            throw new IllegalArgumentException("Unknown type " + modelClass + ". You must provide a Model of a type for"
-                    + " which there is a registered ModelLoader, if you are using a custom model, you must first call"
-                    + " Glide#register with a ModelLoaderFactory for your custom model class");
-        }
-        return optionsApplier.apply(
-                new DrawableTypeRequest<T>(modelClass, streamModelLoader, fileDescriptorModelLoader, context,
-                        glide, requestTracker, lifecycle, optionsApplier));
-    }
-    
-    ...
-
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-RequestManager类的代码是非常多的，但是经过我这样简化之后，看上去就比较清爽了。在我们只探究加载图片URL字符串这一个load()方法的情况下，那么比较重要的方法就只剩下上述代码中的这三个方法。
-
-那么我们先来看load()方法，这个方法中的逻辑是非常简单的，只有一行代码，就是先调用了fromString()方法，再调用load()方法，然后把传入的图片URL地址传进去。而fromString()方法也极为简单，就是调用了loadGeneric()方法，并且指定参数为String.class，因为load()方法传入的是一个字符串参数。那么看上去，好像主要的工作都是在loadGeneric()方法中进行的了。
-
-其实loadGeneric()方法也没几行代码，这里分别调用了Glide.buildStreamModelLoader()方法和Glide.buildFileDescriptorModelLoader()方法来获得ModelLoader对象。ModelLoader对象是用于加载图片的，而我们给load()方法传入不同类型的参数，这里也会得到不同的ModelLoader对象。不过buildStreamModelLoader()方法内部的逻辑还是蛮复杂的，这里就不展开介绍了，要不然篇幅实在收不住，感兴趣的话你可以自己研究。由于我们刚才传入的参数是String.class，因此最终得到的是StreamStringLoader对象，它是实现了ModelLoader接口的。
-
-最后我们可以看到，loadGeneric()方法是要返回一个DrawableTypeRequest对象的，因此在loadGeneric()方法的最后又去new了一个DrawableTypeRequest对象，然后把刚才获得的ModelLoader对象，还有一大堆杂七杂八的东西都传了进去。具体每个参数的含义和作用就不解释了，我们只看主线流程。
-
-那么这个DrawableTypeRequest的作用是什么呢？我们来看下它的源码，如下所示：
-
-public class DrawableTypeRequest<ModelType> extends DrawableRequestBuilder<ModelType> implements DownloadOptions {
-    private final ModelLoader<ModelType, InputStream> streamModelLoader;
-    private final ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader;
-    private final RequestManager.OptionsApplier optionsApplier;
-
-    private static <A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProvider(Glide glide,
-            ModelLoader<A, InputStream> streamModelLoader,
-            ModelLoader<A, ParcelFileDescriptor> fileDescriptorModelLoader, Class<Z> resourceClass,
-            Class<R> transcodedClass,
-            ResourceTranscoder<Z, R> transcoder) {
-        if (streamModelLoader == null && fileDescriptorModelLoader == null) {
-            return null;
-        }
-    
-        if (transcoder == null) {
-            transcoder = glide.buildTranscoder(resourceClass, transcodedClass);
-        }
-        DataLoadProvider<ImageVideoWrapper, Z> dataLoadProvider = glide.buildDataProvider(ImageVideoWrapper.class,
-                resourceClass);
-        ImageVideoModelLoader<A> modelLoader = new ImageVideoModelLoader<A>(streamModelLoader,
-                fileDescriptorModelLoader);
-        return new FixedLoadProvider<A, ImageVideoWrapper, Z, R>(modelLoader, transcoder, dataLoadProvider);
-    }
-    
-    DrawableTypeRequest(Class<ModelType> modelClass, ModelLoader<ModelType, InputStream> streamModelLoader,
-            ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader, Context context, Glide glide,
-            RequestTracker requestTracker, Lifecycle lifecycle, RequestManager.OptionsApplier optionsApplier) {
-        super(context, modelClass,
-                buildProvider(glide, streamModelLoader, fileDescriptorModelLoader, GifBitmapWrapper.class,
-                        GlideDrawable.class, null),
-                glide, requestTracker, lifecycle);
-        this.streamModelLoader = streamModelLoader;
-        this.fileDescriptorModelLoader = fileDescriptorModelLoader;
-        this.optionsApplier = optionsApplier;
-    }
-    
-    /**
-     * Attempts to always load the resource as a {@link android.graphics.Bitmap}, even if it could actually be animated.
-     *
-     * @return A new request builder for loading a {@link android.graphics.Bitmap}
-     */
-    public BitmapTypeRequest<ModelType> asBitmap() {
-        return optionsApplier.apply(new BitmapTypeRequest<ModelType>(this, streamModelLoader,
-                fileDescriptorModelLoader, optionsApplier));
-    }
-    
-    /**
-     * Attempts to always load the resource as a {@link com.bumptech.glide.load.resource.gif.GifDrawable}.
-     * <p>
-     *     If the underlying data is not a GIF, this will fail. As a result, this should only be used if the model
-     *     represents an animated GIF and the caller wants to interact with the GIfDrawable directly. Normally using
-     *     just an {@link DrawableTypeRequest} is sufficient because it will determine whether or
-     *     not the given data represents an animated GIF and return the appropriate animated or not animated
-     *     {@link android.graphics.drawable.Drawable} automatically.
-     * </p>
-     *
-     * @return A new request builder for loading a {@link com.bumptech.glide.load.resource.gif.GifDrawable}.
-     */
-    public GifTypeRequest<ModelType> asGif() {
-        return optionsApplier.apply(new GifTypeRequest<ModelType>(this, streamModelLoader, optionsApplier));
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-这个类中的代码本身就不多，我只是稍微做了一点简化。可以看到，最主要的就是它提供了asBitmap()和asGif()这两个方法。这两个方法我们在上一篇文章当中都是学过的，分别是用于强制指定加载静态图片和动态图片。而从源码中可以看出，它们分别又创建了一个BitmapTypeRequest和GifTypeRequest，如果没有进行强制指定的话，那默认就是使用DrawableTypeRequest。
-
-好的，那么我们再回到RequestManager的load()方法中。刚才已经分析过了，fromString()方法会返回一个DrawableTypeRequest对象，接下来会调用这个对象的load()方法，把图片的URL地址传进去。但是我们刚才看到了，DrawableTypeRequest中并没有load()方法，那么很容易就能猜想到，load()方法是在父类当中的。
-
-DrawableTypeRequest的父类是DrawableRequestBuilder，我们来看下这个类的源码：
-
-public class DrawableRequestBuilder<ModelType>
-        extends GenericRequestBuilder<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable>
-        implements BitmapOptions, DrawableOptions {
-
-    DrawableRequestBuilder(Context context, Class<ModelType> modelClass,
-            LoadProvider<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable> loadProvider, Glide glide,
-            RequestTracker requestTracker, Lifecycle lifecycle) {
-        super(context, modelClass, loadProvider, GlideDrawable.class, glide, requestTracker, lifecycle);
-        // Default to animating.
-        crossFade();
-    }
-    
-    public DrawableRequestBuilder<ModelType> thumbnail(
-            DrawableRequestBuilder<?> thumbnailRequest) {
-        super.thumbnail(thumbnailRequest);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> thumbnail(
-            GenericRequestBuilder<?, ?, ?, GlideDrawable> thumbnailRequest) {
-        super.thumbnail(thumbnailRequest);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> thumbnail(float sizeMultiplier) {
-        super.thumbnail(sizeMultiplier);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> sizeMultiplier(float sizeMultiplier) {
-        super.sizeMultiplier(sizeMultiplier);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> decoder(ResourceDecoder<ImageVideoWrapper, GifBitmapWrapper> decoder) {
-        super.decoder(decoder);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> cacheDecoder(ResourceDecoder<File, GifBitmapWrapper> cacheDecoder) {
-        super.cacheDecoder(cacheDecoder);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> encoder(ResourceEncoder<GifBitmapWrapper> encoder) {
-        super.encoder(encoder);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> priority(Priority priority) {
-        super.priority(priority);
-        return this;
-    }
-    
-    public DrawableRequestBuilder<ModelType> transform(BitmapTransformation... transformations) {
-        return bitmapTransform(transformations);
-    }
-    
-    public DrawableRequestBuilder<ModelType> centerCrop() {
-        return transform(glide.getDrawableCenterCrop());
-    }
-    
-    public DrawableRequestBuilder<ModelType> fitCenter() {
-        return transform(glide.getDrawableFitCenter());
-    }
-    
-    public DrawableRequestBuilder<ModelType> bitmapTransform(Transformation<Bitmap>... bitmapTransformations) {
-        GifBitmapWrapperTransformation[] transformations =
-                new GifBitmapWrapperTransformation[bitmapTransformations.length];
-        for (int i = 0; i < bitmapTransformations.length; i++) {
-            transformations[i] = new GifBitmapWrapperTransformation(glide.getBitmapPool(), bitmapTransformations[i]);
-        }
-        return transform(transformations);
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> transform(Transformation<GifBitmapWrapper>... transformation) {
-        super.transform(transformation);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> transcoder(
-            ResourceTranscoder<GifBitmapWrapper, GlideDrawable> transcoder) {
-        super.transcoder(transcoder);
-        return this;
-    }
-    
-    public final DrawableRequestBuilder<ModelType> crossFade() {
-        super.animate(new DrawableCrossFadeFactory<GlideDrawable>());
-        return this;
-    }
-    
-    public DrawableRequestBuilder<ModelType> crossFade(int duration) {
-        super.animate(new DrawableCrossFadeFactory<GlideDrawable>(duration));
-        return this;
-    }
-    
-    public DrawableRequestBuilder<ModelType> crossFade(int animationId, int duration) {
-        super.animate(new DrawableCrossFadeFactory<GlideDrawable>(context, animationId,
-                duration));
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> dontAnimate() {
-        super.dontAnimate();
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> animate(ViewPropertyAnimation.Animator animator) {
-        super.animate(animator);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> animate(int animationId) {
-        super.animate(animationId);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> placeholder(int resourceId) {
-        super.placeholder(resourceId);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> placeholder(Drawable drawable) {
-        super.placeholder(drawable);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> fallback(Drawable drawable) {
-        super.fallback(drawable);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> fallback(int resourceId) {
-        super.fallback(resourceId);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> error(int resourceId) {
-        super.error(resourceId);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> error(Drawable drawable) {
-        super.error(drawable);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> listener(
-            RequestListener<? super ModelType, GlideDrawable> requestListener) {
-        super.listener(requestListener);
-        return this;
-    }
-    @Override
-    public DrawableRequestBuilder<ModelType> diskCacheStrategy(DiskCacheStrategy strategy) {
-        super.diskCacheStrategy(strategy);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> skipMemoryCache(boolean skip) {
-        super.skipMemoryCache(skip);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> override(int width, int height) {
-        super.override(width, height);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> sourceEncoder(Encoder<ImageVideoWrapper> sourceEncoder) {
-        super.sourceEncoder(sourceEncoder);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> dontTransform() {
-        super.dontTransform();
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> signature(Key signature) {
-        super.signature(signature);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> load(ModelType model) {
-        super.load(model);
-        return this;
-    }
-    
-    @Override
-    public DrawableRequestBuilder<ModelType> clone() {
-        return (DrawableRequestBuilder<ModelType>) super.clone();
-    }
-    
-    @Override
-    public Target<GlideDrawable> into(ImageView view) {
-        return super.into(view);
-    }
-    
-    @Override
-    void applyFitCenter() {
-        fitCenter();
-    }
-    
-    @Override
-    void applyCenterCrop() {
-        centerCrop();
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-79
-80
-81
-82
-83
-84
-85
-86
-87
-88
-89
-90
-91
-92
-93
-94
-95
-96
-97
-98
-99
-100
-101
-102
-103
-104
-105
-106
-107
-108
-109
-110
-111
-112
-113
-114
-115
-116
-117
-118
-119
-120
-121
-122
-123
-124
-125
-126
-127
-128
-129
-130
-131
-132
-133
-134
-135
-136
-137
-138
-139
-140
-141
-142
-143
-144
-145
-146
-147
-148
-149
-150
-151
-152
-153
-154
-155
-156
-157
-158
-159
-160
-161
-162
-163
-164
-165
-166
-167
-168
-169
-170
-171
-172
-173
-174
-175
-176
-177
-178
-179
-180
-181
-182
-183
-184
-185
-186
-187
-188
-189
-190
-191
-192
-193
-194
-195
-196
-197
-198
-199
-200
-201
-202
-203
-204
-205
-206
-207
-208
-209
-210
-211
-212
-213
-214
-215
-216
-217
-218
-219
-220
-221
-222
-223
-224
-225
-226
-227
-228
-229
-230
-231
-232
-233
-DrawableRequestBuilder中有很多个方法，这些方法其实就是Glide绝大多数的API了。里面有不少我们在上篇文章中已经用过了，比如说placeholder()方法、error()方法、diskCacheStrategy()方法、override()方法等。当然还有很多暂时还没用到的API，我们会在后面的文章当中学习。
-
-到这里，第二步load()方法也就分析结束了。为什么呢？因为你会发现DrawableRequestBuilder类中有一个into()方法（上述代码第220行），也就是说，最终load()方法返回的其实就是一个DrawableTypeRequest对象。那么接下来我们就要进行第三步了，分析into()方法中的逻辑。
-
-3. into()
-如果说前面两步都是在准备开胃小菜的话，那么现在终于要进入主菜了，因为into()方法也是整个Glide图片加载流程中逻辑最复杂的地方。
-
-不过从刚才的代码来看，into()方法中并没有任何逻辑，只有一句super.into(view)。那么很显然，into()方法的具体逻辑都是在DrawableRequestBuilder的父类当中了。
-
-DrawableRequestBuilder的父类是GenericRequestBuilder，我们来看一下GenericRequestBuilder类中的into()方法，如下所示：
-
-public Target<TranscodeType> into(ImageView view) {
-    Util.assertMainThread();
-    if (view == null) {
-        throw new IllegalArgumentException("You must pass in a non null View");
-    }
-    if (!isTransformationSet && view.getScaleType() != null) {
-        switch (view.getScaleType()) {
-            case CENTER_CROP:
-                applyCenterCrop();
-                break;
-            case FIT_CENTER:
-            case FIT_START:
-            case FIT_END:
-                applyFitCenter();
-                break;
-            //$CASES-OMITTED$
-            default:
-                // Do nothing.
-        }
-    }
-    return into(glide.buildImageViewTarget(view, transcodeClass));
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-这里前面一大堆的判断逻辑我们都可以先不用管，等到后面文章讲transform的时候会再进行解释，现在我们只需要关注最后一行代码。最后一行代码先是调用了glide.buildImageViewTarget()方法，这个方法会构建出一个Target对象，Target对象则是用来最终展示图片用的，如果我们跟进去的话会看到如下代码：
-
-<R> Target<R> buildImageViewTarget(ImageView imageView, Class<R> transcodedClass) {
-    return imageViewTargetFactory.buildTarget(imageView, transcodedClass);
-}
-1
-2
-3
-这里其实又是调用了ImageViewTargetFactory的buildTarget()方法，我们继续跟进去，代码如下所示：
-
-public class ImageViewTargetFactory {
-
-    @SuppressWarnings("unchecked")
-    public <Z> Target<Z> buildTarget(ImageView view, Class<Z> clazz) {
-        if (GlideDrawable.class.isAssignableFrom(clazz)) {
-            return (Target<Z>) new GlideDrawableImageViewTarget(view);
-        } else if (Bitmap.class.equals(clazz)) {
-            return (Target<Z>) new BitmapImageViewTarget(view);
-        } else if (Drawable.class.isAssignableFrom(clazz)) {
-            return (Target<Z>) new DrawableImageViewTarget(view);
-        } else {
-            throw new IllegalArgumentException("Unhandled class: " + clazz
-                    + ", try .as*(Class).transcode(ResourceTranscoder)");
-        }
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-可以看到，在buildTarget()方法中会根据传入的class参数来构建不同的Target对象。那如果你要分析这个class参数是从哪儿传过来的，这可有得你分析了，简单起见我直接帮大家梳理清楚。这个class参数其实基本上只有两种情况，如果你在使用Glide加载图片的时候调用了asBitmap()方法，那么这里就会构建出BitmapImageViewTarget对象，否则的话构建的都是GlideDrawableImageViewTarget对象。至于上述代码中的DrawableImageViewTarget对象，这个通常都是用不到的，我们可以暂时不用管它。
-
-也就是说，通过glide.buildImageViewTarget()方法，我们构建出了一个GlideDrawableImageViewTarget对象。那现在回到刚才into()方法的最后一行，可以看到，这里又将这个参数传入到了GenericRequestBuilder另一个接收Target对象的into()方法当中了。我们来看一下这个into()方法的源码：
-
-public <Y extends Target<TranscodeType>> Y into(Y target) {
-    Util.assertMainThread();
-    if (target == null) {
-        throw new IllegalArgumentException("You must pass in a non null Target");
-    }
-    if (!isModelSet) {
-        throw new IllegalArgumentException("You must first set a model (try #load())");
-    }
-    Request previous = target.getRequest();
-    if (previous != null) {
-        previous.clear();
-        requestTracker.removeRequest(previous);
-        previous.recycle();
-    }
-    Request request = buildRequest(target);
-    target.setRequest(request);
-    lifecycle.addListener(target);
-    requestTracker.runRequest(request);
-    return target;
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-这里我们还是只抓核心代码，其实只有两行是最关键的，第15行调用buildRequest()方法构建出了一个Request对象，还有第18行来执行这个Request。
-
-Request是用来发出加载图片请求的，它是Glide中非常关键的一个组件。我们先来看buildRequest()方法是如何构建Request对象的：
-
-private Request buildRequest(Target<TranscodeType> target) {
-    if (priority == null) {
-        priority = Priority.NORMAL;
-    }
-    return buildRequestRecursive(target, null);
-}
-
-private Request buildRequestRecursive(Target<TranscodeType> target, ThumbnailRequestCoordinator parentCoordinator) {
-    if (thumbnailRequestBuilder != null) {
-        if (isThumbnailBuilt) {
-            throw new IllegalStateException("You cannot use a request as both the main request and a thumbnail, "
-                    + "consider using clone() on the request(s) passed to thumbnail()");
-        }
-        // Recursive case: contains a potentially recursive thumbnail request builder.
-        if (thumbnailRequestBuilder.animationFactory.equals(NoAnimation.getFactory())) {
-            thumbnailRequestBuilder.animationFactory = animationFactory;
-        }
-
-        if (thumbnailRequestBuilder.priority == null) {
-            thumbnailRequestBuilder.priority = getThumbnailPriority();
-        }
-    
-        if (Util.isValidDimensions(overrideWidth, overrideHeight)
-                && !Util.isValidDimensions(thumbnailRequestBuilder.overrideWidth,
-                        thumbnailRequestBuilder.overrideHeight)) {
-          thumbnailRequestBuilder.override(overrideWidth, overrideHeight);
-        }
-    
-        ThumbnailRequestCoordinator coordinator = new ThumbnailRequestCoordinator(parentCoordinator);
-        Request fullRequest = obtainRequest(target, sizeMultiplier, priority, coordinator);
-        // Guard against infinite recursion.
-        isThumbnailBuilt = true;
-        // Recursively generate thumbnail requests.
-        Request thumbRequest = thumbnailRequestBuilder.buildRequestRecursive(target, coordinator);
-        isThumbnailBuilt = false;
-        coordinator.setRequests(fullRequest, thumbRequest);
-        return coordinator;
-    } else if (thumbSizeMultiplier != null) {
-        // Base case: thumbnail multiplier generates a thumbnail request, but cannot recurse.
-        ThumbnailRequestCoordinator coordinator = new ThumbnailRequestCoordinator(parentCoordinator);
-        Request fullRequest = obtainRequest(target, sizeMultiplier, priority, coordinator);
-        Request thumbnailRequest = obtainRequest(target, thumbSizeMultiplier, getThumbnailPriority(), coordinator);
-        coordinator.setRequests(fullRequest, thumbnailRequest);
-        return coordinator;
-    } else {
-        // Base case: no thumbnail.
-        return obtainRequest(target, sizeMultiplier, priority, parentCoordinator);
-    }
-}
-
-private Request obtainRequest(Target<TranscodeType> target, float sizeMultiplier, Priority priority,
-        RequestCoordinator requestCoordinator) {
-    return GenericRequest.obtain(
-            loadProvider,
-            model,
-            signature,
-            context,
-            priority,
-            target,
-            sizeMultiplier,
-            placeholderDrawable,
-            placeholderId,
-            errorPlaceholder,
-            errorId,
-            fallbackDrawable,
-            fallbackResource,
-            requestListener,
-            requestCoordinator,
-            glide.getEngine(),
-            transformation,
-            transcodeClass,
-            isCacheable,
-            animationFactory,
-            overrideWidth,
-            overrideHeight,
-            diskCacheStrategy);
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-可以看到，buildRequest()方法的内部其实又调用了buildRequestRecursive()方法，而buildRequestRecursive()方法中的代码虽然有点长，但是其中90%的代码都是在处理缩略图的。如果我们只追主线流程的话，那么只需要看第47行代码就可以了。这里调用了obtainRequest()方法来获取一个Request对象，而obtainRequest()方法中又去调用了GenericRequest的obtain()方法。注意这个obtain()方法需要传入非常多的参数，而其中很多的参数我们都是比较熟悉的，像什么placeholderId、errorPlaceholder、diskCacheStrategy等等。因此，我们就有理由猜测，刚才在load()方法中调用的所有API，其实都是在这里组装到Request对象当中的。那么我们进入到这个GenericRequest的obtain()方法瞧一瞧：
-
-public final class GenericRequest<A, T, Z, R> implements Request, SizeReadyCallback,
-        ResourceCallback {
-
-    ...
-    
-    public static <A, T, Z, R> GenericRequest<A, T, Z, R> obtain(
-            LoadProvider<A, T, Z, R> loadProvider,
-            A model,
-            Key signature,
-            Context context,
-            Priority priority,
-            Target<R> target,
-            float sizeMultiplier,
-            Drawable placeholderDrawable,
-            int placeholderResourceId,
-            Drawable errorDrawable,
-            int errorResourceId,
-            Drawable fallbackDrawable,
-            int fallbackResourceId,
-            RequestListener<? super A, R> requestListener,
-            RequestCoordinator requestCoordinator,
-            Engine engine,
-            Transformation<Z> transformation,
-            Class<R> transcodeClass,
-            boolean isMemoryCacheable,
-            GlideAnimationFactory<R> animationFactory,
-            int overrideWidth,
-            int overrideHeight,
-            DiskCacheStrategy diskCacheStrategy) {
-        @SuppressWarnings("unchecked")
-        GenericRequest<A, T, Z, R> request = (GenericRequest<A, T, Z, R>) REQUEST_POOL.poll();
-        if (request == null) {
-            request = new GenericRequest<A, T, Z, R>();
-        }
-        request.init(loadProvider,
-                model,
-                signature,
-                context,
-                priority,
-                target,
-                sizeMultiplier,
-                placeholderDrawable,
-                placeholderResourceId,
-                errorDrawable,
-                errorResourceId,
-                fallbackDrawable,
-                fallbackResourceId,
-                requestListener,
-                requestCoordinator,
-                engine,
-                transformation,
-                transcodeClass,
-                isMemoryCacheable,
-                animationFactory,
-                overrideWidth,
-                overrideHeight,
-                diskCacheStrategy);
-        return request;
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-可以看到，这里在第33行去new了一个GenericRequest对象，并在最后一行返回，也就是说，obtain()方法实际上获得的就是一个GenericRequest对象。另外这里又在第35行调用了GenericRequest的init()，里面主要就是一些赋值的代码，将传入的这些参数赋值到GenericRequest的成员变量当中，我们就不再跟进去看了。
-
-好，那现在解决了构建Request对象的问题，接下来我们看一下这个Request对象又是怎么执行的。回到刚才的into()方法，你会发现在第18行调用了requestTracker.runRequest()方法来去执行这个Request，那么我们跟进去瞧一瞧，如下所示：
-
-/**
- * Starts tracking the given request.
- */
-    public void runRequest(Request request) {
-    requests.add(request);
-    if (!isPaused) {
-        request.begin();
-    } else {
-        pendingRequests.add(request);
-    }
-    }
-    1
-    2
-    3
-    4
-    5
-    6
-    7
-    8
-    9
-    10
-    11
-    这里有一个简单的逻辑判断，就是先判断Glide当前是不是处理暂停状态，如果不是暂停状态就调用Request的begin()方法来执行Request，否则的话就先将Request添加到待执行队列里面，等暂停状态解除了之后再执行。
-
-暂停请求的功能仍然不是这篇文章所关心的，这里就直接忽略了，我们重点来看这个begin()方法。由于当前的Request对象是一个GenericRequest，因此这里就需要看GenericRequest中的begin()方法了，如下所示：
-
-@Override
-public void begin() {
-    startTime = LogTime.getLogTime();
-    if (model == null) {
-        onException(null);
-        return;
-    }
-    status = Status.WAITING_FOR_SIZE;
-    if (Util.isValidDimensions(overrideWidth, overrideHeight)) {
-        onSizeReady(overrideWidth, overrideHeight);
-    } else {
-        target.getSize(this);
-    }
-    if (!isComplete() && !isFailed() && canNotifyStatusChanged()) {
-        target.onLoadStarted(getPlaceholderDrawable());
-    }
-    if (Log.isLoggable(TAG, Log.VERBOSE)) {
-        logV("finished run method in " + LogTime.getElapsedMillis(startTime));
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-这里我们来注意几个细节，首先如果model等于null，model也就是我们在第二步load()方法中传入的图片URL地址，这个时候会调用onException()方法。如果你跟到onException()方法里面去看看，你会发现它最终会调用到一个setErrorPlaceholder()当中，如下所示：
-
-private void setErrorPlaceholder(Exception e) {
-    if (!canNotifyStatusChanged()) {
-        return;
-    }
-    Drawable error = model == null ? getFallbackDrawable() : null;
-    if (error == null) {
-      error = getErrorDrawable();
-    }
-    if (error == null) {
-        error = getPlaceholderDrawable();
-    }
-    target.onLoadFailed(e, error);
-}
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-这个方法中会先去获取一个error的占位图，如果获取不到的话会再去获取一个loading占位图，然后调用target.onLoadFailed()方法并将占位图传入。那么onLoadFailed()方法中做了什么呢？我们看一下：
-
-public abstract class ImageViewTarget<Z> extends ViewTarget<ImageView, Z> implements GlideAnimation.ViewAdapter {
-
-    ...
-    
-    @Override
-    public void onLoadStarted(Drawable placeholder) {
-        view.setImageDrawable(placeholder);
-    }
-    
-    @Override
-    public void onLoadFailed(Exception e, Drawable errorDrawable) {
-        view.setImageDrawable(errorDrawable);
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-很简单，其实就是将这张error占位图显示到ImageView上而已，因为现在出现了异常，没办法展示正常的图片了。而如果你仔细看下刚才begin()方法的第15行，你会发现它又调用了一个target.onLoadStarted()方法，并传入了一个loading占位图，在也就说，在图片请求开始之前，会先使用这张占位图代替最终的图片显示。这也是我们在上一篇文章中学过的placeholder()和error()这两个占位图API底层的实现原理。
-
-好，那么我们继续回到begin()方法。刚才讲了占位图的实现，那么具体的图片加载又是从哪里开始的呢？是在begin()方法的第10行和第12行。这里要分两种情况，一种是你使用了override() API为图片指定了一个固定的宽高，一种是没有指定。如果指定了的话，就会执行第10行代码，调用onSizeReady()方法。如果没指定的话，就会执行第12行代码，调用target.getSize()方法。这个target.getSize()方法的内部会根据ImageView的layout_width和layout_height值做一系列的计算，来算出图片应该的宽高。具体的计算细节我就不带着大家分析了，总之在计算完之后，它也会调用onSizeReady()方法。也就是说，不管是哪种情况，最终都会调用到onSizeReady()方法，在这里进行下一步操作。那么我们跟到这个方法里面来：
-
-@Override
-public void onSizeReady(int width, int height) {
-    if (Log.isLoggable(TAG, Log.VERBOSE)) {
-        logV("Got onSizeReady in " + LogTime.getElapsedMillis(startTime));
-    }
-    if (status != Status.WAITING_FOR_SIZE) {
-        return;
-    }
-    status = Status.RUNNING;
-    width = Math.round(sizeMultiplier * width);
-    height = Math.round(sizeMultiplier * height);
-    ModelLoader<A, T> modelLoader = loadProvider.getModelLoader();
-    final DataFetcher<T> dataFetcher = modelLoader.getResourceFetcher(model, width, height);
-    if (dataFetcher == null) {
-        onException(new Exception("Failed to load model: \'" + model + "\'"));
-        return;
-    }
-    ResourceTranscoder<Z, R> transcoder = loadProvider.getTranscoder();
-    if (Log.isLoggable(TAG, Log.VERBOSE)) {
-        logV("finished setup for calling load in " + LogTime.getElapsedMillis(startTime));
-    }
-    loadedFromMemoryCache = true;
-    loadStatus = engine.load(signature, width, height, dataFetcher, loadProvider, transformation, transcoder,
-            priority, isMemoryCacheable, diskCacheStrategy, this);
-    loadedFromMemoryCache = resource != null;
-    if (Log.isLoggable(TAG, Log.VERBOSE)) {
-        logV("finished onSizeReady in " + LogTime.getElapsedMillis(startTime));
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-从这里开始，真正复杂的地方来了，我们需要慢慢进行分析。先来看一下，在第12行调用了loadProvider.getModelLoader()方法，那么我们第一个要搞清楚的就是，这个loadProvider是什么？要搞清楚这点，需要先回到第二步的load()方法当中。还记得load()方法是返回一个DrawableTypeRequest对象吗？刚才我们只是分析了DrawableTypeRequest当中的asBitmap()和asGif()方法，并没有仔细看它的构造函数，现在我们重新来看一下DrawableTypeRequest类的构造函数：
-
-public class DrawableTypeRequest<ModelType> extends DrawableRequestBuilder<ModelType> implements DownloadOptions {
-
-    private final ModelLoader<ModelType, InputStream> streamModelLoader;
-    private final ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader;
-    private final RequestManager.OptionsApplier optionsApplier;
-    
-    private static <A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProvider(Glide glide,
-            ModelLoader<A, InputStream> streamModelLoader,
-            ModelLoader<A, ParcelFileDescriptor> fileDescriptorModelLoader, Class<Z> resourceClass,
-            Class<R> transcodedClass,
-            ResourceTranscoder<Z, R> transcoder) {
-        if (streamModelLoader == null && fileDescriptorModelLoader == null) {
-            return null;
-        }
-        if (transcoder == null) {
-            transcoder = glide.buildTranscoder(resourceClass, transcodedClass);
-        }
-        DataLoadProvider<ImageVideoWrapper, Z> dataLoadProvider = glide.buildDataProvider(ImageVideoWrapper.class,
-                resourceClass);
-        ImageVideoModelLoader<A> modelLoader = new ImageVideoModelLoader<A>(streamModelLoader,
-                fileDescriptorModelLoader);
-        return new FixedLoadProvider<A, ImageVideoWrapper, Z, R>(modelLoader, transcoder, dataLoadProvider);
-    }
-    
-    DrawableTypeRequest(Class<ModelType> modelClass, ModelLoader<ModelType, InputStream> streamModelLoader,
-            ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader, Context context, Glide glide,
-            RequestTracker requestTracker, Lifecycle lifecycle, RequestManager.OptionsApplier optionsApplier) {
-        super(context, modelClass,
-                buildProvider(glide, streamModelLoader, fileDescriptorModelLoader, GifBitmapWrapper.class,
-                        GlideDrawable.class, null),
-                glide, requestTracker, lifecycle);
-        this.streamModelLoader = streamModelLoader;
-        this.fileDescriptorModelLoader = fileDescriptorModelLoader;
-        this.optionsApplier = optionsApplier;
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-可以看到，这里在第29行，也就是构造函数中，调用了一个buildProvider()方法，并把streamModelLoader和fileDescriptorModelLoader等参数传入到这个方法中，这两个ModelLoader就是之前在loadGeneric()方法中构建出来的。
-
-那么我们再来看一下buildProvider()方法里面做了什么，在第16行调用了glide.buildTranscoder()方法来构建一个ResourceTranscoder，它是用于对图片进行转码的，由于ResourceTranscoder是一个接口，这里实际会构建出一个GifBitmapWrapperDrawableTranscoder对象。
-
-接下来在第18行调用了glide.buildDataProvider()方法来构建一个DataLoadProvider，它是用于对图片进行编解码的，由于DataLoadProvider是一个接口，这里实际会构建出一个ImageVideoGifDrawableLoadProvider对象。
-
-然后在第20行，new了一个ImageVideoModelLoader的实例，并把之前loadGeneric()方法中构建的两个ModelLoader封装到了ImageVideoModelLoader当中。
-
-最后，在第22行，new出一个FixedLoadProvider，并把刚才构建的出来的GifBitmapWrapperDrawableTranscoder、ImageVideoModelLoader、ImageVideoGifDrawableLoadProvider都封装进去，这个也就是onSizeReady()方法中的loadProvider了。
-
-好的，那么我们回到onSizeReady()方法中，在onSizeReady()方法的第12行和第18行，分别调用了loadProvider的getModelLoader()方法和getTranscoder()方法，那么得到的对象也就是刚才我们分析的ImageVideoModelLoader和GifBitmapWrapperDrawableTranscoder了。而在第13行，又调用了ImageVideoModelLoader的getResourceFetcher()方法，这里我们又需要跟进去瞧一瞧了，代码如下所示：
-
-public class ImageVideoModelLoader<A> implements ModelLoader<A, ImageVideoWrapper> {
-    private static final String TAG = "IVML";
-
-    private final ModelLoader<A, InputStream> streamLoader;
-    private final ModelLoader<A, ParcelFileDescriptor> fileDescriptorLoader;
-    
-    public ImageVideoModelLoader(ModelLoader<A, InputStream> streamLoader,
-            ModelLoader<A, ParcelFileDescriptor> fileDescriptorLoader) {
-        if (streamLoader == null && fileDescriptorLoader == null) {
-            throw new NullPointerException("At least one of streamLoader and fileDescriptorLoader must be non null");
-        }
-        this.streamLoader = streamLoader;
-        this.fileDescriptorLoader = fileDescriptorLoader;
-    }
-    
-    @Override
-    public DataFetcher<ImageVideoWrapper> getResourceFetcher(A model, int width, int height) {
-        DataFetcher<InputStream> streamFetcher = null;
-        if (streamLoader != null) {
-            streamFetcher = streamLoader.getResourceFetcher(model, width, height);
-        }
-        DataFetcher<ParcelFileDescriptor> fileDescriptorFetcher = null;
-        if (fileDescriptorLoader != null) {
-            fileDescriptorFetcher = fileDescriptorLoader.getResourceFetcher(model, width, height);
-        }
-    
-        if (streamFetcher != null || fileDescriptorFetcher != null) {
-            return new ImageVideoFetcher(streamFetcher, fileDescriptorFetcher);
-        } else {
-            return null;
-        }
-    }
-    
-    static class ImageVideoFetcher implements DataFetcher<ImageVideoWrapper> {
-        private final DataFetcher<InputStream> streamFetcher;
-        private final DataFetcher<ParcelFileDescriptor> fileDescriptorFetcher;
-    
-        public ImageVideoFetcher(DataFetcher<InputStream> streamFetcher,
-                DataFetcher<ParcelFileDescriptor> fileDescriptorFetcher) {
-            this.streamFetcher = streamFetcher;
-            this.fileDescriptorFetcher = fileDescriptorFetcher;
-        }
-    
-        ...
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-可以看到，在第20行会先调用streamLoader.getResourceFetcher()方法获取一个DataFetcher，而这个streamLoader其实就是我们在loadGeneric()方法中构建出的StreamStringLoader，调用它的getResourceFetcher()方法会得到一个HttpUrlFetcher对象。然后在第28行new出了一个ImageVideoFetcher对象，并把获得的HttpUrlFetcher对象传进去。也就是说，ImageVideoModelLoader的getResourceFetcher()方法得到的是一个ImageVideoFetcher。
-
-那么我们再次回到onSizeReady()方法，在onSizeReady()方法的第23行，这里将刚才获得的ImageVideoFetcher、GifBitmapWrapperDrawableTranscoder等等一系列的值一起传入到了Engine的load()方法当中。接下来我们就要看一看，这个Engine的load()方法当中，到底做了什么？代码如下所示：
-
-public class Engine implements EngineJobListener,
-        MemoryCache.ResourceRemovedListener,
-        EngineResource.ResourceListener {
-
-    ...    
-    
-    public <T, Z, R> LoadStatus load(Key signature, int width, int height, DataFetcher<T> fetcher,
-            DataLoadProvider<T, Z> loadProvider, Transformation<Z> transformation, ResourceTranscoder<Z, R> transcoder,
-            Priority priority, boolean isMemoryCacheable, DiskCacheStrategy diskCacheStrategy, ResourceCallback cb) {
-        Util.assertMainThread();
-        long startTime = LogTime.getLogTime();
-    
-        final String id = fetcher.getId();
-        EngineKey key = keyFactory.buildKey(id, signature, width, height, loadProvider.getCacheDecoder(),
-                loadProvider.getSourceDecoder(), transformation, loadProvider.getEncoder(),
-                transcoder, loadProvider.getSourceEncoder());
-    
-        EngineResource<?> cached = loadFromCache(key, isMemoryCacheable);
-        if (cached != null) {
-            cb.onResourceReady(cached);
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                logWithTimeAndKey("Loaded resource from cache", startTime, key);
-            }
-            return null;
-        }
-    
-        EngineResource<?> active = loadFromActiveResources(key, isMemoryCacheable);
-        if (active != null) {
-            cb.onResourceReady(active);
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                logWithTimeAndKey("Loaded resource from active resources", startTime, key);
-            }
-            return null;
-        }
-    
-        EngineJob current = jobs.get(key);
-        if (current != null) {
-            current.addCallback(cb);
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                logWithTimeAndKey("Added to existing load", startTime, key);
-            }
-            return new LoadStatus(cb, current);
-        }
-    
-        EngineJob engineJob = engineJobFactory.build(key, isMemoryCacheable);
-        DecodeJob<T, Z, R> decodeJob = new DecodeJob<T, Z, R>(key, width, height, fetcher, loadProvider, transformation,
-                transcoder, diskCacheProvider, diskCacheStrategy, priority);
-        EngineRunnable runnable = new EngineRunnable(engineJob, decodeJob, priority);
-        jobs.put(key, engineJob);
-        engineJob.addCallback(cb);
-        engineJob.start(runnable);
-    
-        if (Log.isLoggable(TAG, Log.VERBOSE)) {
-            logWithTimeAndKey("Started new load", startTime, key);
-        }
-        return new LoadStatus(cb, engineJob);
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-load()方法中的代码虽然有点长，但大多数的代码都是在处理缓存的。关于缓存的内容我们会在下一篇文章当中学习，现在只需要从第45行看起就行。这里构建了一个EngineJob，它的主要作用就是用来开启线程的，为后面的异步加载图片做准备。接下来第46行创建了一个DecodeJob对象，从名字上来看，它好像是用来对图片进行解码的，但实际上它的任务十分繁重，待会我们就知道了。继续往下看，第48行创建了一个EngineRunnable对象，并且在51行调用了EngineJob的start()方法来运行EngineRunnable对象，这实际上就是让EngineRunnable的run()方法在子线程当中执行了。那么我们现在就可以去看看EngineRunnable的run()方法里做了些什么，如下所示：
-
-@Override
-public void run() {
-    if (isCancelled) {
-        return;
-    }
-    Exception exception = null;
-    Resource<?> resource = null;
-    try {
-        resource = decode();
-    } catch (Exception e) {
-        if (Log.isLoggable(TAG, Log.VERBOSE)) {
-            Log.v(TAG, "Exception decoding", e);
-        }
-        exception = e;
-    }
-    if (isCancelled) {
-        if (resource != null) {
-            resource.recycle();
-        }
-        return;
-    }
-    if (resource == null) {
-        onLoadFailed(exception);
-    } else {
-        onLoadComplete(resource);
-    }
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-这个方法中的代码并不多，但我们仍然还是要抓重点。在第9行，这里调用了一个decode()方法，并且这个方法返回了一个Resource对象。看上去所有的逻辑应该都在这个decode()方法执行的了，那我们跟进去瞧一瞧：
-
-private Resource<?> decode() throws Exception {
-    if (isDecodingFromCache()) {
-        return decodeFromCache();
-    } else {
-        return decodeFromSource();
-    }
-}
-1
-2
-3
-4
-5
-6
-7
-decode()方法中又分了两种情况，从缓存当中去decode图片的话就会执行decodeFromCache()，否则的话就执行decodeFromSource()。本篇文章中我们不讨论缓存的情况，那么就直接来看decodeFromSource()方法的代码吧，如下所示：
-
-private Resource<?> decodeFromSource() throws Exception {
-    return decodeJob.decodeFromSource();
-}
-1
-2
-3
-这里又调用了DecodeJob的decodeFromSource()方法。刚才已经说了，DecodeJob的任务十分繁重，我们继续跟进看一看吧：
-
-class DecodeJob<A, T, Z> {
-
-    ...
-    
-    public Resource<Z> decodeFromSource() throws Exception {
-        Resource<T> decoded = decodeSource();
-        return transformEncodeAndTranscode(decoded);
-    }
-    
-    private Resource<T> decodeSource() throws Exception {
-        Resource<T> decoded = null;
-        try {
-            long startTime = LogTime.getLogTime();
-            final A data = fetcher.loadData(priority);
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                logWithTimeAndKey("Fetched data", startTime);
-            }
-            if (isCancelled) {
-                return null;
-            }
-            decoded = decodeFromSourceData(data);
-        } finally {
-            fetcher.cleanup();
-        }
-        return decoded;
-    }
-    
-    ...
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-主要的方法就这些，我都帮大家提取出来了。那么我们先来看一下decodeFromSource()方法，其实它的工作分为两部，第一步是调用decodeSource()方法来获得一个Resource对象，第二步是调用transformEncodeAndTranscode()方法来处理这个Resource对象。
-
-那么我们先来看第一步，decodeSource()方法中的逻辑也并不复杂，首先在第14行调用了fetcher.loadData()方法。那么这个fetcher是什么呢？其实就是刚才在onSizeReady()方法中得到的ImageVideoFetcher对象，这里调用它的loadData()方法，代码如下所示：
-
-@Override
-public ImageVideoWrapper loadData(Priority priority) throws Exception {
-    InputStream is = null;
-    if (streamFetcher != null) {
-        try {
-            is = streamFetcher.loadData(priority);
-        } catch (Exception e) {
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                Log.v(TAG, "Exception fetching input stream, trying ParcelFileDescriptor", e);
-            }
-            if (fileDescriptorFetcher == null) {
-                throw e;
-            }
-        }
-    }
-    ParcelFileDescriptor fileDescriptor = null;
-    if (fileDescriptorFetcher != null) {
-        try {
-            fileDescriptor = fileDescriptorFetcher.loadData(priority);
-        } catch (Exception e) {
-            if (Log.isLoggable(TAG, Log.VERBOSE)) {
-                Log.v(TAG, "Exception fetching ParcelFileDescriptor", e);
-            }
-            if (is == null) {
-                throw e;
-            }
-        }
-    }
-    return new ImageVideoWrapper(is, fileDescriptor);
-}
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
 可以看到，在ImageVideoFetcher的loadData()方法的第6行，这里又去调用了streamFetcher.loadData()方法，那么这个streamFetcher是什么呢？自然就是刚才在组装ImageVideoFetcher对象时传进来的HttpUrlFetcher了。因此这里又会去调用HttpUrlFetcher的loadData()方法，那么我们继续跟进去瞧一瞧：
 
 public class HttpUrlFetcher implements DataFetcher<InputStream> {
@@ -6120,79 +3859,6 @@ public class HttpUrlFetcher implements DataFetcher<InputStream> {
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
 经过一层一层地跋山涉水，我们终于在这里找到网络通讯的代码了！之前有朋友跟我讲过，说Glide的源码实在是太复杂了，甚至连网络请求是在哪里发出去的都找不到。我们也是经过一段一段又一段的代码跟踪，终于把网络请求的代码给找出来了，实在是太不容易了。
 
 不过也别高兴得太早，现在离最终分析完还早着呢。可以看到，loadData()方法只是返回了一个InputStream，服务器返回的数据连读都还没开始读呢。所以我们还是要静下心来继续分析，回到刚才ImageVideoFetcher的loadData()方法中，在这个方法的最后一行，创建了一个ImageVideoWrapper对象，并把刚才得到的InputStream作为参数传了进去。
@@ -6212,19 +3878,6 @@ private Resource<T> decodeFromSourceData(A data) throws IOException {
     }
     return decoded;
 }
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
 可以看到，这里在第7行调用了loadProvider.getSourceDecoder().decode()方法来进行解码。loadProvider就是刚才在onSizeReady()方法中得到的FixedLoadProvider，而getSourceDecoder()得到的则是一个GifBitmapWrapperResourceDecoder对象，也就是要调用这个对象的decode()方法来对图片进行解码。那么我们来看下GifBitmapWrapperResourceDecoder的代码：
 
 public class GifBitmapWrapperResourceDecoder implements ResourceDecoder<ImageVideoWrapper, GifBitmapWrapper> {
@@ -6287,67 +3940,6 @@ public class GifBitmapWrapperResourceDecoder implements ResourceDecoder<ImageVid
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
 首先，在decode()方法中，又去调用了另外一个decode()方法的重载。然后在第23行调用了decodeStream()方法，准备从服务器返回的流当中读取数据。decodeStream()方法中会先从流中读取2个字节的数据，来判断这张图是GIF图还是普通的静图，如果是GIF图就调用decodeGifWrapper()方法来进行解码，如果是普通的静图就用调用decodeBitmapWrapper()方法来进行解码。这里我们只分析普通静图的实现流程，GIF图的实现有点过于复杂了，无法在本篇文章当中分析。
 
 然后我们来看一下decodeBitmapWrapper()方法，这里在第52行调用了bitmapDecoder.decode()方法。这个bitmapDecoder是一个ImageVideoBitmapDecoder对象，那么我们来看一下它的代码，如下所示：
@@ -6386,41 +3978,6 @@ public class ImageVideoBitmapDecoder implements ResourceDecoder<ImageVideoWrappe
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
 代码并不复杂，在第14行先调用了source.getStream()来获取到服务器返回的InputStream，然后在第17行调用streamDecoder.decode()方法进行解码。streamDecode是一个StreamBitmapDecoder对象，那么我们再来看这个类的源码，如下所示：
 
 public class StreamBitmapDecoder implements ResourceDecoder<InputStream, Bitmap> {
@@ -6445,29 +4002,6 @@ public class StreamBitmapDecoder implements ResourceDecoder<InputStream, Bitmap>
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
 可以看到，它的decode()方法又去调用了Downsampler的decode()方法。接下来又到了激动人心的时刻了，Downsampler的代码如下所示：
 
 public abstract class Downsampler implements BitmapDecoder<InputStream> {
@@ -6607,144 +4141,6 @@ public abstract class Downsampler implements BitmapDecoder<InputStream> {
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
-50
-51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72
-73
-74
-75
-76
-77
-78
-79
-80
-81
-82
-83
-84
-85
-86
-87
-88
-89
-90
-91
-92
-93
-94
-95
-96
-97
-98
-99
-100
-101
-102
-103
-104
-105
-106
-107
-108
-109
-110
-111
-112
-113
-114
-115
-116
-117
-118
-119
-120
-121
-122
-123
-124
-125
-126
-127
-128
-129
-130
-131
-132
-133
-134
-135
-136
-137
 可以看到，对服务器返回的InputStream的读取，以及对图片的加载全都在这里了。当然这里其实处理了很多的逻辑，包括对图片的压缩，甚至还有旋转、圆角等逻辑处理，但是我们目前只需要关注主线逻辑就行了。decode()方法执行之后，会返回一个Bitmap对象，那么图片在这里其实也就已经被加载出来了，剩下的工作就是如果让这个Bitmap显示到界面上，我们继续往下分析。
 
 回到刚才的StreamBitmapDecoder当中，你会发现，它的decode()方法返回的是一个Resource<Bitmap>对象。而我们从Downsampler中得到的是一个Bitmap对象，因此这里在第18行又调用了BitmapResource.obtain()方法，将Bitmap对象包装成了Resource<Bitmap>对象。代码如下所示：
@@ -6796,54 +4192,6 @@ public class BitmapResource implements Resource<Bitmap> {
         }
     }
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
 BitmapResource的源码也非常简单，经过这样一层包装之后，如果我还需要获取Bitmap，只需要调用Resource<Bitmap>的get()方法就可以了。
 
 然后我们需要一层层继续向上返回，StreamBitmapDecoder会将值返回到ImageVideoBitmapDecoder当中，而ImageVideoBitmapDecoder又会将值返回到GifBitmapWrapperResourceDecoder的decodeBitmapWrapper()方法当中。由于代码隔得有点太远了，我重新把decodeBitmapWrapper()方法的代码贴一下：
@@ -6856,14 +4204,6 @@ private GifBitmapWrapper decodeBitmapWrapper(ImageVideoWrapper toDecode, int wid
     }
     return result;
 }
-1
-2
-3
-4
-5
-6
-7
-8
 可以看到，decodeBitmapWrapper()方法返回的是一个GifBitmapWrapper对象。因此，这里在第5行，又将Resource<Bitmap>封装到了一个GifBitmapWrapper对象当中。这个GifBitmapWrapper顾名思义，就是既能封装GIF，又能封装Bitmap，从而保证了不管是什么类型的图片Glide都能从容应对。我们顺便来看下GifBitmapWrapper的源码吧，如下所示：
 
 public class GifBitmapWrapper {
@@ -6906,47 +4246,6 @@ public class GifBitmapWrapper {
         return gifResource;
     }
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
 还是比较简单的，就是分别对gifResource和bitmapResource做了一层封装而已，相信没有什么解释的必要。
 
 然后这个GifBitmapWrapper对象会一直向上返回，返回到GifBitmapWrapperResourceDecoder最外层的decode()方法的时候，会对它再做一次封装，如下所示：
@@ -6963,18 +4262,6 @@ public Resource<GifBitmapWrapper> decode(ImageVideoWrapper source, int width, in
     }
     return wrapper != null ? new GifBitmapWrapperResource(wrapper) : null;
 }
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
 可以看到，这里在第11行，又将GifBitmapWrapper封装到了一个GifBitmapWrapperResource对象当中，最终返回的是一个Resource<GifBitmapWrapper>对象。这个GifBitmapWrapperResource和刚才的BitmapResource是相似的，它们都实现的Resource接口，都可以通过get()方法来获取封装起来的具体内容。GifBitmapWrapperResource的源码如下所示：
 
 public class GifBitmapWrapperResource implements Resource<GifBitmapWrapper> {
@@ -7009,39 +4296,6 @@ public class GifBitmapWrapperResource implements Resource<GifBitmapWrapper> {
         }
     }
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
 经过这一层的封装之后，我们从网络上得到的图片就能够以Resource接口的形式返回，并且还能同时处理Bitmap图片和GIF图片这两种情况。
 
 那么现在我们可以回到DecodeJob当中了，它的decodeFromSourceData()方法返回的是一个Resource<T>对象，其实也就是Resource<GifBitmapWrapper>对象了。然后继续向上返回，最终返回到decodeFromSource()方法当中，如下所示：
@@ -7050,10 +4304,6 @@ public Resource<Z> decodeFromSource() throws Exception {
     Resource<T> decoded = decodeSource();
     return transformEncodeAndTranscode(decoded);
 }
-1
-2
-3
-4
 刚才我们就是从这里跟进到decodeSource()方法当中，然后执行了一大堆一大堆的逻辑，最终得到了这个Resource<T>对象。然而你会发现，decodeFromSource()方法最终返回的却是一个Resource<Z>对象，那么这到底是怎么回事呢？我们就需要跟进到transformEncodeAndTranscode()方法来瞧一瞧了，代码如下所示：
 
 private Resource<Z> transformEncodeAndTranscode(Resource<T> decoded) {
@@ -7077,28 +4327,6 @@ private Resource<Z> transcode(Resource<T> transformed) {
     }
     return transcoder.transcode(transformed);
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
 首先，这个方法开头的几行transform还有cache，这都是我们后面才会学习的东西，现在不用管它们就可以了。需要注意的是第9行，这里调用了一个transcode()方法，就把Resource<T>对象转换成Resource<Z>对象了。
 
 而transcode()方法中又是调用了transcoder的transcode()方法，那么这个transcoder是什么呢？其实这也是Glide源码特别难懂的原因之一，就是它用到的很多对象都是很早很早之前就初始化的，在初始化的时候你可能完全就没有留意过它，因为一时半会根本就用不着，但是真正需要用到的时候你却早就记不起来这个对象是从哪儿来的了。
@@ -7128,30 +4356,6 @@ public class GifBitmapWrapperDrawableTranscoder implements ResourceTranscoder<Gi
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
 这里我来简单解释一下，GifBitmapWrapperDrawableTranscoder的核心作用就是用来转码的。因为GifBitmapWrapper是无法直接显示到ImageView上面的，只有Bitmap或者Drawable才能显示到ImageView上。因此，这里的transcode()方法先从Resource<GifBitmapWrapper>中取出GifBitmapWrapper对象，然后再从GifBitmapWrapper中取出Resource<Bitmap>对象。
 
 接下来做了一个判断，如果Resource<Bitmap>为空，那么说明此时加载的是GIF图，直接调用getGifResource()方法将图片取出即可，因为Glide用于加载GIF图片是使用的GifDrawable这个类，它本身就是一个Drawable对象了。而如果Resource<Bitmap>不为空，那么就需要再做一次转码，将Bitmap转换成Drawable对象才行，因为要保证静图和动图的类型一致性，不然逻辑上是不好处理的。
@@ -7179,28 +4383,6 @@ public class GlideBitmapDrawableTranscoder implements ResourceTranscoder<Bitmap,
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
 可以看到，这里new出了一个GlideBitmapDrawable对象，并把Bitmap封装到里面。然后对GlideBitmapDrawable再进行一次封装，返回一个Resource<GlideBitmapDrawable>对象。
 
 现在再返回到GifBitmapWrapperDrawableTranscoder的transcode()方法中，你会发现它们的类型就一致了。因为不管是静图的Resource<GlideBitmapDrawable>对象，还是动图的Resource<GifDrawable>对象，它们都是属于父类Resource<GlideDrawable>对象的。因此transcode()方法也是直接返回了Resource<GlideDrawable>，而这个Resource<GlideDrawable>其实也就是转换过后的Resource<Z>了。
@@ -7234,42 +4416,11 @@ public void run() {
         onLoadComplete(resource);
     }
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
 也就是说，经过第9行decode()方法的执行，我们最终得到了这个Resource<GlideDrawable>对象，那么接下来就是如何将它显示出来了。可以看到，这里在第25行调用了onLoadComplete()方法，表示图片加载已经完成了，代码如下所示：
 
 private void onLoadComplete(Resource resource) {
     manager.onResourceReady(resource);
 }
-1
-2
-3
 这个manager就是EngineJob对象，因此这里实际上调用的是EngineJob的onResourceReady()方法，代码如下所示：
 
 class EngineJob implements EngineRunnable.EngineRunnableManager {
@@ -7389,35 +4540,6 @@ public class Engine implements EngineJobListener,
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
 这次把目光放在第18行上面，看到了吗？就是在这里调用的EngineJob的addCallback()方法来注册的一个ResourceCallback。那么接下来的问题就是，Engine.load()方法的ResourceCallback参数又是谁传过来的呢？这就需要回到GenericRequest的onSizeReady()方法当中了，我们看到ResourceCallback是load()方法的最后一个参数，那么在onSizeReady()方法中调用load()方法时传入的最后一个参数是什么？代码如下所示：
 
 public final class GenericRequest<A, T, Z, R> implements Request, SizeReadyCallback,
@@ -7457,44 +4579,6 @@ public final class GenericRequest<A, T, Z, R> implements Request, SizeReadyCallb
     
     ...
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
 请将目光锁定在第29行的最后一个参数，this。没错，就是this。GenericRequest本身就实现了ResourceCallback的接口，因此EngineJob的回调最终其实就是回调到了GenericRequest的onResourceReady()方法当中了，代码如下所示：
 
 public void onResourceReady(Resource<?> resource) {
@@ -7538,63 +4622,19 @@ private void onResourceReady(Resource<?> resource, R result) {
     if (Log.isLoggable(TAG, Log.VERBOSE)) {
         logV("Resource ready in " + LogTime.getElapsedMillis(startTime) + " size: "
                 + (resource.getSize() * TO_MEGABYTE) + " fromCache: " + loadedFromMemoryCache);
-    }
+        }
 }
-
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
 这里有两个onResourceReady()方法，首先在第一个onResourceReady()方法当中，调用resource.get()方法获取到了封装的图片对象，也就是GlideBitmapDrawable对象，或者是GifDrawable对象。然后将这个值传入到了第二个onResourceReady()方法当中，并在第36行调用了target.onResourceReady()方法。
 
 那么这个target又是什么呢？这个又需要向上翻很久了，在第三步into()方法的一开始，我们就分析了在into()方法的最后一行，调用了glide.buildImageViewTarget()方法来构建出一个Target，而这个Target就是一个GlideDrawableImageViewTarget对象。
 
 那么我们去看GlideDrawableImageViewTarget的源码就可以了，如下所示：
 
-public class GlideDrawableImageViewTarget extends ImageViewTarget<GlideDrawable> {
-    private static final float SQUARE_RATIO_MARGIN = 0.05f;
-    private int maxLoopCount;
-    private GlideDrawable resource;
-
+    public class GlideDrawableImageViewTarget extends ImageViewTarget<GlideDrawable> {
+        private static final float SQUARE_RATIO_MARGIN = 0.05f;
+        private int maxLoopCount;
+        private GlideDrawable resource;
+        
     public GlideDrawableImageViewTarget(ImageView view) {
         this(view, GlideDrawable.LOOP_FOREVER);
     }
@@ -7638,57 +4678,8 @@ public class GlideDrawableImageViewTarget extends ImageViewTarget<GlideDrawable>
             resource.stop();
         }
     }
-}
+    }
 
-1
-2
-3
-4
-5
-6
-7
-8
-9
-10
-11
-12
-13
-14
-15
-16
-17
-18
-19
-20
-21
-22
-23
-24
-25
-26
-27
-28
-29
-30
-31
-32
-33
-34
-35
-36
-37
-38
-39
-40
-41
-42
-43
-44
-45
-46
-47
-48
-49
 在GlideDrawableImageViewTarget的onResourceReady()方法中做了一些逻辑处理，包括如果是GIF图片的话，就调用resource.start()方法开始播放图片，但是好像并没有看到哪里有将GlideDrawable显示到ImageView上的逻辑。
 
 确实没有，不过父类里面有，这里在第25行调用了super.onResourceReady()方法，GlideDrawableImageViewTarget的父类是ImageViewTarget，我们来看下它的代码吧：
@@ -7947,12 +4938,12 @@ Glide的优点
 
 [Android图片加载框架最全解析（二），从源码的角度理解Glide的执行流程](https://blog.csdn.net/guolin_blog/article/details/53939176)
 
-1、[深入理解Glide源码：三条主线分析 Glide 执行流程](https://juejin.cn/post/7028830670692548639)
+[深入理解Glide源码：三条主线分析 Glide 执行流程](https://juejin.cn/post/7028830670692548639)
 
-2、[Android 【手撕Glide】--Glide缓存机制](https://www.jianshu.com/p/b85f89fce019)
+[Android 【手撕Glide】--Glide缓存机制](https://www.jianshu.com/p/b85f89fce019)
 
-3、[Glide 源码分析解读-基于最新版Glide 4.9.0](https://www.jianshu.com/p/9bb50924d42a)
+[Glide 源码分析解读-基于最新版Glide 4.9.0](https://www.jianshu.com/p/9bb50924d42a)
 
-4、[Glide 源码分析解读-缓存模块-基于最新版Glide 4.9.0](https://www.jianshu.com/p/62b7f990ee83)
+[Glide 源码分析解读-缓存模块-基于最新版Glide 4.9.0](https://www.jianshu.com/p/62b7f990ee83)
 
 [Carson带你学Android：手把手带你深入图片加载库Glide源码分析](https://www.jianshu.com/p/216df89bf59c)
