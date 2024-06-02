@@ -6,6 +6,8 @@
 
 ##### 2、dpi
 
+1英寸等于2.54厘米
+
 dpi：dots per inch（每英寸像素数），由设备决定，是**固定的**，可以通过*context.getResources().getDisplayMetrics().densityDpi* 获取。
 
 也可以通过以下方法算出：
