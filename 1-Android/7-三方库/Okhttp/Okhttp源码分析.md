@@ -1,24 +1,24 @@
-## 1. OkHttp 原理概述
+# 1. OkHttp 原理概述
 
-![OkHttp 请求处理流程.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5a37f00640f5463288cc97d6d6c4c8e5~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+<img src="images/Okhttp源码分析/5" alt="OkHttp 请求处理流程.png" style="zoom:50%;" />
 
-OkHttp 是 `Square` 公司开源的一款网络框架，一般和 `Retrofit`、`RxJava` 或`协程`一起使用。OkHttp 支持发起同步请求和异步请求，同步请求对应类的是 `RealCall` ，异步请求对应的是 `AsyncCall` ，AsynCall 是 RealCall 的`内部类`。RealCall 和 AsyncCall 可以理解为`同步请求操作`和`异步请求操作`。
+OkHttp 支持发起同步请求和异步请求，同步请求对应类的是 `RealCall` ，异步请求对应的是 `AsyncCall` ，AsynCall 是 RealCall 的`内部类`。RealCall 和 AsyncCall 可以理解为`同步请求操作`和`异步请求操作`。
 
-当用 RealCall 的 `execute()` 方法`发起同步请求`时，请求会被请求分发器 `Dispatcher` 放到`同步请求操作队列`中，然后直接用 Dispatcher 的 `executed()` 方法执行请求。
+当用 RealCall 的 `execute()` 方法`发起同步请求`时，请求会被请求分发器 `Dispatcher` 放到`同步请求操作队列`中，然后用 Dispatcher 的 `executed()` 方法执行请求。
 
-当用 RealCall 的 `enqueue()` 方法`发起异步请求`时，RealCall 会创建一个 `AsyncCall` 并传到 Dispatcher 的 enqueue() 方法中。Dispatcher 会把异步请求放到`异步请求操作队列`，然后后把异步请求提交到`线程池`中执行，当异步请求被执行时，RealCall 会通过`拦截器链` 发起请求，拦截器链中各个拦截器处理请求的顺序为：`自定义拦截器`—`重试与重定向拦截器`—`首部填充拦截器`—`缓存拦截器`—`连接拦截器 `——`自定义网络拦截器`—`数据交换拦截器`。
+当用 RealCall 的 `enqueue()` 方法`发起异步请求`时，RealCall 会创建一个 `AsyncCall` 并传到 Dispatcher 的 enqueue() 方法中。Dispatcher 会把异步请求放到`异步请求操作队列`，然后把异步请求提交到`线程池`中执行，当异步请求被执行时，RealCall 会通过`拦截器链` 发起请求，拦截器链中各个拦截器处理请求的顺序为：`自定义拦截器`—`重试与重定向拦截器`—`首部填充拦截器`—`缓存拦截器`—`连接拦截器 `——`自定义网络拦截器`—`数据交换拦截器`。
 
-`Dispatcher` 的实现比较简单，主要是做一些请求数量判断，`比如同一主机的最大请求数量默认为 5`， `同时进行的异步请求数量最大为 64` ，超过这这两个值时异步请求就不会立刻提交到线程池中。
+`Dispatcher` 主要是做一些请求数量判断，`比如同一host的最大请求数量默认为 5`， `同时进行的异步请求数量最大为 64` ，超过这两个值时异步请求就不会立刻提交到线程池中。
 
 OkHttp 允许我们`自定义拦截器`和`自定义网络拦截器`，自定义拦截器是`最先执行的拦截器`，而网络拦截器是`连接建立后`才会处理请求的拦截器，而且网络拦截器不会处理 WebSocket 连接。
 
-拦截器链 `RealInterceptorChain` 中有一个 `proceed()` 方法，各个拦截器对在处理完自己的逻辑后，就要调用 proceed() 方法让下一个拦截器处理请求。
+拦截器链 `RealInterceptorChain` 中有一个 `proceed()` 方法，各个拦截器在处理完自己的逻辑后，就要调用 proceed() 方法让下一个拦截器处理请求。
 
 在`重试与重定向拦截器` 中，proceed() 方法是放在一个 `while` 循环中执行的，而且还用 `try-catch` 代码块包住了，这样其他拦截器抛出异常时，重试与重定向拦截器才能处理这些`路线异常`和 `IO 异常`。RetryAndFollowUpInterceptor 中的`重定向逻辑`主要是在重试与重定向拦截器的 `followUpRequest()` 方法中，在这个方法中会根据不同的响应状态码构建重定向请求，比如状态码为 `407` 时，就会返回一个包含`认证挑战`的请求。
 
 重试与重定向拦截器的下一个拦截器是 `BridgeInterceptor` ，这个拦截器负责给`填写一些请求首部`，比如把请求地址的 `host` 组件拿出来，放到 host 首部中。当 BridgeInterceptor 把默认需要填写信息的首部的信息填写完后，就会把请求交给缓存拦截器 `CacheInterceptor` 处理。
 
-OkHttp 默认是不进行缓存的，如果如果想要`缓存请求和响应`的话，就要用`缓存目录`和`缓存大小`创建一个 `Cache` ，Cache 中使用了一个 `DiskLruCachec` ，也就是 Cache 使用了`最近最少使用缓存算法`来缓存请求和响应数据，创建好 Cache 后设置给 OkHttpClient 就可以缓存响应数据了。设置了 Cache 后，默认情况下缓存拦截器只会缓存 `GET` 和 `HEAD` 等获取资源的方法的请求，如果想对 `POST` 或 `PUT` 等修改资源的方法，就要自定义缓存拦截器。
+OkHttp 默认是不进行缓存的，如果想要`缓存请求和响应`的话，就要用`缓存目录`和`缓存大小`创建一个 `Cache` ，Cache 中使用了一个 `DiskLruCachec` ，也就是 Cache 使用了`最近最少使用缓存算法`来缓存请求和响应数据，创建好 Cache 后设置给 OkHttpClient 就可以缓存响应数据了。设置了 Cache 后，默认情况下缓存拦截器只会缓存 `GET` 和 `HEAD` 等获取资源的方法的请求，如果想对 `POST` 或 `PUT` 等修改资源的方法做缓存，就要自定义缓存拦截器。
 
 OkHttp 的连接机制是从`连接拦截器` ConnectInterceptor 的 intercept() 方法开始的，连接机制可以分为 `HTTP 连接机制`，`HTTPS 连接机制`和 `HTTP/2 连接机制`。
 
@@ -38,71 +38,79 @@ RealConnection 的 `connect()` 方法的核心逻辑是放在 `while` 循环中�
 
 当 `数据交换拦截器` CallServerInterceptor 接收到请求时，就会用 `数据交换器 Exchange` 写入请求头和请求体，而 `Exchange` 会通过 `Socket` 提供的的`输出流`写入请求信息，通过`输入流`读取响应信息，当 CallServerInterceptor 读取完了响应信息后，就会往上传递，直到把响应信息返回给最开始发起请求的地方。
 
-## 2. OkHttp 基本用法
+# 2. OkHttp 基本用法
 
-接下来讲解的 OkHttp 版本是 4.9.0 ，演示代码是用 Kotlin 写的。
+```kotlin
+    fun asyncGet() {
+        val url = "http://wwww.baidu.com"
+        val okHttpClient = OkHttpClient()
+        val request: Request = Request.Builder().url(url).get() //默认就是GET请求，可以省略
+                .build()
+        val call: Call = okHttpClient.newCall(request)
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d(TAG, "onFailure: ")
+            }
+            
+            @Throws(IOException::class)
+            override fun onResponse(call: Call, response: Response) {
+                //response.body().string() 获得服务器返回的数据
+                Log.d(TAG, "onResponse: " + response.body()?.string())
+            }
+        })
+    }
+```
 
-首先添加依赖。
-
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b31e98cae8784fbaa0ca89e8f9168441~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
-
-然后创建 OkHttpClient 和 Request，再用 OkHttpClient 的 newCall() 方法创建一个 RealCall。然后再用 RealCall 的 execute() 方法发起同步请求，或把一个回调传入 RealCall 的 enqueue() 方法中，以发起异步请求。
-
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/451c88feabf944f586006920cfb2ff68~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
-
-## 3. 请求信息 Request
-
-![ILfU0h.png](https://s3.jpg.cm/2021/06/09/ILfU0h.png)
+# 3. 请求信息 Request
 
 Request 包含了请求相关信息，比如请求方法和请求地址和请求头等信息，下面来看一下 Request 中这些字段的作用。
 
-#### 3.1.1 统一资源定位器 HttpUrl
+## 3.1统一资源定位器 HttpUrl
 
-![ILf1bW.png](https://s3.jpg.cm/2021/06/09/ILf1bW.png)
+Request 会把传入 url() 函数中的请求地址转化为 HttpUrl 对象，HttpUrl 包含了`协议 scheme`、`登录信息（用户名/密码）`、`主机地址`、`端口号`、`查询路径`、`查询参数`以及`片段标识符 fragment`。
 
-Request 会把我们传入 url() 函数中的请求地址转化为 HttpUrl 对象，HttpUrl 包含了`协议 scheme`、`登录信息（用户名/密码）`、`主机地址`、`端口号`、`查询路径`、`查询参数`以及`片段标识符 fragment`。
+- ##### 协议
 
-##### 1. 协议
+  使用 http: 或 https 等协议方案名获取访问资源时，要指定协议类型，不区分字母大小写，最后加一个冒号（ : ）。
 
-使用 http: 或 https 等协议方案名获取访问资源时，要指定协议类型，不区分字母大小写，最后加一个冒号（ : ）。
+- ##### 登录信息（认证）
 
-##### 2. 登录信息（认证）
+  指定用户名和密码作为从服务端获取资源时必要的登录信息（身份认证），这是可选项。
 
-指定用户名和密码作为从服务端获取资源时必要的登录信息（身份认证），这是可选项。
+- ##### 主机
 
-##### 3. 主机
+  主机组件标识了因特网上能够访问资源的宿主机器，比如 `www.xxx.com` 或 `192.168.1.66` 。
 
-主机组件标识了因特网上能够访问资源的宿主机器，比如 `www.xxx.com` 或 `192.168.1.66` 。
+- ##### 端口号
 
-##### 4. 端口号
+  端口组件标识了服务器正在监听的网络端口，对下层使用了 TCP 协议的 HTTP 来说，默认端口为 `80` 。
 
-端口组件标识了服务器正在监听的网络端口，对下层使用了 TCP 协议的 HTTP 来说，默认端口为 `80` 。
+- ##### 查询路径
 
-##### 5. 查询路径
+  服务器上资源的本地名，由斜杠（ / ）将其与前面的 URL 组件分隔开来，路径组件的语法与服务器的方案有关。
 
-服务器上资源的本地名，由斜杠（ / ）将其与前面的 URL 组件分隔开来，路径组件的语法与服务器的方案有关。
+  路径组件说明了资源位于服务器的什么地方，类似于分级的文件系统路径，比如 `/goods/details` 。
 
-路径组件说明了资源位于服务器的什么地方，类似于分级的文件系统路径，比如 `/goods/details` 。
+- ##### 查询参数
 
-##### 6. 查询参数
+  比如数据库服务是可以通过提供查询参数缩小请求资源范围的，传入页码和页大小查询列表 `http://www.xxx.com/?page=1&pageNum=20` 。
 
-比如数据库服务是可以通过提供查询参数缩小请求资源范围的，传入页码和页大小查询列表 `http://www.xxx.com/?page=1&pageNum=20` 。
+- ##### 片段标识符
 
-##### 7. 片段标识符
+  片段（fragment）表示一部分资源的名字，该字段不会发送给服务器，是在客户端内部使用的，通过井号（#）将其与 URL 其余部分分割开来。
 
-片段（fragment）表示一部分资源的名字，该字段不会发送给服务器，是在客户端内部使用的，通过井号（#）将其与 URL 其余部分分割开来。
 
-#### 3.1.2 首部字段 Headers
+## 3.2 首部字段 Headers
 
 Header 用于存放 HTTP 首部，Headers 中只有一个 `namesAndValues` 字段，类型为 Array<String> ，比如 `addHeader(a, 1)` 对应的 namesAndValues 为 `[a, 1]`。
 
 HTTP 协议的请求和响应报文中必定包含 HTTP 首部，首部内容为客户端和服务器分别处理请求和响应提供所需要的信息，HTTP 报文由方法、URI、HTTP 版本、HTTP 首部字段等部分构成。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/dd451f68199d4bb3955c6ce5a9c2236e~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/dd451f68199d4bb3955c6ce5a9c2236etplv-k3u1fbpfcp-jj-mark3024000q75.webp)
 
-#### 3.1.3 请求体 RequestBody
+## 3.3 请求体 RequestBody
 
-![RequestBody.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ea792d2047aa444b96640100bbb04465~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RequestBody.png](images/Okhttp源码分析/ea792d2047aa444b96640100bbb04465tplv-k3u1fbpfcp-jj-mark3024000q75.webp)
 
 RequestBody 是一个抽象类，有下面 3 个方法。
 
@@ -118,13 +126,12 @@ RequestBody 是一个抽象类，有下面 3 个方法。
 
    RequestBody 中还有 4 个用于创建 RequestBody 的扩展方法 xxx.toRequestBody() ，比如 Map.toString().toRequestBody()。
 
-#### 3.1.4 标签
+## 3.4 标签
 
 我们可以用 tag() 方法给请求加上标签，然后在拦截器中根据不同的标签栏做不同的操作。
 
 ```kotlin
-kotlin
-复制代码val request = Request.Builder()
+val request = Request.Builder()
     .url(...)
     .tag("666")
     .build()
@@ -133,8 +140,7 @@ kotlin
 在 Retrofit 中用的则是 @Tag 注解，比如下面这样。
 
 ```kotlin
-kotlin
-复制代码@POST("app/login")
+@POST("app/login")
 suspend fun login(
   @Query("account") phone: String,
   @Query("password") password: String,
@@ -145,8 +151,7 @@ suspend fun login(
 然后在自定义拦截器中，就能根据 tag 的类型来获取标签。
 
 ```kotlin
-kotlin
-复制代码override fun intercept(chain: Interceptor.Chain): Response {
+override fun intercept(chain: Interceptor.Chain): Response {
     val request = chain.request()
     val tag = request.tag(String::class.java)
     Log.e("intercept", "tag: ${tag}")
@@ -154,29 +159,50 @@ kotlin
 }
 ```
 
-## 4. OkHttp 请求分发机制
+# 4. OkHttp 请求分发机制
 
-### 4.1 请求操作 Call
+## 4.1 请求操作 Call
 
-在我们创建请求 Request 后，要用 `OkHttpClient` 的 `newCall()` 方法创建一个 RealCall 对象，然后调用 execute() 发起同步请求或调用 enqueue() 发起异步请求。
+在创建请求 Request 后，要用 `OkHttpClient` 的 `newCall()` 方法创建一个 RealCall 对象，然后调用 execute() 发起同步请求或调用 enqueue() 发起异步请求。
 
-RealCall 实现了 Call 接口，也是这个接口唯一的实现类，按注释来说，RealCall 是一个 OkHttp 应用与网络层之间的桥梁，该类暴露了高级应用层的原语（primitives）：连接、请求、响应与流，你也可以把 RealCall 理解为`同步请求操作`，而 RealCall 的内部类 AsyncCall 则是`异步请求操作`。
+RealCall 实现了 Call 接口，也是这个接口唯一的实现类，按注释来说，RealCall 是一个 OkHttp 应用与网络层之间的桥梁，该类暴露了高级应用层的原语（primitives）：连接、请求、响应与流，可以把 RealCall 理解为`同步请求操作`，而 RealCall 的内部类 AsyncCall 则是`异步请求操作`。
 
-下面但是 RealCall 中比较中要的两个方法的实现：`execute()` 与 `enqueue()` 。
+下面是 RealCall 中比较中要的两个方法的实现：`execute()` 与 `enqueue()` 。
 
-##### 1. 发起同步请求 execute()
+### 1. 发起同步请求 execute()
 
-当我们调用 RealCall 的 `execute()` 方法发起同步请求时，如果该请求已执行，那么会抛出非法状态异常，所以`发起同步请求时要注意捕获异常`。
+当调用 RealCall 的 `execute()` 方法发起同步请求时，如果该请求已执行，那么会抛出非法状态异常，所以`发起同步请求时要注意捕获异常`。
 
-如果请求没有被执行的话，execute() 方法则会调用 AsyncTimeout 的 `enter()` 方法让 `AsyncTimeout` 在请求超时的时候关闭 Socket 或流，AsyncTimeout 中有一个继承了 Thread 的内部类 `WatchDog`，AsyncTimeout 会用 `Object.wait()/notify()` 阻塞和唤醒 `Watchdog` 线程。
+如果请求没有被执行的话，execute() 方法则会调用 AsyncTimeout 的 `enter()` 让 `AsyncTimeout` 在请求超时的时候关闭 Socket 或流，AsyncTimeout 中有一个继承了 Thread 的内部类 `WatchDog`，AsyncTimeout 会用 `Object.wait()/notify()` 阻塞和唤醒 `Watchdog` 线程。
 
-![RealCallExecute().png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b6edc587d66247739cbad3e1f57d3a6c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+```kotlin
+  override fun execute(): Response {
+    check(executed.compareAndSet(false, true)) { "Already Executed" }
+	// 超时的话就关闭 Socket 或流
+    timeout.enter()
+    callStart()
+    try {
+      // 把 RealCall 添加到同步请求操作队列
+      client.dispatcher.executed(this)
+      // 执行请求
+      return getResponseWithInterceptorChain()
+    } finally {
+      // 把当前请求 RealCall 从同步请求操作队列中删除
+      client.dispatcher.finished(this)
+    }
+  }
+
+Dispatcher
+  @Synchronized internal fun executed(call: RealCall) {
+    runningSyncCalls.add(call)
+  }
+```
 
 AsyncTimeout 有 SocketAsyncTimeout 和 StreamTimeout 两个内部类，当请求超时时，AsyncTimeout 的 timeOut() 方法就会被调用，在 SocketAsyncTimeout 中，timeOut() 的方法的实现就是关闭 Socket ，而在 StreamTimeout 中的实现就是关闭流。
 
 在 RealCall 的 execute() 方法调用完 enter() 方法后，会调用 Dispatcher 的 executed() 把请求加入同步请求队列，然后调用 `getResponseWithInterceptorChain()` 方法获取响应，获取到响应后，就会让 Dispatcher 把请求从同步请求操作队列中移除。
 
-##### 2. 发起异步请求 enqueue()
+### 2. 发起异步请求 enqueue()
 
 RealCall 的 execute() 方法会创建一个异步请求操作 `AsyncCall`，并把它交给 Dispatcher 处理。
 
@@ -186,42 +212,138 @@ AsyncCall 实现了 Runnable 接口，Dispatcher 接收到 AsyncCall 后，会�
 
 和同步请求一样，在 AsyncCall 的 `run()` 方法中做的第一件事情就是让 AsyncTimeout 进入超时判断逻辑，然后用拦截器链获取响应。
 
-![RealCall.enqueue()](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/814e0212ea9a46d899b12d6e109b4449~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealCall.enqueue()](images/Okhttp源码分析/814e0212ea9a46d899b12d6e109b4449tplv-k3u1fbpfcp-jj-mark3024000q75.webp)
 
 当请求的过程中没有遇到异常时，AsyncCall 的 run() 方法就会调用我们设定的 Callback 的 onResposne() 回调，如果遇到了异常，则会调用 onFailure() 方法。
 
 不论异步请求是成功还是失败，RealCall 最后都会调用 Dispatcher 的 `finished()` 方法把请求从已运行异步请求队列 `runningAsyncCalls` 中移除。
 
-![RealCallEnqueue().png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9d1d1d41d5f84198b146f63c48086595~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+```kotlin
+  override fun enqueue(responseCallback: Callback) {
+    check(executed.compareAndSet(false, true)) { "Already Executed" }
+
+    callStart()
+    // 把 AsyncCall 添加到异步请求操作队列
+    client.dispatcher.enqueue(AsyncCall(responseCallback))
+  }
+```
 
 Dispatcher 的 enqueue() 方法实现如下。
 
-![DispatcherEnqueue().png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/934ae44ac7624c619544394ef3d5e3ef~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+```kotlin
+  internal fun enqueue(call: AsyncCall) {
+    synchronized(this) {
+      // 把 AsyncCall 添加到待执行异步请求操作队列中
+      readyAsyncCalls.add(call)
+	  
+      // 不是 WebSocket 连接请求
+      if (!call.call.forWebSocket) {
+        // 找出与当前请求地址的host相同的 AsyncCall
+        val existingCall = findExistingCallWithHost(call.host)
+        // 沿用已有 AsyncCall 的 callsPerHost 字段
+        if (existingCall != null) call.reuseCallsPerHostFrom(existingCall)
+      }
+    }
+    // 找出并执行请求
+    promoteAndExecute()
+  }
+```
 
 ### 4.2 请求分发器 Dispatcher
 
-![ILfs5O.png](https://s3.jpg.cm/2021/06/09/ILfs5O.png)
-
-请求分发器 Dispatcher 做的事情并不多，只是维护了三个队列和一个线程池，这三个队列分别是`待执行异步请求队列`、`运行中异步请求队列`以及`运行中同步请求队列`。
-
-![ILf9VD.png](https://s3.jpg.cm/2021/06/09/ILf9VD.png)
+请求分发器 Dispatcher 维护了三个队列和一个线程池，三个队列分别是`待执行异步请求队列`、`运行中异步请求队列`以及`运行中同步请求队列`。
 
 Dispatcher 的 `enqueue()` 方法首先会把 `AsyncCall` 加入到待执行请求队列，然后从待运行和已运行请求队列中找出与当前请求的主机地址相同的其他请求，找到的话就找到的请求的重用 AsyncCall 的 `callsPerHost` 字段，`callsPerHost 表示当前请求的主机地址的已执行请求数量`，每执行一个相同主机地址的请求时， callsPerHost 的值就会加 1 ，如果我们的应用中经常会发起多个请求，并且不会请求多个不同的主机地址的话，我们就可以修改 Dispatcher 中的 `maxRequestsPerHost` 的值，`maxRequetsPerHost 表示单个主机地址在某一个时刻的并发请求的最大值`，修改方式如下。
 
 ```kotlin
-kotlin
-复制代码okHttpClient.dispatcher.maxRequestsPerHost = 10
+okHttpClient.dispatcher.maxRequestsPerHost = 10
 ```
 
 maxRequestsPerHost 默认为 5 ，如果对应主机地址的请求数量没有超过最大值的话，Dispatcher 就会遍历待运行异步请求队列，在遍历时，Dispatcher 会判断已运行的异步请求数量是否超出了允许的并发请求的最大值 `maxRequests` ，这个值默认为 `64` ，也是可以被修改的，当异步请求数量不超过最大值，并且对应主机地址的请求数量不超过最大值时，就会把待运行请求`提交到线程池中执行`。
 
-![promoteAndExecute().png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/87e7a8a595574065842173b45c3fc859~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+```kotlin
+// 遍历执行请求
+private fun promoteAndExecute(): Boolean {
+    this.assertThreadDoesntHoldLock()
 
-当同步请求或异步请求执行时，RealCall 就会调用`getResponseWithInterceptorChain()` 方法发起请求，在 getResponseWithInterceptorChain() 方法中，首先会创建一个 `interceptors` 列表，然后添加拦截器到列表中，再用用 interceptors 创建一个拦截器链 `RealInterceptorChain` ，然后调用拦截器链的 `proceed()` 方法。
+    // 可执行请求操作列表
+    val executableCalls = mutableListOf<AsyncCall>()
+    val isRunning: Boolean
+    synchronized(this) {
+      val i = readyAsyncCalls.iterator()
+      while (i.hasNext()) {
+        val asyncCall = i.next()
 
-![getResponseWithInterceptorChain().png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f63fd344d485457b88d03b380312fefc~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+        // 超出最大请求数
+        if (runningAsyncCalls.size >= this.maxRequests) break // Max capacity.
+        // 超出单个host最大请求数
+        if (asyncCall.callsPerHost.get() >= this.maxRequestsPerHost) continue // Host max capacity.
 
-## 5. OkHttp 重试与重定向机制
+        // 把 AsyncCall 从待执行异步请求队列中移除
+        i.remove()
+        // callsPerHost 字段加 1
+        asyncCall.callsPerHost.incrementAndGet()
+        // 添加到可执行请求操作队列
+        executableCalls.add(asyncCall)
+        // 添加到已运行请求操作队列
+        runningAsyncCalls.add(asyncCall)
+      }
+      isRunning = runningCallsCount() > 0
+    }
+
+    // 遍历执行可执行的 AsyncCall
+    for (i in 0 until executableCalls.size) {
+      // 把 AsyncCall 提交到线程池中执行
+      val asyncCall = executableCalls[i]
+      asyncCall.executeOn(executorService)
+    }
+
+    return isRunning
+  }
+```
+
+当同步请求或异步请求执行时，RealCall 就会调用`getResponseWithInterceptorChain()` 方法发起请求，在 getResponseWithInterceptorChain() 方法中，首先会创建一个 `interceptors` 列表，然后添加拦截器到列表中，再用 interceptors 创建一个拦截器链 `RealInterceptorChain` ，然后调用拦截器链的 `proceed()` 方法。
+
+```kotlin
+RealCall.kt
+// 使用拦截器链获取响应
+@Throws(IOException::class)
+  internal fun getResponseWithInterceptorChain(): Response {
+    // 构建拦截器
+    val interceptors = mutableListOf<Interceptor>()
+    interceptors += client.interceptors
+    interceptors += RetryAndFollowUpInterceptor(client)
+    interceptors += BridgeInterceptor(client.cookieJar)
+    interceptors += CacheInterceptor(client.cache)
+    interceptors += ConnectInterceptor
+    // 不处理 WebSocket
+    if (!forWebSocket) {
+      interceptors += client.networkInterceptors
+    }
+    interceptors += CallServerInterceptor(forWebSocket)
+
+    val chain = RealInterceptorChain(
+        ...
+    )
+
+    var calledNoMoreExchanges = false
+    try {
+      // 处理请求
+      val response = chain.proceed(originalRequest)
+      ...
+      return response
+    } catch (e: IOException) {
+      calledNoMoreExchanges = true
+      throw noMoreExchanges(e) as Throwable
+    } finally {
+      if (!calledNoMoreExchanges) {
+        noMoreExchanges(null)
+      }
+    }
+  }
+```
+
+# 5. OkHttp 重试与重定向机制
 
 ##### 1. 重试机制
 
@@ -1048,8 +1170,7 @@ CertificatePinner 会通过公钥锁定限制客户端信任的证书，在 Cert
 首先配置一个错误的哈希值。
 
 ```kotlin
-kotlin
-复制代码val certificatePinner = CertificatePinner.Builder()
+val certificatePinner = CertificatePinner.Builder()
         .add(
             "publicobject.com", 
           "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
@@ -1063,8 +1184,7 @@ val client = OkHttpClient.Builder()
 然后就会看到包含服务器端证书的公钥哈希值的信息，比如下面这样（前提是服务器端配置了证书）。
 
 ```ini
-ini
-复制代码javax.net.ssl.SSLPeerUnverifiedException: Certificate pinning failure!
+javax.net.ssl.SSLPeerUnverifiedException: Certificate pinning failure!
    Peer certificate chain:
      sha256/afwiKY3RxoMmLkuRW1l7QsPZTJPwDS2pdDROQjXw8ig=: CN=publicobject.com, OU=PositiveSSL
      sha256/klO23nT2ehFDXCfx3eHTDRESMz3asj1muO+4aIdjiuY=: CN=COMODO RSA Secure Server CA
@@ -1081,8 +1201,7 @@ ini
 然后把这些哈希值作为 pin 添加到 CertificatePinner 中即可。
 
 ```kotlin
-kotlin
-复制代码val certificatePinner = CertificatePinner.Builder()
+val certificatePinner = CertificatePinner.Builder()
     .add("publicobject.com", "sha256/afwiKY3RxoMmLkuRW1l7QsPZTJPwDS2pdDROQjXw8ig=")
     .add("publicobject.com", "sha256/klO23nT2ehFDXCfx3eHTDRESMz3asj1muO+4aIdjiuY=")
     .add("publicobject.com", "sha256/grX4Ta9HpZx6tSHkmCrvpApTQGo67CYDnvprLg5yRME=")

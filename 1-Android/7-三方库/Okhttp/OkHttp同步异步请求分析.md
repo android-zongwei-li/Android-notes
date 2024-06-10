@@ -309,43 +309,39 @@ private <T> void finished(Deque<T> calls, T call) {
 
 在同步请求中Dispatcher主要负责了两件事，同步请求的保存和移除。
 
-## 异步请求
+# 异步请求
 
 ```java
- //  构建okHttpClient，相当于请求的客户端，Builder设计模式
- OkHttpClient okHttpClient = new OkHttpClient.Builder().readTimeout(5, TimeUnit.SECONDS).build();
-        // 构建一个请求体，同样也是Builder设计模式
-        Request request = new Request.Builder().url("http://www.baidu.com").build();
-        //  生成一个Call对象，该对象是接口类型，后面会说
-        Call call = okHttpClient.newCall(request);
-        call.enqueue(new Callback() {
-                    @Override
-                    public void onFailure(Call call, IOException e) {
-                        
-                    }
-
-                    @Override
-                    public void onResponse(Call call, Response response) throws IOException {
-
-                    }
-                });
+        val okHttpClient = OkHttpClient.Builder().build()
+        val request: Request = Request.Builder().url("http://wwww.baidu.com").build()
+        val call: Call = okHttpClient.newCall(request)
+        call.enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.d(TAG, "onFailure: ")
+            }
+            
+            @Throws(IOException::class)
+            override fun onResponse(call: Call, response: Response) {
+                //response.body().string() 获得服务器返回的数据
+                Log.d(TAG, "onResponse: " + response.body()?.string())
+            }
+        })
 ```
 
-简单的看下异步请求的几个步骤：
+异步请求的几个步骤：
 
-##### 1.通过Builder模式创建OkHttpClient对象和Request对象
+1. ##### 通过Builder模式创建OkHttpClient对象和Request对象
 
-##### 2.调用OkHttpClient的newCall方法，获取一个Call对象，参数是Request
+2. ##### 调用OkHttpClient的newCall方法，获取一个Call对象，参数是Request
 
-##### 3.调用call对象的enqueue()方法
-
-步骤1和步骤2跟同步请求的步骤一致，主要看一下步骤3
-
-### 异步请求源码：call.enqueue() 源码分析
-
-异步请求和同步请求的步骤1和步骤2一致，都是在做准备工作，并没有发起请求，所以这次我们直接忽略了步骤1和步骤2的分析，直接分析步骤3的源码，我们点开RealCall的enqueue方法：
+3. ##### 调用call对象的enqueue()方法
 
 
+步骤1和步骤2跟同步请求的步骤一致，都是在做准备工作，并没有发起请求，下面主要看一下步骤3
+
+## call.enqueue() 源码分析
+
+RealCall#enqueue方法：
 
 ```java
 @Override public void enqueue(Callback responseCallback) {
@@ -355,14 +351,15 @@ private <T> void finished(Deque<T> calls, T call) {
     }
     captureCallStackTrace();
     eventListener.callStart(this);
+    // 分析1：AsyncCall是什么
+    // 分析2：dispatcher().enqueue()
     client.dispatcher().enqueue(new AsyncCall(responseCallback));
   }
 ```
 
-**我们看看它的核心代码： client.dispatcher().enqueue(new AsyncCall(responseCallback))，**
-client.dispatcher()返回一个Dispatcher对象没什么可讲的，紧接着调用Dispatcher的enqueue方法，参数是AsyncCall对象，我们先看看AsyncCall是什么？
+### 分析1：AsyncCall是什么
 
-
+client.dispatcher()返回一个Dispatcher对象，Dispatcher的enqueue方法，参数是AsyncCall对象，AsyncCall是什么？
 
 ```java
 final class AsyncCall extends NamedRunnable {
@@ -377,13 +374,10 @@ final class AsyncCall extends NamedRunnable {
     AtomicInteger callsPerHost() {
       return callsPerHost;
     }
-  
-  }
+}
 ```
 
-只截取了部分代码，该类继承自NamedRunnable,我们看看NamedRunnable：
-
-
+只截取了部分代码，该类继承自NamedRunnable：
 
 ```java
 public abstract class NamedRunnable implements Runnable {
@@ -407,147 +401,9 @@ public abstract class NamedRunnable implements Runnable {
 }
 ```
 
-NamedRunnable 实现了Runnable 接口。
+NamedRunnable 实现了Runnable 接口。execute()是一个抽象方法，AsyncCall 类提供实现：
 
-我们直接去Dispatcher的enqueue()看看做了哪些操作。
-
-
-
-```csharp
-void enqueue(AsyncCall call) {
-   synchronized (this) {
-     readyAsyncCalls.add(call);
-
-     // Mutate the AsyncCall so that it shares the AtomicInteger of an existing running call to
-     // the same host.
-     if (!call.get().forWebSocket) {
-       AsyncCall existingCall = findExistingCallWithHost(call.host());
-       if (existingCall != null) call.reuseCallsPerHostFrom(existingCall);
-     }
-   }
-   promoteAndExecute();
- }
-```
-
-在同步代码块中，将当前的call请求添加到**待准备消息队列**中去，**注意这里跟同步请求的区别，同步请求的时候，并没有把当前的call添加到准备消息队列中去。**然后又调用了 promoteAndExecute()方法，同步请求的时候也调用了promoteAndExecute()方法
-
-
-
-```csharp
-private boolean promoteAndExecute() {
-    assert (!Thread.holdsLock(this));
-
-    List<AsyncCall> executableCalls = new ArrayList<>();
-    boolean isRunning;
-    synchronized (this) {
-      for (Iterator<AsyncCall> i = readyAsyncCalls.iterator(); i.hasNext(); ) {
-        AsyncCall asyncCall = i.next();
-
-        if (runningAsyncCalls.size() >= maxRequests) break; // Max capacity.
-        if (asyncCall.callsPerHost().get() >= maxRequestsPerHost) continue; // Host max capacity.
-
-        i.remove();
-        asyncCall.callsPerHost().incrementAndGet();
-        executableCalls.add(asyncCall);
-        runningAsyncCalls.add(asyncCall);
-      }
-      isRunning = runningCallsCount() > 0;
-    }
-
-    for (int i = 0, size = executableCalls.size(); i < size; i++) {
-      AsyncCall asyncCall = executableCalls.get(i);
-      asyncCall.executeOn(executorService());
-    }
-
-    return isRunning;
-  }
-```
-
-此时,readyAsyncCalls不为空了，我们单独的把这个for循环拎出来讲：
-
-
-
-```csharp
-for (Iterator<AsyncCall> i = readyAsyncCalls.iterator(); i.hasNext(); ) {
-        AsyncCall asyncCall = i.next();
-
-        if (runningAsyncCalls.size() >= maxRequests) break; // Max capacity.
-        if (asyncCall.callsPerHost().get() >= maxRequestsPerHost) continue; // Host max capacity.
-
-        i.remove();
-        asyncCall.callsPerHost().incrementAndGet();
-        executableCalls.add(asyncCall);
-        runningAsyncCalls.add(asyncCall);
-      }
-```
-
-这段代码的含义是：**把符合条件的call请求从readyAsyncCalls提升为runningAsyncCalls，**我们看这段代码中的两个if语句，**第一个if语句判断当前异步请求的执行队列长度大于等于请求最大值，如果满足直接跳出for循环，maxRequests的值为64，第二个if语句判断当前执行的异步请求队列中相同主机的请求数是否大于等于maxRequestsPerHost（每个主机最大请求数，默认为5）**，如果这两个条件都不满足的情况下，把从readyAsyncCalls取出来的call请求，存到临时的
-executableCalls 队列中去。
-
-紧接着去遍历executableCalls：
-
-
-
-```csharp
-  for (int i = 0, size = executableCalls.size(); i < size; i++) {
-      AsyncCall asyncCall = executableCalls.get(i);
-      asyncCall.executeOn(executorService());
-    }
-```
-
-从executableCalls获取AsyncCall对象，并且调用它的executeOn方法，executeOn()方法参数是executorService()，我们看看executorService():
-
-
-
-```java
- public synchronized ExecutorService executorService() {
-    if (executorService == null) {
-      executorService = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60, TimeUnit.SECONDS,
-          new SynchronousQueue<>(), Util.threadFactory("OkHttp Dispatcher", false));
-    }
-    return executorService;
-  }
-```
-
-可以看出，该方法是一个同步方法，返回的是一个线程池对象，ThreadPoolExecutor()的第二个参数传入了Integer的最大值，即线程池所能容纳的最大线程数为Integer.MAX_VALUE，虽然这里设置了很大的值，但是实际情况下并非会达到最大值，因为上面enqueue()方法中有做了判断。
-
-回到 asyncCall.executeOn(executorService())这里，executorService返回了一个线程池对象，紧接着调用线程池对象的execute方法，execute()方法传入**实现了Runable接口的AsyncCall对象**，前面在分析同步请求的时候，说了AsyncCall实现了Runable接口
-
-![img](https:////upload-images.jianshu.io/upload_images/8744053-54d65ef22289664a.png?imageMogr2/auto-orient/strip|imageView2/2/w/969)
-
-实现Runnable.png
-
-
-
-ok,现在我们要看看线程池做了什么操作，直接去NamedRunnable的run方法看看做了什么操作。
-
-
-
-```java
-public abstract class NamedRunnable implements Runnable {
-  protected final String name;
-
-  public NamedRunnable(String format, Object... args) {
-    this.name = Util.format(format, args);
-  }
-
-  @Override public final void run() {
-    String oldName = Thread.currentThread().getName();
-    Thread.currentThread().setName(name);
-    try {
-      execute();
-    } finally {
-      Thread.currentThread().setName(oldName);
-    }
-  }
-
-  protected abstract void execute();
-}
-```
-
-**execute()是一个抽象方法，所以我们直接去NamedRunnable的实现类AsyncCall的execute()方法看：**
-
-
+AsyncCall#execute()
 
 ```kotlin
 @Override protected void execute() {
@@ -574,12 +430,16 @@ public abstract class NamedRunnable implements Runnable {
       } finally {
         client.dispatcher().finished(this);
       }
-    }
+}
 ```
 
-**这段代码才是真正执行异步请求的逻辑**，getResponseWithInterceptorChain()返回Response对象，然后判断retryAndFollowUpInterceptor是否取消回调CallBack接口的onFailure()或onResponse()方法，最后finally中，和同步请求的处理一样，调用了Dispatcher对象的finished()方法。
+**这段代码是真正执行异步请求的逻辑**：
 
+getResponseWithInterceptorChain()返回Response对象；
 
+然后判断retryAndFollowUpInterceptor是否取消回调，决定调用CallBack接口的onFailure()或onResponse()方法；
+
+最后finally中，和同步请求的处理一样，调用了Dispatcher对象的finished()方法。
 
 ```java
 void finished(RealCall call) {
@@ -601,11 +461,118 @@ void finished(RealCall call) {
   }
 ```
 
-看完promoteAndExecute()方法的具体操作，我们发现，调用eneque的时候会把call请求添加到readyAsyncCalls(异步请求准备队列)中，而readyAsyncCalls队列中的请求什么时候执行呢，看完promoteAndExecute的代码就恍然大悟了。
+### 分析2：dispatcher().enqueue()做了什么
 
-## 总结：异步请求中，我们先去遍历**异步请求的就绪队列**，并判断异步请求的执行队列的队列大小是否小于设置的最大数的时候，如果条件满足，把该请求添加到异步请求的执行队列中去，同时把该请求添加到临时的异步请求的执行队列去中。之后，遍历这个临时的异步请求的执行队列，去执行AsyncCall的execute()方法。
+```csharp
+void enqueue(AsyncCall call) {
+   synchronized (this) {
+     readyAsyncCalls.add(call);
 
-![img](https:////upload-images.jianshu.io/upload_images/8744053-361d2a70b8c1b9aa.png?imageMogr2/auto-orient/strip|imageView2/2/w/1126)
+     // Mutate the AsyncCall so that it shares the AtomicInteger of an existing running call to
+     // the same host.
+     if (!call.get().forWebSocket) {
+       AsyncCall existingCall = findExistingCallWithHost(call.host());
+       if (existingCall != null) call.reuseCallsPerHostFrom(existingCall);
+     }
+   }
+   promoteAndExecute();
+ }
+```
+
+在同步代码块中，将当前的call请求添加到**readyAsyncCalls（准备消息队列）**中去，**注意这里跟同步请求的区别，同步请求的时候，并没有把当前的call添加到准备消息队列中去。**然后又调用了 promoteAndExecute()方法，同步请求的时候也调用了promoteAndExecute()方法
+
+```csharp
+private boolean promoteAndExecute() {
+    assert (!Thread.holdsLock(this));
+
+    List<AsyncCall> executableCalls = new ArrayList<>();
+    boolean isRunning;
+    synchronized (this) {
+      // 分析2.1 遍历 readyAsyncCalls
+      for (Iterator<AsyncCall> i = readyAsyncCalls.iterator(); i.hasNext(); ) {
+        AsyncCall asyncCall = i.next();
+        // 如果正在运行的异步请求队列长度 >= 请求最大值，退出循环。maxRequests的值为64
+        if (runningAsyncCalls.size() >= maxRequests) break; // Max capacity.
+		// 如果当前执行的异步请求队列中，相同host的请求数 >= maxRequestsPerHost（每个主机最大请求数，默认为5），跳过，遍历下一个
+        if (asyncCall.callsPerHost().get() >= maxRequestsPerHost) continue; // Host max capacity.
+
+        i.remove();
+        asyncCall.callsPerHost().incrementAndGet();
+        executableCalls.add(asyncCall);
+        runningAsyncCalls.add(asyncCall);
+      }
+      isRunning = runningCallsCount() > 0;
+    }
+
+    // 分析2.2 遍历 executableCalls
+    for (int i = 0, size = executableCalls.size(); i < size; i++) {
+      AsyncCall asyncCall = executableCalls.get(i);
+      asyncCall.executeOn(executorService());
+    }
+
+    return isRunning;
+  }
+```
+
+此时，readyAsyncCalls不为空了，我们单独的把这个for循环拎出来讲：
+
+**分析2.1 遍历 readyAsyncCalls**
+
+目的是把符合条件的call请求从readyAsyncCalls提升为runningAsyncCalls。
+
+并把符合条件的 AsyncCall 从 readyAsyncCalls 取出来，存到临时的 executableCalls 队列中去
+
+**分析2.2 遍历 executableCalls**
+
+从 executableCalls 中获取 AsyncCall 对象，并且调用其 executeOn() 方法，参数是executorService()：
+
+```java
+ public synchronized ExecutorService executorService() {
+    if (executorService == null) {
+      executorService = new ThreadPoolExecutor(0, Integer.MAX_VALUE, 60, TimeUnit.SECONDS,
+          new SynchronousQueue<>(), Util.threadFactory("OkHttp Dispatcher", false));
+    }
+    return executorService;
+  }
+```
+
+该方法是一个同步方法，返回了一个线程池对象，ThreadPoolExecutor()的第二个参数传入了Integer的最大值，即线程池所能容纳的最大线程数为Integer.MAX_VALUE，虽然这里设置了很大的值，但是实际情况下并非会达到最大值，因为上面enqueue()方法中做了判断。
+
+**asyncCall.executeOn(executorService())**
+
+```kotlin
+    void executeOn(ExecutorService executorService) {
+      assert (!Thread.holdsLock(client.dispatcher()));
+      boolean success = false;
+      try {
+        // 分析2.3 执行 asyncCall Runnable
+        executorService.execute(this);
+        success = true;
+      } catch (RejectedExecutionException e) {
+        InterruptedIOException ioException = new InterruptedIOException("executor rejected");
+        ioException.initCause(e);
+        transmitter.noMoreExchanges(ioException);
+        responseCallback.onFailure(RealCall.this, ioException);
+      } finally {
+        if (!success) {
+          // 成功请求后，这里不会执行，因为在 asyncCall#execute() 中会调用回调。
+          client.dispatcher().finished(this); // This call is no longer running!
+        }
+      }
+    }
+```
+
+**分析2.3 执行 asyncCall Runnable**
+
+分析1中已经知道，asyncCall 是一个 Runnable 对象，在这里通过线程池执行，最终会调用到 asyncCall#execute()。
+
+## 总结
+
+异步请求中，会先去遍历**readyAsyncCalls**队列，判断readyAsyncCalls的队列大小是否小于设置的最大数，如果条件满足，把该请求添加到runningAsyncCalls队列中去，同时把该请求添加到临时的 executableCalls 队列去中。之后，遍历 executableCalls，去执行 AsyncCall的execute()方法。
+
+![image-20240608230720320](images/OkHttp同步异步请求分析/image-20240608230720320.png)
+
+
 
 # 参考
 
