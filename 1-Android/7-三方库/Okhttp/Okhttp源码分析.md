@@ -351,7 +351,87 @@ RealCall.kt
 
 在重试与重定向拦截器的 intercept() 方法中，当请求在后续的拦截器中处理时遇到路线异常（RouteException）或 IO 异常（IOException 时）才会调用 recover() 方法判断是否要重试，不重试则抛出异常。
 
-![RetryAndFollowUpInterceptor.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/00a5c21002ba486d8b3c58d4ce16a1f3~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+```kotlin
+class RetryAndFollowUpInterceptor(private val client: OkHttpClient) : Interceptor {
+
+  @Throws(IOException::class)
+  override fun intercept(chain: Interceptor.Chain): Response {
+...
+    while (true) {
+      // 初始化 RealCall 的 ExchangeFinder
+      call.enterNetworkInterceptorExchange(request, newExchangeFinder)
+
+      try {
+...
+        try {
+          response = realChain.proceed(request)
+...
+        } catch (e: RouteException) {
+          // 通过某个路线连接后失败，请求不会被发送
+          if (!recover(e.lastConnectException, call, request, requestSendStarted = false)) {
+            throw e.firstConnectException.withSuppressed(recoveredFailures)
+          } else {
+            recoveredFailures += e.firstConnectException
+          }
+...
+          continue
+        } catch (e: IOException) {
+          // 与服务器通讯失败，请求可能已发送
+          if (!recover(e, call, request, requestSendStarted = e !is ConnectionShutdownException)) {
+            throw e.withSuppressed(recoveredFailures)
+          } else {
+            recoveredFailures += e
+          }
+...
+          continue
+        }
+
+        // 上一个请求
+        if (priorResponse != null) {
+          response = response.newBuilder()
+              .priorResponse(priorResponse.newBuilder()
+                  .body(null)
+                  .build())
+              .build()
+        }
+
+        // 数据交换器
+        val exchange = call.interceptorScopedExchange
+        // 重定向请求
+        val followUp = followUpRequest(response, exchange)
+
+        if (followUp == null) {
+          if (exchange != null && exchange.isDuplex) {
+            call.timeoutEarlyExit()
+          }
+          closeActiveExchange = false
+          return response
+        }
+
+        val followUpBody = followUp.body
+        if (followUpBody != null && followUpBody.isOneShot()) {
+          closeActiveExchange = false
+          return response
+        }
+
+        response.body?.closeQuietly()
+
+        if (++followUpCount > MAX_FOLLOW_UPS) {
+          // 超出最大重定向请求20
+          throw ProtocolException("Too many follow-up requests: $followUpCount")
+        }
+
+        request = followUp
+        priorResponse = response
+      } finally {
+        // 取消连接或关闭流
+        call.exitNetworkInterceptorExchange(closeActiveExchange)
+      }
+    }
+  }
+    
+}
+```
 
 当下面 4 个条件之一满足时，则不进行重试。
 
@@ -379,8 +459,7 @@ RealCall.kt
   - DNS 服务器返回多个 IP 地址
 
 ```kotlin
-kotlin
-复制代码private fun recover(): Boolean {
+private fun recover(): Boolean {
     // 应用层禁止重试
     if (!client.retryOnConnectionFailure) return false
 
