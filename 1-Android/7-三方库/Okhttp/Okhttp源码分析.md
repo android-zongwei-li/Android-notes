@@ -345,7 +345,7 @@ RealCall.kt
 
 # 5. OkHttp 重试与重定向机制
 
-##### 1. 重试机制
+## 1. 重试机制
 
 重试与重定向拦截器负责在请求失败时`重试和重定向`，在 RetryAndFollowUpInterceptor 的 `intercept()` 方法中的代码是放在 while 中执行的，只有当重试的条件不成立时，请求才会被中断，而且这个拦截器没有设定重试次数的上限，最大重定向次数是写死的 20 次，如果有特殊需求的话，则要自定义一个重试拦截器和重定向拦截器。
 
@@ -433,7 +433,7 @@ class RetryAndFollowUpInterceptor(private val client: OkHttpClient) : Intercepto
 }
 ```
 
-当下面 4 个条件之一满足时，则不进行重试。
+当满足下面 4 个条件之一时，则不进行重试。
 
 - OkHttpClient 的 retryOnConnectionFailure 的值为 false
 
@@ -442,7 +442,7 @@ class RetryAndFollowUpInterceptor(private val client: OkHttpClient) : Intercepto
   满足下面两个条件时表示不能再次发送请求体。
 
   - 请求执行过程中遇到 IO 异常（不包括 Http2Connection 抛出的 ConnectionShutdownException）
-  - requestIsOneShot() 返回 true，这个方法默认为 false ，除非我们自己重写了这个方法）
+  - requestIsOneShot() 返回 true，这个方法默认为 false，除非我们自己重写了这个方法
 
 - 致命异常
 
@@ -481,13 +481,13 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 初始化 ExchangeFinder 后会把 Request 给其他拦截器处理，如果在这个过程中遇到了 IO 异常或路线异常，则会调用 rocover() 方法判断是否恢复请求，不恢复的话则抛出异常。
 
-##### 2. 重定向机制
+## 2. 重定向机制
 
-![重试与重定向处理流程.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/7326d6b224a64f5c80331921b875e450~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![重试与重定向处理流程.png](images/Okhttp源码分析/7326d6b224a64f5c80331921b875e450~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 如果其他拦截器处理当前请求时没有抛出异常的话，那么 `RetryAndFollowUpInterceptor` 的 intercept() 方法就会判断上一个响应（priorResponse）是否为空，如果不为空的话，则用上一个响应的信息创建一个新的响应（Response），创建完新响应后，就会调用 `followUpRequest() 方法` 获取重定向请求。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/18e1d05239f141d79d63b7320fdc18ea~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/18e1d05239f141d79d63b7320fdc18ea~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 `followUpRequest()` 方法会根据不同的响应状态码构建重定向请求，当状态码为 407 ，并且协议为 HTTP ，则返回一个包含认证挑战的请求，而获取这个请求用的是 `Authenticator` 。Authenticator 有一个 `authenticate()` 方法，默认的是一个空实现 NONE，如果我们想替换的话，可以在创建 OkHttpClient 的时候调用 authenticator() 方法替换默认的空实现。
 
@@ -495,15 +495,15 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 在 JavaNetAuthenticator 的 `authenticate()` 方法中，会获取响应中的 Challenge（质询）列表，Challenge 列表就是对 `WWW-Authenticate` 和 `Proxy-Authenticate` 响应头解析后生成的。
 
-##### 3. 处理 3XX 重定向状态码
+## 3. 处理 3XX 重定向状态码
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/53086fcbf3a246ab9dc1f50d8aa8e8aa~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/53086fcbf3a246ab9dc1f50d8aa8e8aa~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 当响应的状态码为 300、301、302、303、307、308 时， `followUpRequest()` 方法就会调用 `buildRedirectRequest()` 构建重定向请求，3xx 重定向状态码要么告诉客户端使用替代位置访问客户端感兴趣的资源，要么提供一个替代的响应而不是资源的内容。
 
 当资源被移动后，服务器可发送一个重定向状态码和一个可选的 Location 首部告诉客户端资源已被移走，以及现在哪里可以找到该资源，这样客户端就可以在不打扰使用者的情况在新的位置获取资源了。
 
-## 6.OkHttp 首部填充机制
+# 6.OkHttp 首部填充机制
 
 重试与重定向拦截器只有在请求的过程中遇到异常或需要重定向的时候才有事做，在它收到请求后会把请求直接通过拦截器链交给下一个拦截器，也就是 `BridgeInterceptor` 处理。
 
@@ -519,8 +519,7 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 - User-Agent：HTTP 客户端程序的信息
 
 ```kotlin
-kotlin
-复制代码class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
+class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
 
   @Throws(IOException::class)
   override fun intercept(chain: Interceptor.Chain): Response {
@@ -589,90 +588,89 @@ kotlin
 }
 ```
 
-下面我们来看下这些首部的作用。
+## 首部的作用
 
-##### 1. Content-Type：实体主体的媒体类型
+- Content-Type：实体主体的媒体类型
 
-```
-Content-Type: text/html; charset-UTF-8
-```
+  ```
+  Content-Type: text/html; charset-UTF-8
+  ```
 
-首部字段 Content-Type 说明了实体主体内对象的媒体类型，字段值用 type/subtype 形式赋值，比如 image/jpeg 。
+  首部字段 Content-Type 说明了实体主体内对象的媒体类型，字段值用 type/subtype 形式赋值，比如 image/jpeg 。
 
-##### 2. Content-Length：实体主体的大小
+- Content-Length：实体主体的大小
 
-首部字段 Content-Length 表明了实体主体部分的大小（单位是字节），对实体主体进行内容编码传输时，不能再使用 Content-Length 首部字段。
+  首部字段 Content-Length 表明了实体主体部分的大小（单位是字节），对实体主体进行内容编码传输时，不能再使用 Content-Length 首部字段。
 
-##### 3. Transfer-Encoding：指定报文主体的传输方式
+- Transfer-Encoding：指定报文主体的传输方式
 
-```
-Transfer-Encoding: chunked
-```
+  ```
+  Transfer-Encoding: chunked
+  ```
 
-首部字段 Transfer-Encoding 规定了传输报文主体时采用的编码方式，HTTP/1.1 的传输编码方式仅对分块传输编码有效。
+  首部字段 Transfer-Encoding 规定了传输报文主体时采用的编码方式，HTTP/1.1 的传输编码方式仅对分块传输编码有效。
 
-##### 4. Host：请求资源所在的服务器
+- Host：请求资源所在的服务器
 
-```
-Host: www.xxx.com
-```
+  ```
+  Host: www.xxx.com
+  ```
 
-首部字段 Host 告诉服务器请求的资源所处的互联网主机名和端口号，Host 首部字段在 HTTP/1.1 规范中是一个必须被包含在请求内的首部字段。
+  首部字段 Host 告诉服务器请求的资源所处的互联网主机名和端口号，Host 首部字段在 HTTP/1.1 规范中是一个必须被包含在请求内的首部字段。
 
-##### 5. Connection
+- Connection
 
-HTTP 允许在客户端和最终的源服务器之间存在一串 HTTP 的中间实体（代理、高速缓存等），可以从客户端开始，逐跳地将 HTTP 报文经过这些中间设备转发到源服务器上。
+  HTTP 允许在客户端和最终的源服务器之间存在一串 HTTP 的中间实体（代理、高速缓存等），可以从客户端开始，逐跳地将 HTTP 报文经过这些中间设备转发到源服务器上。
 
-在某些情况下，两个相邻的 HTTP 应用程序会为它们共享的连接应用一组选项，而 Connection 首部字段中有一个由逗号分隔的链接标签列表，这些标签为此连接指定了一些不会被传播到其他连接中的选项，比如用 `Connection:close` 说明发送完下一条报文后必须关闭的连接。
+  在某些情况下，两个相邻的 HTTP 应用程序会为它们共享的连接应用一组选项，而 Connection 首部字段中有一个由逗号分隔的链接标签列表，这些标签为此连接指定了一些不会被传播到其他连接中的选项，比如用 `Connection:close` 说明发送完下一条报文后必须关闭的连接。
 
-Connection 首部可以承载 3 种不同类型的标签。
+  Connection 首部可以承载 3 种不同类型的标签。
 
-- HTTP 首部字段名，列出了只与此连接有关的首部；
-- 任意标签值，用于描述此连接的非标准选项；
-- close，说明操作完成后要关闭这条持久连接；
+  1. HTTP 首部字段名，列出了只与此连接有关的首部；
+  2. 任意标签值，用于描述此连接的非标准选项；
+  3. close，说明操作完成后要关闭这条持久连接；
 
-在 BridgeInterceptor 中，当我们没有设置 Connection 首部时，BridgeInterceptor 会传一个值为 Keep-Alive 的 Connection 首部用于开启持久连接，关于持久连接后面会讲到。
+  在 BridgeInterceptor 中，当我们没有设置 Connection 首部时，BridgeInterceptor 会传一个值为 Keep-Alive 的 Connection 首部用于开启持久连接，关于持久连接后面会讲到。
 
-##### 6. Cookie
+- Cookie
 
-两个与 Cookie 有关的首部字段。
+  两个与 Cookie 有关的首部字段。
 
-- 响应首部字段 Set-Cookie：开始状态管理所使用的 Cookie 信息
-- 请求首部字段 Cookie：服务器接收到的 Cookie 信息
+  1. 响应首部字段 Set-Cookie：开始状态管理所使用的 Cookie 信息
+  2. 请求首部字段 Cookie：服务器接收到的 Cookie 信息
 
-```
-Cookie: status=enable
-```
+  ```
+  Cookie: status=enable
+  ```
 
-首部字段 Cookie 会告诉服务器，当客户端想获得 HTTP 状态管理支持时，就会在请求中包含从服务器接收到的 Cookie，接收到多个 Cookie 时，同样可以以多个 Cookie 形式发送。
+  首部字段 Cookie 会告诉服务器，当客户端想获得 HTTP 状态管理支持时，就会在请求中包含从服务器接收到的 Cookie，接收到多个 Cookie 时，同样可以以多个 Cookie 形式发送。
 
-在 BridgeInterceptor 中，与 Cookie 相关的实现为 CookieJar 接口，默认是一个空实现类，如果我们想传 Cookie 给服务器端的话，可以在创建 OkHttpClient 时调用 cookieJar() 传入我们自己的实现。
+  在 BridgeInterceptor 中，与 Cookie 相关的实现为 CookieJar 接口，默认是一个空实现类，如果我们想传 Cookie 给服务器端的话，可以在创建 OkHttpClient 时调用 cookieJar() 传入我们自己的实现。
 
-##### 7. User-Agent：HTTP 客户端程序的信息
+- User-Agent：HTTP 客户端程序的信息
 
-首部字段 User-Agent 会将创建请求的浏览器和用户代理名称等信息传达给服务器，由网络爬虫发起请求时，有可能会在字段内添加爬虫作者的电子邮件地址，如果请求经过代理，中间也有可能被添加上代理服务器的名称。
+  首部字段 User-Agent 会将创建请求的浏览器和用户代理名称等信息传达给服务器，由网络爬虫发起请求时，有可能会在字段内添加爬虫作者的电子邮件地址，如果请求经过代理，中间也有可能被添加上代理服务器的名称。
 
-在 BridgeInterceptor 中，当我们没有设置 User-Agent 时，默认的 UserAgent 为 okhttp:版本号，也就是`User-Agent: okhttp:4.9.0`。
+  在 BridgeInterceptor 中，当我们没有设置 User-Agent 时，默认的 UserAgent 为 okhttp:版本号，也就是`User-Agent: okhttp:4.9.0`。
 
-## 7. OkHttp 缓存机制
+# 7.OkHttp 缓存机制
 
 当 BridgeInterceptor 把要传给服务器端的首部放到 Request 中后，就会把请求交给缓存拦截器 CacheInterceptor 处理。
 
 ### 5.1 HTTP 缓存的处理步骤
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/281d69c143fb4d03978f9aa783db5187~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/281d69c143fb4d03978f9aa783db5187~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 对一条 HTTP GET 报文的基本缓存处理包括`接收`、`解析`、`查询`、`新鲜度检测`、`创建响应`、`发送`和`创建日志` 7 个步骤。
 
 `接收`就是缓存从网络中读取抵达的请求报文。`解析`就是缓存对报文进行解析，提取出 URL 和各种首部。`查询`就是缓存查看是否有本地副本可用，如果没有就获取一份副本并将其保存在本地。`新鲜度检测`就是缓存查看已缓存副本是否足够新鲜，如果不是就询问服务器是否有新的资源。`创建响应`就是缓存会用新的首部和已缓存的主体来构建一条响应报文。`发送`就是缓存通过网络把响应发给客户端。`创建日志`就是缓存可以创建一个日志文件条目描述这个事务。
 
-`CacheInterceptor` 大致上也是按这 7 个步骤来处理缓存的，只是在这个而基础上进行了一些细化。
+`CacheInterceptor` 大致上也是按这 7 个步骤来处理缓存的，只是在这个基础上进行了一些细化。
 
 缓存控制首部 `Cache-Control` 在 OkHttp 的缓存机制中发挥着主要作用，通过指定 Cache-Control 的指令，就能操作缓存的工作机制，该指令的参数是可选的，多个指令之间通过`,`分隔，比如下面这样。
 
 ```ini
-ini
-复制代码Cache-Control: private, max-age=0, no-cache
+Cache-Control: private, max-age=0, no-cache
 ```
 
 ### 5.2 获取缓存
@@ -680,8 +678,7 @@ ini
 RealCall 的 `getResponseWithInterceptorChain()` 方法在创建 CacheInterceptor 时，会把 OkHttpClient 中的 `cache`字段赋值给 CacheInterceptor ，默认为空，如果我们想使用缓存的话，要在创建 OkHttpClient 初始化时用 `cache()`方法设置缓存，比如下面这样。
 
 ```kotlin
-kotlin
-复制代码/**
+/**
  * 网络缓存数据的最大值（字节）
  */
 const val MAX_SIZE_NETWORK_CACHE = 50 * 1024 * 1024L
@@ -707,7 +704,7 @@ private fun initOkHttpClient() {
 
 当 get() 方法获取到快照后，就会用快照的输入流创建 Entry ，在 Entry 的构造方法中，会从输入流读取缓存的请求和响应的相关信息，读取完后就会关闭输入流。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/fdb9bfb7f5184114808b225b4abb040b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/fdb9bfb7f5184114808b225b4abb040b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 创建完 Entry 后，Cache.get() 就会判断缓存中的请求地址和请求方法与当前请求是否匹配，匹配的话则返回响应，不匹配的话则关闭响应体并返回 null ，这里说的关闭响应体指的是关闭要用来写入响应体的文件输入流。
 
@@ -735,7 +732,7 @@ private fun initOkHttpClient() {
 
 ##### 2. 临时重定向状态码的缓存判断
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/53a862fde48e4a6abe60fa9855c0920d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/53a862fde48e4a6abe60fa9855c0920d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 当响应的状态码为 302 或 307 时，isCacheable() 方法就会根据响应的 Expires 首部和 Cache-Control 首部判断是否返回 false（不缓存）。
 
@@ -743,7 +740,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ### 5.4 获取响应
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/0bb0f2656880420bb3647543f2688d20~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/0bb0f2656880420bb3647543f2688d20~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 CacheInterceptor 调用 compute() 方法创建 CacheStrategy 时，如果 CacheControl 中有 `onlyIfCached`（不重新加载响应）指令，那么 CacheStrategy 的 cacheResponse 字段也为空。
 
@@ -755,19 +752,19 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ### 5.5 保存响应
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/31bef860bef14f99903a3c7384fc3209~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/31bef860bef14f99903a3c7384fc3209~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在获取到响应后，CacheInterceptor 会判断缓存响应的是否为空，如果不为空，并且状态码为 `304`（未修改）的话，则用新的响应替换 LruCache 中的缓存。
 
 如果缓存响应为空，就把响应通过 Cache.put() 方法保存到磁盘中，保存后，如果请求方法为 PATCH、PUT、DELETE 会 MOVE 等修改资源的方法，那就把响应从缓存中删除。
 
-## 8. OkHttp 连接建立机制
+# 8. OkHttp 连接建立机制
 
-看完了缓存处理机制后，我们来看下 OkHttp 中负责建立连接的 `ConnectInterceptor`。
+负责建立连接的 `ConnectInterceptor`。
 
-ConnectInterceptor 的 intercept() 方法没做什么事情，主要就是调用了 RealCall 的 initExchange() 方法建立连接。
+ConnectInterceptor 的 intercept() 主要是调用了 RealCall 的 initExchange() 方法建立连接。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e0cef60fefd4d5aa1046dded40f15fd~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/4e0cef60fefd4d5aa1046dded40f15fd~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 RealCall 的 initExchange() 方法中，会用 ExchangeFinder.find() 查找可重用的连接或创建新连接，ExchangeFinder.find() 方法会返回一个数据编译码器 `ExchangeCodec`。ExchangeCodec 负责编码 HTTP 请求进行以及解码 HTTP 响应，Codec 为 Coder-Decoder （编码器—解码器）的缩写。
 
@@ -776,8 +773,7 @@ RealCall 获取到 ExchangeCodec 后，就会用 ExchangeCodec 创建一个数�
 ExchangeFinder 的 find() 方法会辗转调用到它最核心的 `findConnection()` 方法，在看 findConnection() 方法的实现前，我们先来了解一些 HTTP 连接相关的知识。
 
 ```kotlin
-kotlin
-复制代码class ExchangeFinder(
+class ExchangeFinder(
   //... 
 ) {
 
@@ -809,17 +805,17 @@ kotlin
 }
 ```
 
-### 6.1 HTTP 连接管理
+## 6.1 HTTP 连接管理
 
 HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不多，HTTP 连接是 HTTP 报文传输的文件通道，为了更好地理解网络编程中可能遇到的问题，HTTP 应用程序的开发者需要理解 HTTP 连接的来龙去脉以及如何使用这些连接。
 
-世界上几乎所有的 HTTP 通信都是由 TCP/IP 承载的，TCP/IP 是全球计算机及网络设备都在使用的一种常用的分组交换网络分层鞋以及。
+几乎所有的 HTTP 通信都是由 TCP/IP 承载的，TCP/IP 是全球计算机及网络设备都在使用的一种常用的分组交换网络分层协议。
 
 客户端应用程序可以打开一条 TCP/IP 连接，连接到可能运行在世界任何地方的服务器应用程序，一旦连接建立起来了，在客户端与服务器的计算机之间交换的报文就永远不会丢失、受损或失序。
 
 ##### 1. TCP/IP 通信传输流
 
-![通信传输流.gif](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/9081b72e3fbb4e72af27e0f82261a76d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![通信传输流.gif](images/Okhttp源码分析/9081b72e3fbb4e72af27e0f82261a76d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.gif)
 
 用 TCP/IP 协议族进行网络通信时，会通过分层顺序与对方进行通信，发送端从应用层往下走，接收端从链路层往上走。
 
@@ -829,9 +825,11 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 也就是发送端在层与层之间传输数据时，每经过一层就会被打上该层所属的首部信息，接收端在层与层传输数据时，每经过一层就会把对应的首部消去，这种把数据信息包装起来的做法称为`封装`（encapsulate）。
 
+每一层只需关注和处理改层的信息。
+
 ##### 2. TCP 套接字编程
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a3833229b729485b8488c4cce127c94a~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/a3833229b729485b8488c4cce127c94a~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 操作系统提供了一些操作 TCP 连接的工具，下面是 Socket API 提供的一些主要接口，Socket API 最初是为 Unix 操作系统开发的，但现在几乎所有的操作系统和语言中都有其变体存在。
 
@@ -847,23 +845,25 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 Socket API 允许用户创建 TCP 的端点和数据结构，把这些端点与远程服务器的 TCP 端点进行连接，并对数据流进行读写。
 
-### 6.2 释放连接![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5523416e658246c99a86277cb6c7eef2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+## 6.2 释放连接
+
+![image](images/Okhttp源码分析/5523416e658246c99a86277cb6c7eef2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 看完了 HTTP 连接的相关知识，下面我们来看下 ExchangeFinder 的 `findConnection()` 方法的实现。
 
 findConnection() 方法大致做了 3 件事，首先会`尝试复用 RealCall 已有的连接`，没有已有连接的话则`尝试从连接池获取连接复用`，如果连接池没有可复用连接的话，则`创建一个新连接并返回给 CallServerInterceptor 使用`。
 
-在 findConnection() 方法中，首先会看下是否要释放当前 RealCall 的连接ExchangeFInder 会判断 RealCall 的 connection 字段是否为空，如果不为空，表示该请求已经被调用过并且成功建立了连接。这时 ExchangeFinder 就会判断 RealCall 的 connection 的 noNewExchanges 是否为 true，这个值表示不能创建新的数据交换器，默认为 false。
+在 findConnection() 方法中，首先会看下是否要释放当前 RealCall 的连接 ExchangeFInder 会判断 RealCall 的 connection 字段是否为空，如果不为空，表示该请求已经被调用过并且成功建立了连接。这时 ExchangeFinder 就会判断 RealCall 的 connection 的 noNewExchanges 是否为 true，这个值表示不能创建新的数据交换器，默认为 false。
 
 当请求或响应有 Connection 首部，并且 Connection 首部的值为 close 时，那么 Connection 的 noNewExchanges 的值就会被改为 true ，因为 `Connection:close` 表示不重用连接，如果你忘了 Connection 首部的作用，可以回到第 4 大节首部拦截器看一下。
 
-当连接的 `noNewExchanges` 的值为 true 时，或当前请求地址的主机和端口号和与有连接中的主机和端口号不相同时，ExchangeFinder 就会调用 RealCall 的 `releaseConnectionNoevents()` 方法尝试释放连接，如果如果连接未释放，则返回该连接，否则关闭连接对应的 Socket。
+当连接的 `noNewExchanges` 的值为 true 时，或当前请求地址的主机和端口号和与有连接中的主机和端口号不相同时，ExchangeFinder 就会调用 RealCall 的 `releaseConnectionNoevents()` 方法尝试释放连接，如果连接未释放，则返回该连接，否则关闭连接对应的 Socket。
 
 RealCall 的 connection 的类型为 RealConnection，RealConnection 中维护了一个 Call 列表，每当有一个 RealCall 复用该连接时，RealConnection 就会把它添加到这个列表中。
 
 而释放连接的操作，其实就是看下 RealConnection 的 Call 列表中有没有当前 RealCall ，有的话就把当前 RealCall 从列表中移除，这时就表示连接已释放，如果连接的 Call 列表中没有当前 Call 的话，则返回当前 Call 的连接给 CallServerInterceptor 用。
 
-### 6.3 从连接池获取连接
+## 6.3 从连接池获取连接
 
 当 `RealCall` 的连接释放后， `ExchangeFinder` 就会尝试从连接池 `RealConnectionPool` 获取连接，RealConnectionPool 中比较重要的两个成员是 `keepAliveDuration` 和 `connection`。
 
@@ -873,13 +873,12 @@ keepAliveDuration 是持久连接时间，默认为 5 分钟，也就是`一条�
 
 当第一次从连接池获取不到连接时，ExchangeFinder 会尝试用路线选择器 RouteSelector 来选出其他可用路线，然后把这些路线（routes）传给连接池，再次尝试获取连接，获取到则返回连接。
 
-### 6.4 创建新连接
+## 6.4 创建新连接
 
 当两次从尝试从连接池连接都获取不到时，ExchangeFinder 就会创建一个新的连接 RealConnection，然后调用它的 connect() 方法，并返回该连接。
 
 ```kotlin
-kotlin
-复制代码class ExchangeFinder(
+class ExchangeFinder(
   private val connectionPool: RealConnectionPool,
   internal val address: Address,
   private val call: RealCall,
@@ -941,9 +940,9 @@ kotlin
 }
 ```
 
-### 6.5 连接 Socket
+## 6.5 连接 Socket
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a180f34e960342469c548c5876751c37~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/a180f34e960342469c548c5876751c37~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 `RealConnection` 的 `connect()` 方法中首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
@@ -951,7 +950,7 @@ kotlin
 
 关于连接隧道在后面讲 HTTPS 的时候会讲到，下面先来看下 `connectSocket()` 方法的实现。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/cfb3871c5c8c41609bf3cd95abb8be3b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/cfb3871c5c8c41609bf3cd95abb8be3b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 RealConnection 的 connectSocket() 方法中，首先会判断代理方式，如果代理方式为无代理（DIRECT）或 HTTP 代理，则使用 Socket 工厂创建 Socket，否则使用 `Socket(proxy)` 创建 Socket。
 
@@ -959,34 +958,33 @@ kotlin
 
 Platform 的 connectSocket() 方法调用了 Socket 的 connect() 方法，后面就是 Socket API 的活了。
 
-### 6.6 建立协议
+## 6.6 建立协议
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ac83b8bbce5440f6b2bb9e791edce182~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/ac83b8bbce5440f6b2bb9e791edce182~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 创建完 Socket 后，RealConnection 的 connect() 方法就会调用 establishProtocol() 方法建立协议。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/859de456cee549938d6a5f4453620333~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/859de456cee549938d6a5f4453620333~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
-在 establishProtocol() 方法中会判断，如果使用的方案是 HTTP 的话，则判断是否基于先验启动 HTTP/2（`rfc_7540_34`），先验指的是预先知道，也就是`客户端知道服务器端支持 HTTP/2` ，不需要不需要升级请求，如果不是基于先验启动 HTTP/2 的话，则把协议设为 HTTP/1.1 。
+在 establishProtocol() 方法中会判断，如果使用的方案是 HTTP 的话，则判断是否基于先验启动 HTTP/2（`rfc_7540_34`），先验指的是预先知道，也就是`客户端知道服务器端支持 HTTP/2` ，不需要升级请求，如果不是基于先验启动 HTTP/2 的话，则把协议设为 HTTP/1.1 。
 
 OkHttpClient 默认的协议有 HTTP/1.1 和 HTTP/2 ，如果我们已经知道`服务器端支持明文 HTTP/2` ，我们就可以把协议改成下面这样。
 
 ```kotlin
-kotlin
-复制代码val client = OkHttpClient.Builder()
+val client = OkHttpClient.Builder()
     .protocols(mutableListOf(Protocol.H2_PRIOR_KNOWLEDGE))
     .build()
 ```
 
 如果请求使用的方案为 HTTP 的话，establishProtocol() 方法则会调用 `connectTls()` 方法连接 TLS ，如果使用的 HTTP 版本为 HTTP/2.0 的话，则开始 HTTP/2.0 请求。
 
-## 9. HTTPS 连接建立机制
+# 9. HTTPS 连接建立机制
 
-在看 `connectTls()` 方法的实现前，我们先来看一些 HTTPS 相关的基础知识，如果你已经了解的话，可以跳过这一段直接从 8.2 小节看起。
+在看 `connectTls()` 方法的实现前，我们先来看一些 HTTPS 相关的基础知识。
 
 ### 9.1 HTTPS 基础知识
 
-![明文传输.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/d26da047f01e4dac85750a29e852ea2c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![明文传输.png](images/Okhttp源码分析/d26da047f01e4dac85750a29e852ea2c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 `HTTP` 模式下，搜索或访问请求是以`明文信息`传输，经过`代理服务器`、`路由器`、`WiFi 热点`、`服务运营商`等`中间人`通路，形成了“中间人”获取数据、篡改数据的可能。
 
@@ -994,7 +992,7 @@ kotlin
 
 #### 9.1.1 中间人攻击
 
-接下来我们来看下什么是`中间人攻击`，中间人攻击分为`被动攻击`和`主动攻击`两种。
+中间人攻击分为`被动攻击`和`主动攻击`两种。
 
 中间人就是在客户端和服务器通信之间有个无形的黑手，而对于客户端和服务器来说，根本没有意识到中间人的存在，也没有办法进行防御。
 
@@ -1014,7 +1012,7 @@ kotlin
 
 #### 9.1.2 握手层与加密层
 
-![握手层与加密层.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/066e2ea94a9847959771e5bf520e1fbf~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![握手层与加密层.png](images/Okhttp源码分析/066e2ea94a9847959771e5bf520e1fbf~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两层组成，握手层在加密层的上层，提供加密所需要的信息（密钥块）。
 
@@ -1032,9 +1030,9 @@ HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两�
 
 下面分别是使用 RSA 密码套件和 DHE_RSA 密码套件的 TLS 协议流程图。
 
-![使用 RSA 密码套件的 TLS 协议流程图.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/551d60af39e3454790808e0de83abd2d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![使用 RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/551d60af39e3454790808e0de83abd2d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
-![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/298458120d564eeeaef56ec1fdd984b7~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/298458120d564eeeaef56ec1fdd984b7~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 #### 9.1.3 握手
 
@@ -1056,11 +1054,11 @@ HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两�
 
 HTTP 是没有握手过程的，完成一次 HTTP 交互，客户端和服务器端只要一次请求/响应就能完成。
 
-而一次 HTTP 交互，客户端和服务器端要进行多次交互才能完成，交互的过程就是协商，泌乳客户端告诉服务器端其支持的密码套件，服务器端从中选择一个双方都支持的密码套件。
+而一次 HTTPS 交互，客户端和服务器端要进行多次交互才能完成，交互的过程就是协商，比如客户端告诉服务器端其支持的密码套件，服务器端从中选择一个双方都支持的密码套件。
 
 密码套件的构成如下图所示。
 
-![密码套件结构.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/bedc333804424180b45d128d98b57c93~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![密码套件结构.png](images/Okhttp源码分析/bedc333804424180b45d128d98b57c93~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 #### 9.1.4 加密
 
@@ -1088,7 +1086,7 @@ TLS 记录协议中加密参数（Security Paramters）的值都是 TLS/SSL 握�
 
 下面是完整的 TLS/SSL 握手协议交互流程。
 
-![完整握手协议交互流程.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/876429ebcc7e464dad2cee9829ff85c2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![完整握手协议交互流程.png](images/Okhttp源码分析/876429ebcc7e464dad2cee9829ff85c2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 握手协议的主要步骤如下：
 
@@ -1147,7 +1145,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 基于 SessionTIcket 进行完整的握手
 
-![基于 SessionTicket 进行完整的握手.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/4e8f9bd9ed26438084f17083fcda9825~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![基于 SessionTicket 进行完整的握手.png](images/Okhttp源码分析/4e8f9bd9ed26438084f17083fcda9825~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 对于一次新连接，如果期望服务器支持 SessionTicket 会话恢复，则在客户端` Client Hello 消息中包含一个空的 SessionTicket TLS 扩展`。
 
@@ -1159,7 +1157,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 2. 基于 SessionTicket 进行简短的握手
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/53446d257f2e49adb9e89205037c4670~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/53446d257f2e49adb9e89205037c4670~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 基于 SessionTicket 进行会话恢复的流程如下。
 
@@ -1172,7 +1170,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 隧道
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/f26d71621db4421b8f46037acf6762a1~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/f26d71621db4421b8f46037acf6762a1~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 隧道（tunnel）是建立起来后，就会在两条连接之间对原始数据进行盲转发的 HTTP 应用程序，HTTP 隧道通常用来在一条或多条 HTTP 连接上转发非 HTTP 数据，转发时不会窥探数据。
 
@@ -1182,19 +1180,19 @@ HTTP/SSL 隧道收到一条 HTTP 请求，要求建立一条到目的地之和�
 
 ##### 2. connectTunnel()
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/a96acbda44ae4218835de3b1d5828c4c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/a96acbda44ae4218835de3b1d5828c4c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 RealConnection 的 connect() 方法首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
 如果没有连接过的话，则判断 URL 是否用的 HTTPS 方案，是的话则连接隧道。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/284c6f2ab2064970b4b80be6f0fb885e~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/284c6f2ab2064970b4b80be6f0fb885e~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 而 RealConnection 调用 connectTunnel() 方法后，connectTunnel() 会调用 connectSocket() 和 createTunnel() 方法创建Socket 和隧道。
 
 ### 9.3 创建隧道
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/165002801ed346b0ad2fde286acf4026~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/165002801ed346b0ad2fde286acf4026~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 RealConnection 的 createTunnel() 方法中，首先会创建 Http1ExchangeCodec ，然后用它来写入请求行，写完了就再刷新缓冲区，然后读取响应报文首部。
 
@@ -1202,9 +1200,9 @@ RealConnection 的 connect() 方法首先会判断当前连接是否已连接，
 
 如果状态码为 407 ，表示需要进行代理认证，这时就会使用 Authenticator 的 authenticate() 方法创建并返回一个认证请求。
 
-### .4 获取连接规格
+### 4 获取连接规格
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e25463d9476748ac96f6e98c87b50617~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/e25463d9476748ac96f6e98c87b50617~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在前面提到了 connectTls() 方法，下面来看下这个方法的实现。
 
@@ -1228,7 +1226,7 @@ ALPN（应用层协议协商扩展，Application Layer Protocol Negotiation）�
 
 ##### 2. 配置 TLS 扩展
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/b0cb43fc2a7e48db9e8d96acfd2e22b3~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/b0cb43fc2a7e48db9e8d96acfd2e22b3~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判断 ConnectionSpec 是否支持 TLS 扩展，如果支持的话，则调用特定平台（Platform）的 configureTlsExtentions() 方法配置 TLS 扩展。
 
@@ -1238,7 +1236,7 @@ RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判�
 
 ### 9.6 证书锁定
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/56cbde5b33954999bb87b39418a123f8~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/56cbde5b33954999bb87b39418a123f8~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在调用了 SSLSocket 的 startHandshake() 方法后，RealConnection 就会创建一个 Handshake 对象，Handshake 包含了对端证书，对于我们客户端来说也就是服务器端的证书。
 
@@ -1288,7 +1286,7 @@ val certificatePinner = CertificatePinner.Builder()
     .build()
 ```
 
-## 10. HTTP/2 连接建立机制
+# 10. HTTP/2 连接建立机制
 
 ### 10.1 HTTP/2 基础知识
 
@@ -1319,11 +1317,11 @@ HTTP/2 中的二进制表示用于发送和接收消息数据，但是消息本�
 
 HTTP/1 是一种同步的、独占的请求—响应协议，客户端发送 HTTP/1 消息，然后服务器返回 HTTP/1 响应，为了能更快地收发更多数据，HTTP/1 的解决办法就是打开多个连接，并且使用资源合并，以减少请求数，但是这种解决办法会引入其他问题和带来性能开销。
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/ae7fed4776cb4626b8dae93df223a22f~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/ae7fed4776cb4626b8dae93df223a22f~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
-而 HTTP/2 允许在单个连接上同时执行多个请求，每个 HTTP 请求或响应使用不同的流，通过使用二进制分帧层（Binary Framing Layer）给每个镇分配一个流标识符，以支持同时发出多个独立请求，当接收到该流的所有帧时，接收方可以把帧组合成完整消息。
+而 HTTP/2 允许在单个连接上同时执行多个请求，每个 HTTP 请求或响应使用不同的流，通过使用二进制分帧层（Binary Framing Layer）给每个帧分配一个流标识符，以支持同时发出多个独立请求，当接收到该流的所有帧时，接收方可以把帧组合成完整消息。
 
-帧是同时发送多个消息的关键，每个镇都有标签表明它属于哪个消息（流），这样在一个连接上就可以同时有两个、三个甚至上百个消息。
+帧是同时发送多个消息的关键，每个帧都有标签表明它属于哪个消息（流），这样在一个连接上就可以同时有两个、三个甚至上百个消息。
 
 从严格意义上来说，HTTP/2 请求并不是同时发出去的，因为帧在 HTTP/TCP 连接上也需要依次发送，HTTP/1.1 本质上也是这样的，因为虽然看起来有多个连接，但是在网络层上通常只有一个连接，所以最终会从网络层排队发送每个请求。
 
@@ -1335,7 +1333,7 @@ HTTP2 与 HTTP/1 的不同主要在消息发送的层面上，在更上层，HTT
 
 ##### 3. HTTP/2 中的流
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/15d864f6545e45038aa4111757090753~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/15d864f6545e45038aa4111757090753~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 HTTP2 中每个流的作用类似于 HTTP/1 中的连接，但是 HTTP/2 中没有重用流，而且流不是完全独立的。
 
@@ -1350,7 +1348,7 @@ HTTP/2 连接比 HTTP/1 连接开销更高，因为它额外添加了前奏消�
 不管使用哪种方法启用 HTTP/2 连接，在 HTTP/2 连接上发送的第一个消息必须是 HTTP/2 连接前奏，该消息是客户端在 HTTP/2 连接上发送的第一个消息，是一个 24 个 8 位字节的序列，这个序列被转换为 ASCII 字符串后如下所示：
 
 ```
-复制代码PRI * HTTP/2.0
+PRI * HTTP/2.0
 
 SM
 ```
@@ -1383,7 +1381,7 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 ### 10.2 Http2Connection.start()
 
-![image](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/e58b9daf618a455195c1474546590505~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/e58b9daf618a455195c1474546590505~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 前面讲到了在 establishProtocol() 方法中会判断是否使用 HTTPS，如果使用 HTTPS，则调用 connectTls() 方法连接 TLS，也就是第 7 大节讲的内容。
 
@@ -1391,13 +1389,12 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 在 startHttp2() 方法中，首先会创建一个 Http2Connection，然后调用 Http2Connection.start() 方法。
 
-![RealConnection.connect__1.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/82e1e4596af447a9bc99bbac56e34df9~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__1.png](images/Okhttp源码分析/82e1e4596af447a9bc99bbac56e34df9~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 在 Http2Connection 的 start() 方法中，首先会用 Http2Writer 的 connectionPreface() 方法发送前奏消息，这时 Http2Writer 就会用把下面这个常量发送到服务器端。
 
 ```kotlin
-kotlin
-复制代码object Http2 {
+object Http2 {
 
   // 前奏消息
   val CONNECTION_PREFACE = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".encodeUtf8()
@@ -1408,11 +1405,11 @@ kotlin
 
 发送了前奏消息后，start() 方法就会发送 SETTINGS 帧。
 
-##### ![RealConnection.connect__2.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/62b7a4ab7d364cfcb34ef634c832cb44~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__2.png](images/Okhttp源码分析/62b7a4ab7d364cfcb34ef634c832cb44~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 发送完前奏消息和 SETTINGS 帧后，start() 方法就会判断初始化窗口大小（initialWindowSize）的值是否为默认值，如果不是的话，则把这个值与默认值的差发送给服务器端。
 
-![RealConnection.connect__.png](https://p3-juejin.byteimg.com/tos-cn-i-k3u1fbpfcp/5bcfaa8f95054af98a17225c96bc6858~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__.png](images/Okhttp源码分析/5bcfaa8f95054af98a17225c96bc6858~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
 发送完初始窗口大小的变化给服务器端后，start() 方法就会用 TaskRunner 创建一个新的 TaskQueue ，然后调用 TaskQueue 的 execute() 方法把 ReaderRunnable 放到队列中执行。
 
