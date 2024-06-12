@@ -1421,77 +1421,17 @@ TaskQueue 的 execute() 方法中会创建一个 Task，并在 runOnce() 方法�
 
 # 相关问题
 
-## 问题自检
-
-OkHttp框架解决了你什么问题？
+<font color='orange'>Q：OkHttp框架解决了你什么问题？</font>
 
 ### 原理
 
-OkHttp原理？
+<font color='orange'>Q：OkHttp原理？</font>
 
-okhttp源码分析
+<font color='orange'>Q：OkHttp源码分析？</font>
 
-OKHttp请求的整体流程是怎样的？
+<font color='orange'>Q：OKHttp请求的整体流程是怎样的？</font>
 
-OkHttp怎么把参数组装的
-
-### 分发器
-
-OKHttp分发器是怎样工作的？
-
-### 拦截器
-
-OKHttp拦截器是如何工作的？
-
-应用拦截器和网络拦截器有什么区别？
-
-OKHttp的所有拦截器有哪些，请求失败了重试1、2次怎么做
-
-### 缓存
-
-OKHttp如何实现缓存
-
-网络请求缓存处理，okhttp如何处理网络缓存的
-
-### 连接
-
-OKHttp如何复用TCP连接？
-
-OKHttp空闲连接如何清除？
-
-### 其他
-
-OKHttp框架中用到了哪些设计模式？
-
-有没有做过一些网络优化？比如弱网环境
-
-OKhttp针对网络层有哪些优化？
-
-OKHttp的超时时间，有考虑DNS超时吗
-
-OKHttp线程池讲下
-
-HttpUrlConnection和okhttp关系
-
-### 开放
-
-OKHttp有哪些优点？
-
-对OKHttp有哪些了解？这个框架设计怎么样？
-
-### 对比
-
-okHttp、volley、retrofit等网络框架的使用和原理
-
-volley 和 xutils的区别？
-
-Volley与OKHttp有什么区别？
-
-
-
-## 1. `OKHttp`请求整体流程介绍
-
-首先来看一个最简单的`Http`请求是如何发送的。
+下面是一个最简单的`Http`请求发送代码：
 
 ```kotlin
 	val okHttpClient = OkHttpClient()
@@ -1510,10 +1450,9 @@ Volley与OKHttp有什么区别？
 
 `OkHttp`请求过程中最少只需要接触`OkHttpClient`、`Request`、`Call`、 `Response`，但是框架内部会进行大量的逻辑处理。
 所有网络请求的逻辑大部分集中在拦截器中，但是在进入拦截器之前还需要依靠分发器来调配请求任务。
-关于分发器与拦截器，这里先简单介绍下，后续会有更加详细的讲解
 
-- 分发器:内部维护队列与线程池，完成请求调配;
-- 拦截器:五大默认拦截器完成整个请求过程。
+- 分发器：内部维护队列与线程池，完成请求调配;
+- 拦截器：五大默认拦截器完成整个请求过程。
 
 ![img](images/Okhttp源码分析/1.png)
 
@@ -1525,7 +1464,13 @@ Volley与OKHttp有什么区别？
 4. 通过五大默认拦截器完成请求重试，缓存处理，建立连接等一系列操作
 5. 得到网络请求结果
 
-## 2. `OKHttp`分发器是怎样工作的?
+<font color='orange'>Q：OkHttp怎么把参数组装的</font>
+
+通过建造者模式，将请求参数封装到 OKHttpClient 和 Request 对象中。
+
+### 分发器
+
+<font color='orange'>Q：OKHttp分发器是怎样工作的？</font>
 
 分发器的主要作用是维护请求队列与线程池，比如我们有100个异步请求，肯定不能把它们同时请求，而是应该把它们排队分个类，分为正在请求中的列表和正在等待的列表， 等请求完成后，即可从等待中的列表中取出等待的请求，从而完成所有的请求。
 
@@ -1556,11 +1501,13 @@ synchronized void enqueue(AsyncCall call) {
 ```
 
 当正在执行的任务未超过最大限制64，同时同一`Host`的请求不超过5个，则会添加到正在执行队列，同时提交给线程池。否则先加入等待队列。
-每个任务完成后，都会调用分发器的`finished`方法，这里面会取出等待队列中的任务继续执行
+每个任务完成后，都会调用分发器的`finished`方法，取出等待队列中的任务继续执行
 
-## 3. `OKHttp`拦截器是怎样工作的?
+### 拦截器
 
-经过上面分发器的任务分发，下面就要利用拦截器开始一系列配置了
+<font color='orange'>Q：OKHttp拦截器是如何工作的？</font>
+
+经过分发器的任务分发后，就要利用拦截器开始一系列配置与请求了
 
 ```kotlin
 # RealCall
@@ -1574,7 +1521,7 @@ synchronized void enqueue(AsyncCall call) {
   }
 ```
 
-我们再来看下`RealCall`的`execute`方法，可以看出，最后返回了`getResponseWithInterceptorChain`，责任链的构建与处理其实就是在这个方法里面
+最后返回了`getResponseWithInterceptorChain`，责任链的构建与处理其实就是在这个方法里面
 
 ```kotlin
 internal fun getResponseWithInterceptorChain(): Response {
@@ -1597,8 +1544,10 @@ internal fun getResponseWithInterceptorChain(): Response {
   }
 ```
 
-如上所示，构建了一个`OkHttp`拦截器的责任链
-责任链，顾名思义，就是用来处理相关事务责任的一条执行链，执行链上有多个节点，每个节点都有机会（条件匹配）处理请求事务，如果某个节点处理完了就可以根据实际业务需求传递给下一个节点继续处理或者返回处理完毕。
+构建了一个`OkHttp`拦截器的责任链。
+
+**责任链是用来处理相关事务责任的一条执行链，执行链上有多个节点，每个节点都有机会（条件匹配）处理请求事务，如果某个节点处理完了就可以根据实际业务需求传递给下一个节点继续处理或者返回处理完毕。**
+
 如上所示责任链添加的顺序及作用如下表所示：
 
 | 拦截器                            | 作用                                                         |
@@ -1611,10 +1560,10 @@ internal fun getResponseWithInterceptorChain(): Response {
 | networkInterceptors（网络拦截器） | 用户自定义拦截器，通常用于监控网络层的数据传输。             |
 | CallServerInterceptor             | 请求拦截器，在前置准备工作完成后，真正发起了网络请求。       |
 
-我们的网络请求就是这样经过责任链一级一级的传递下去，最终会执行到`CallServerInterceptor`的`intercept`方法，此方法会将网络响应的结果封装成一个`Response`对象并`return`。之后沿着责任链一级一级的回溯，最终就回到`getResponseWithInterceptorChain`方法的返回,如下图所示：
+我们的网络请求就是这样经过责任链一级一级的传递下去，最终会执行到`CallServerInterceptor`的`intercept`方法，此方法会将网络响应的结果封装成一个`Response`对象并`return`。之后沿着责任链一级一级的回溯，最终就回到`getResponseWithInterceptorChain`方法的返回，如下图所示：
 ![img](images/Okhttp源码分析/2.png)
 
-## 4.  应用拦截器和网络拦截器有什么区别?
+<font color='orange'>Q：应用拦截器和网络拦截器有什么区别？</font>
 
 从整个责任链路来看，应用拦截器是最先执行的拦截器，也就是用户自己设置`request`属性后的原始请求，而网络拦截器位于`ConnectInterceptor`和`CallServerInterceptor`之间，此时网络链路已经准备好，只等待发送请求数据。它们主要有以下区别
 
@@ -1622,7 +1571,23 @@ internal fun getResponseWithInterceptorChain(): Response {
 2. 其次，除了`CallServerInterceptor`之外，每个拦截器都应该至少调用一次`realChain.proceed`方法。实际上在应用拦截器这层可以多次调用`proceed`方法（本地异常重试）或者不调用`proceed`方法（中断），但是网络拦截器这层连接已经准备好，可且仅可调用一次`proceed`方法。
 3. 最后，从使用场景看，应用拦截器因为只会调用一次，通常用于统计客户端的网络请求发起情况；而网络拦截器一次调用代表了一定会发起一次网络通信，因此通常可用于统计网络链路上传输的数据。
 
-## 5. `OKHttp`如何复用`TCP`连接?
+<font color='orange'>Q：OKHttp的所有拦截器有哪些，请求失败了重试1、2次怎么做</font>
+
+
+
+### 缓存
+
+<font color='orange'>Q：OKHttp如何实现缓存</font>
+
+<font color='orange'>Q：网络请求缓存处理，okhttp如何处理网络缓存的</font>
+
+<font color='orange'>Q：</font>
+
+
+
+### 连接
+
+<font color='orange'>Q：OKHttp如何复用TCP连接？</font>
 
 `ConnectInterceptor`的主要工作就是负责建立`TCP`连接，建立`TCP`连接需要经历三次握手四次挥手等操作，如果每个`HTTP`请求都要新建一个`TCP`消耗资源比较多
 而`Http1.1`已经支持`keep-alive`,即多个`Http`请求复用一个`TCP`连接，`OKHttp`也做了相应的优化，下面我们来看下`OKHttp`是怎么复用`TCP`连接的
@@ -1689,7 +1654,7 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
 以上就是连接拦截器尝试复用连接的操作，流程图如下：
 ![img](images/Okhttp源码分析/3.png)
 
-## 6. `OKHttp`空闲连接如何清除?
+<font color='orange'>Q：OKHttp空闲连接如何清除？</font>
 
 上面说到我们会建立一个`TCP`连接池，但如果没有任务了，空闲的连接也应该及时清除，`OKHttp`是如何做到的呢?
 
@@ -1760,7 +1725,30 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
 流程如下图所示：
 ![img](images/Okhttp源码分析/4.png)
 
-## 7. `OKHttp`有哪些优点?
+### 其他
+
+<font color='orange'>Q：OKHttp框架中用到了哪些设计模式？</font>
+
+1. 构建者模式：`OkHttpClient`与`Request`的构建都用到了构建者模式
+2. 外观模式： `OkHttp`使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
+3. 责任链模式: `OKHttp`的核心就是责任链模式，通过5个默认拦截器构成的责任链完成请求的配置
+4. 享元模式: 享元模式的核心即池中复用,`OKHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
+
+<font color='orange'>Q：有没有做过一些网络优化？比如弱网环境</font>
+
+
+
+OKhttp针对网络层有哪些优化？
+
+OKHttp的超时时间，有考虑DNS超时吗
+
+OKHttp线程池讲下
+
+HttpUrlConnection和okhttp关系
+
+### 开放
+
+<font color='orange'>Q：OKHttp有哪些优点？</font>
 
 1. 使用简单，在设计时使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
 2. 扩展性强，可以通过自定义应用拦截器与网络拦截器，完成用户各种自定义的需求
@@ -1770,16 +1758,15 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
 6. 支持数据缓存，减少重复的网络请求
 7. 支持请求失败自动重试主机的其他`ip`，自动重定向
 
-## 8. `OKHttp`框架中用到了哪些设计模式?
-
-1. 构建者模式：`OkHttpClient`与`Request`的构建都用到了构建者模式
-2. 外观模式： `OkHttp`使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
-3. 责任链模式: `OKHttp`的核心就是责任链模式，通过5个默认拦截器构成的责任链完成请求的配置
-4. 享元模式: 享元模式的核心即池中复用,`OKHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
 
 
+对OKHttp有哪些了解？这个框架设计怎么样？
 
+### 对比
 
+okHttp、volley、retrofit等网络框架的使用和原理
+
+Volley与OKHttp有什么区别？
 
 # 参考
 
