@@ -657,7 +657,52 @@ class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
 
 当 BridgeInterceptor 把要传给服务器端的首部放到 Request 中后，就会把请求交给缓存拦截器 CacheInterceptor 处理。
 
-### 5.1 HTTP 缓存的处理步骤
+## HTTP缓存基础
+
+缓存机制，用于存储网页和资源的副本，以便在之后的请求中能够更快地获取这些资源，而不是每次都从服务器重新下载。这不仅可以提高资源的加载速度，还可以减少服务器的负载和带宽的使用。
+
+在HTTP协议中，有几种重要的头部字段与缓存机制相关，其中 Expires 和 Cache-Control 是两个最重要的字段。下面是对这两个头部字段的详细介绍：
+
+### Expires（到期）
+
+Expires是一个HTTP/1.0的头部字段，它指定了一个日期/时间，在这个日期/时间之后，缓存的资源被认为是过期的。在下次请求时，检查缓存资源的Expires值，如果当前时间超过了Expires指定的时间，认为该资源已过期，并向服务器发送请求以获取最新的资源。例如：
+
+```kotlin
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+```
+
+### Cache-Control
+
+Cache-Control是一个更为强大和灵活的HTTP/1.1头部字段，用于控制缓存行为。它提供了多种指令，允许开发者更精确地定义缓存策略。Cache-Control的一些常见指令包括：
+
+public：响应可以被任何缓存存储。
+private：响应只能被单个用户缓存存储。
+no-cache：在每次请求时都必须向服务器验证资源的有效性，即使它在缓存中。
+no-store：和其他缓存代理不应存储任何版本的响应。
+max-age：在缓存中的最大有效时间（以秒为单位）。
+
+例如：
+
+```kotlin
+Cache-Control: max-age=3600, public
+```
+
+这个设置告诉浏览器和缓存代理，该资源在缓存中的有效时间是3600秒，并且可以被任何缓存存储。
+
+### 其他缓存相关头部
+
+Last-Modified：服务器发送的头部，指示资源的最后修改时间。在之后的请求可使用If-Modified-Since请求头来检查资源是否有所更新。
+Etag：服务器发送的头部，通常是一个唯一标识资源当前版本的字符串。在之后的请求中可使用If-None-Match请求头来检查资源是否仍然匹配这个Etag。
+
+### 缓存策略
+
+客户端和服务器根据这些头部字段以及其他因素（如用户行为、缓存大小等）来决定何时从缓存中加载资源，何时向服务器请求最新的资源。
+
+### 总结
+
+浏览器的缓存机制通过Expires、Cache-Control以及其他相关头部字段，实现了对资源的有效缓存和更新控制。不仅提高了网页的加载速度，还降低了服务器的负载和带宽的使用，为用户提供了更好的体验。开发者可以通过合理地设置这些头部字段来优化应用的性能。
+
+## HTTP 缓存的处理步骤
 
 ![image](images/Okhttp源码分析/281d69c143fb4d03978f9aa783db5187~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
@@ -673,7 +718,7 @@ class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
 Cache-Control: private, max-age=0, no-cache
 ```
 
-### 5.2 获取缓存
+## 获取缓存
 
 RealCall 的 `getResponseWithInterceptorChain()` 方法在创建 CacheInterceptor 时，会把 OkHttpClient 中的 `cache`字段赋值给 CacheInterceptor ，默认为空，如果我们想使用缓存的话，要在创建 OkHttpClient 初始化时用 `cache()`方法设置缓存，比如下面这样。
 
@@ -706,13 +751,13 @@ private fun initOkHttpClient() {
 
 ![image](images/Okhttp源码分析/fdb9bfb7f5184114808b225b4abb040b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
-创建完 Entry 后，Cache.get() 就会判断缓存中的请求地址和请求方法与当前请求是否匹配，匹配的话则返回响应，不匹配的话则关闭响应体并返回 null ，这里说的关闭响应体指的是关闭要用来写入响应体的文件输入流。
+创建完 Entry 后，Cache.get() 就会判断缓存中的请求地址和请求方法与当前请求是否匹配，匹配的话则返回响应，不匹配的话则关闭响应体并返回 null ，这里说的关闭响应体指的是关闭要用来读取响应体的文件输入流。
 
-### 5.3 缓存策略 CacheStrategy
+## 缓存策略 CacheStrategy
 
-获取到候选缓存响应后，CacheInterceptor 就会用缓存策略工厂的 `compute()` 方法生产一个缓存策略 CacheStrategy ，CacheStrategy 中比较重要的方法就是用来判断是否对当前请求和响应进行缓存的 `isCacheable()`。
+获取到候选缓存响应后，CacheInterceptor 会用缓存策略工厂的 `compute()` 方法生产一个缓存策略 CacheStrategy ，CacheStrategy 中比较重要的方法是用来判断是否对当前请求和响应进行缓存的 `isCacheable()`。
 
-##### 1. 可缓存响应的状态码
+### 1. 可缓存响应的状态码
 
 在 CacheStrategy 的 isCacheable() 方法中，首先会判断响应的状态码是否为“可缓存的状态码”。
 
@@ -730,7 +775,7 @@ private fun initOkHttpClient() {
 - 414 Request-URI Too Large
 - 501 Not Implemented
 
-##### 2. 临时重定向状态码的缓存判断
+### 2. 临时重定向状态码的缓存判断
 
 ![image](images/Okhttp源码分析/53a862fde48e4a6abe60fa9855c0920d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
@@ -738,7 +783,7 @@ private fun initOkHttpClient() {
 
 Expires 首部的作用是服务器端可以指定一个绝对的日期，如果已经过了这个日期，就说明文档不“新鲜”了。
 
-### 5.4 获取响应
+## 获取响应
 
 ![image](images/Okhttp源码分析/0bb0f2656880420bb3647543f2688d20~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
@@ -750,7 +795,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 当请求已经不新鲜时，CacheInterceptor 就会通过 ConnectInterceptor 和 CallServerInterceptor 获取响应。
 
-### 5.5 保存响应
+## 保存响应
 
 ![image](images/Okhttp源码分析/31bef860bef14f99903a3c7384fc3209~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
 
@@ -1571,17 +1616,126 @@ internal fun getResponseWithInterceptorChain(): Response {
 2. 其次，除了`CallServerInterceptor`之外，每个拦截器都应该至少调用一次`realChain.proceed`方法。实际上在应用拦截器这层可以多次调用`proceed`方法（本地异常重试）或者不调用`proceed`方法（中断），但是网络拦截器这层连接已经准备好，可且仅可调用一次`proceed`方法。
 3. 最后，从使用场景看，应用拦截器因为只会调用一次，通常用于统计客户端的网络请求发起情况；而网络拦截器一次调用代表了一定会发起一次网络通信，因此通常可用于统计网络链路上传输的数据。
 
-<font color='orange'>Q：OKHttp的所有拦截器有哪些，请求失败了重试1、2次怎么做</font>
+<font color='orange'>Q：OKHttp的所有拦截器有哪些</font>
 
+| 应用拦截器                        | 拿到的是原始请求，可以添加一些自定义header、通用参数、参数加密、网关接入等等。 |
+| --------------------------------- | ------------------------------------------------------------ |
+| RetryAndFollowUpInterceptor       | 处理错误重试和重定向                                         |
+| BridgeInterceptor                 | 应用层和网络层的桥接拦截器，主要工作是为请求添加cookie、添加固定的header，比如Host、Content-Length、Content-Type、User-Agent等等，然后保存响应结果的cookie，如果响应使用gzip压缩过，则还需要进行解压。 |
+| CacheInterceptor                  | 缓存拦截器，如果命中缓存则不会发起网络请求。                 |
+| ConnectInterceptor                | 连接拦截器，内部会维护一个连接池，负责连接复用、创建连接（三次握手等等）、释放连接以及创建连接上的socket流。 |
+| networkInterceptors（网络拦截器） | 用户自定义拦截器，通常用于监控网络层的数据传输。             |
+| CallServerInterceptor             | 请求拦截器，在前置准备工作完成后，真正发起了网络请求。       |
 
+<font color='orange'>Q：请求失败了重试1、2次怎么做</font>
+
+> 虽然 OkHttp 自带 retryOnConnectionFailure(true) 方法可以实现重试，但是不支持自定义重试次数，所以有时并不能满足我们的需求。
+
+```kotlin
+/**
+ * 重试拦截器
+ */
+class RetryInterceptor(
+        //最大重试次数
+        private var maxRetry: Int,
+) : Interceptor {
+    companion object{
+        private const val TAG = "RetryInterceptor"
+    }
+    // 假如设置为3次重试的话，则最大可能请求4次（默认1次+3次重试）
+    private var retryNum = 0
+    
+    @Throws(IOException::class)
+    override fun intercept(chain: Chain): Response {
+        val request: Request = chain.request()
+        Log.d(TAG, "intercept: retryNum= $retryNum")
+        var response: Response = chain.proceed(request)
+        while (!response.isSuccessful && retryNum < maxRetry) {
+            retryNum++
+            Log.d(TAG, "intercept: retryNum= $retryNum")
+            response = chain.proceed(request)
+        }
+        return response
+    }
+}
+```
+
+测试自定义重试拦截器
+
+```kotlin
+/**
+ * 测试自定义重试拦截器
+ */
+class RetryTest {
+    companion object {
+        private const val TAG = "RetryTest"
+    }
+    
+    private var testUrl = "https://www.baidu.com/"
+    
+    @Throws(IOException::class)
+    fun test() {
+        val logging = HttpLoggingInterceptor()
+        logging.setLevel(HttpLoggingInterceptor.Level.BODY)
+        val mClient = OkHttpClient.Builder()
+                .addInterceptor(RetryInterceptor(2)) //重试
+                // .addInterceptor(logging) //网络日志
+                .addInterceptor(TestInterceptor()) //模拟网络请求
+                .build()
+        
+        val request: Request = Request.Builder()
+                .url(testUrl)
+                .build()
+        val response = mClient.newCall(request).execute()
+        println("onResponse:" + response.body!!.string())
+    }
+    
+    internal inner class TestInterceptor : Interceptor {
+        @Throws(IOException::class)
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val request = chain.request()
+            val url = request.url.toString()
+            println("url=$url")
+            val response: Response = if (url == testUrl) {
+                // 模拟的错误的返回值
+                val responseString = "{\"message\":\"我是模拟的数据\"}"
+                val responseBody = responseString.toByteArray().toResponseBody("application/json".toMediaTypeOrNull())
+                Response.Builder()
+                        .code(400)
+                        .request(request)
+                        .protocol(Protocol.HTTP_1_0)
+                        .message("测试：无响应")
+                        .body(responseBody)
+                        .addHeader("content-type", "application/json")
+                        .build()
+            } else {
+                chain.proceed(request)
+            }
+            return response
+        }
+    }
+}
+```
+
+结果：
+
+```kotlin
+RetryInterceptor         D  intercept: retryNum= 0
+System.out               I  url=https://www.baidu.com/
+RetryInterceptor         D  intercept: retryNum= 1
+System.out               I  url=https://www.baidu.com/
+RetryInterceptor         D  intercept: retryNum= 2
+System.out               I  url=https://www.baidu.com/
+System.out               I  onResponse:{"message":"我是模拟的数据"}
+```
 
 ### 缓存
 
 <font color='orange'>Q：OKHttp如何实现缓存</font>
 
-<font color='orange'>Q：网络请求缓存处理，okhttp如何处理网络缓存的</font>
 
-<font color='orange'>Q：</font>
+
+<font color='orange'>Q：网络请求缓存处理，okhttp如何处理网络缓存的</font>
 
 
 
@@ -1732,19 +1886,19 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
 1. 构建者模式：`OkHttpClient`与`Request`的构建都用到了构建者模式
 2. 外观模式： `OkHttp`使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
 3. 责任链模式: `OKHttp`的核心就是责任链模式，通过5个默认拦截器构成的责任链完成请求的配置
-4. 享元模式: 享元模式的核心即池中复用,`OKHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
+4. 享元模式: 享元模式的核心即池中复用，`OKHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
 
 <font color='orange'>Q：有没有做过一些网络优化？比如弱网环境</font>
 
+<font color='orange'>Q：OKhttp针对网络层有哪些优化？</font>
+
+<font color='orange'>Q：OKHttp的超时时间，有考虑DNS超时吗</font>
+
+<font color='orange'>Q：OKHttp线程池讲下</font>
+
+<font color='orange'>Q：HttpUrlConnection和okhttp关系</font>
 
 
-OKhttp针对网络层有哪些优化？
-
-OKHttp的超时时间，有考虑DNS超时吗
-
-OKHttp线程池讲下
-
-HttpUrlConnection和okhttp关系
 
 ### 开放
 
@@ -1758,15 +1912,15 @@ HttpUrlConnection和okhttp关系
 6. 支持数据缓存，减少重复的网络请求
 7. 支持请求失败自动重试主机的其他`ip`，自动重定向
 
+<font color='orange'>Q：对OKHttp有哪些了解？这个框架设计怎么样？</font>
 
 
-对OKHttp有哪些了解？这个框架设计怎么样？
 
 ### 对比
 
-okHttp、volley、retrofit等网络框架的使用和原理
+<font color='orange'>Q：okHttp、volley、retrofit等网络框架的使用和原理</font>
 
-Volley与OKHttp有什么区别？
+<font color='orange'>Q：Volley与OKHttp有什么区别？</font>
 
 # 参考
 
