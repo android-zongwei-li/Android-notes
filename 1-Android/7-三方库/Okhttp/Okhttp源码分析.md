@@ -106,11 +106,11 @@ Header 用于存放 HTTP 首部，Headers 中只有一个 `namesAndValues` 字�
 
 HTTP 协议的请求和响应报文中必定包含 HTTP 首部，首部内容为客户端和服务器分别处理请求和响应提供所需要的信息，HTTP 报文由方法、URI、HTTP 版本、HTTP 首部字段等部分构成。
 
-![image](images/Okhttp源码分析/dd451f68199d4bb3955c6ce5a9c2236etplv-k3u1fbpfcp-jj-mark3024000q75.webp)
+![image](images/Okhttp源码分析/6.png)
 
 ## 3.3 请求体 RequestBody
 
-![RequestBody.png](images/Okhttp源码分析/ea792d2047aa444b96640100bbb04465tplv-k3u1fbpfcp-jj-mark3024000q75.webp)
+![RequestBody.png](images/Okhttp源码分析/7.webp)
 
 RequestBody 是一个抽象类，有下面 3 个方法。
 
@@ -212,7 +212,7 @@ AsyncCall 实现了 Runnable 接口，Dispatcher 接收到 AsyncCall 后，会�
 
 和同步请求一样，在 AsyncCall 的 `run()` 方法中做的第一件事情就是让 AsyncTimeout 进入超时判断逻辑，然后用拦截器链获取响应。
 
-![RealCall.enqueue()](images/Okhttp源码分析/814e0212ea9a46d899b12d6e109b4449tplv-k3u1fbpfcp-jj-mark3024000q75.webp)
+![RealCall.enqueue()](images/Okhttp源码分析/8.webp)
 
 当请求的过程中没有遇到异常时，AsyncCall 的 run() 方法就会调用我们设定的 Callback 的 onResposne() 回调，如果遇到了异常，则会调用 onFailure() 方法。
 
@@ -483,11 +483,11 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 ## 2. 重定向机制
 
-![重试与重定向处理流程.png](images/Okhttp源码分析/7326d6b224a64f5c80331921b875e450~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![重试与重定向处理流程.png](images/Okhttp源码分析/9.png)
 
 如果其他拦截器处理当前请求时没有抛出异常的话，那么 `RetryAndFollowUpInterceptor` 的 intercept() 方法就会判断上一个响应（priorResponse）是否为空，如果不为空的话，则用上一个响应的信息创建一个新的响应（Response），创建完新响应后，就会调用 `followUpRequest() 方法` 获取重定向请求。
 
-![image](images/Okhttp源码分析/18e1d05239f141d79d63b7320fdc18ea~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/10.png)
 
 `followUpRequest()` 方法会根据不同的响应状态码构建重定向请求，当状态码为 407 ，并且协议为 HTTP ，则返回一个包含认证挑战的请求，而获取这个请求用的是 `Authenticator` 。Authenticator 有一个 `authenticate()` 方法，默认的是一个空实现 NONE，如果我们想替换的话，可以在创建 OkHttpClient 的时候调用 authenticator() 方法替换默认的空实现。
 
@@ -497,7 +497,7 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 ## 3. 处理 3XX 重定向状态码
 
-![image](images/Okhttp源码分析/53086fcbf3a246ab9dc1f50d8aa8e8aa~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/11.png)
 
 当响应的状态码为 300、301、302、303、307、308 时， `followUpRequest()` 方法就会调用 `buildRedirectRequest()` 构建重定向请求，3xx 重定向状态码要么告诉客户端使用替代位置访问客户端感兴趣的资源，要么提供一个替代的响应而不是资源的内容。
 
@@ -704,7 +704,7 @@ Etag：服务器发送的头部，通常是一个唯一标识资源当前版本�
 
 ## HTTP 缓存的处理步骤
 
-![image](images/Okhttp源码分析/281d69c143fb4d03978f9aa783db5187~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/12.png)
 
 对一条 HTTP GET 报文的基本缓存处理包括`接收`、`解析`、`查询`、`新鲜度检测`、`创建响应`、`发送`和`创建日志` 7 个步骤。
 
@@ -749,7 +749,7 @@ private fun initOkHttpClient() {
 
 当 get() 方法获取到快照后，就会用快照的输入流创建 Entry ，在 Entry 的构造方法中，会从输入流读取缓存的请求和响应的相关信息，读取完后就会关闭输入流。
 
-![image](images/Okhttp源码分析/fdb9bfb7f5184114808b225b4abb040b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/13.png)
 
 创建完 Entry 后，Cache.get() 就会判断缓存中的请求地址和请求方法与当前请求是否匹配，匹配的话则返回响应，不匹配的话则关闭响应体并返回 null ，这里说的关闭响应体指的是关闭要用来读取响应体的文件输入流。
 
@@ -777,7 +777,7 @@ private fun initOkHttpClient() {
 
 ### 2. 临时重定向状态码的缓存判断
 
-![image](images/Okhttp源码分析/53a862fde48e4a6abe60fa9855c0920d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/14.png)
 
 当响应的状态码为 302 或 307 时，isCacheable() 方法就会根据响应的 Expires 首部和 Cache-Control 首部判断是否返回 false（不缓存）。
 
@@ -785,7 +785,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ## 获取响应
 
-![image](images/Okhttp源码分析/0bb0f2656880420bb3647543f2688d20~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/15.png)
 
 在 CacheInterceptor 调用 compute() 方法创建 CacheStrategy 时，如果 CacheControl 中有 `onlyIfCached`（不重新加载响应）指令，那么 CacheStrategy 的 cacheResponse 字段也为空。
 
@@ -797,7 +797,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ## 保存响应
 
-![image](images/Okhttp源码分析/31bef860bef14f99903a3c7384fc3209~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/16.png)
 
 在获取到响应后，CacheInterceptor 会判断缓存响应的是否为空，如果不为空，并且状态码为 `304`（未修改）的话，则用新的响应替换 LruCache 中的缓存。
 
@@ -809,7 +809,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ConnectInterceptor 的 intercept() 主要是调用了 RealCall 的 initExchange() 方法建立连接。
 
-![image](images/Okhttp源码分析/4e0cef60fefd4d5aa1046dded40f15fd~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/17.png)
 
 在 RealCall 的 initExchange() 方法中，会用 ExchangeFinder.find() 查找可重用的连接或创建新连接，ExchangeFinder.find() 方法会返回一个数据编译码器 `ExchangeCodec`。ExchangeCodec 负责编码 HTTP 请求进行以及解码 HTTP 响应，Codec 为 Coder-Decoder （编码器—解码器）的缩写。
 
@@ -860,7 +860,7 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 ##### 1. TCP/IP 通信传输流
 
-![通信传输流.gif](images/Okhttp源码分析/9081b72e3fbb4e72af27e0f82261a76d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.gif)
+![通信传输流.gif](images/Okhttp源码分析/18.gif)
 
 用 TCP/IP 协议族进行网络通信时，会通过分层顺序与对方进行通信，发送端从应用层往下走，接收端从链路层往上走。
 
@@ -874,7 +874,7 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 ##### 2. TCP 套接字编程
 
-![image](images/Okhttp源码分析/a3833229b729485b8488c4cce127c94a~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/19.png)
 
 操作系统提供了一些操作 TCP 连接的工具，下面是 Socket API 提供的一些主要接口，Socket API 最初是为 Unix 操作系统开发的，但现在几乎所有的操作系统和语言中都有其变体存在。
 
@@ -892,7 +892,7 @@ Socket API 允许用户创建 TCP 的端点和数据结构，把这些端点与�
 
 ## 6.2 释放连接
 
-![image](images/Okhttp源码分析/5523416e658246c99a86277cb6c7eef2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/20.png)
 
 看完了 HTTP 连接的相关知识，下面我们来看下 ExchangeFinder 的 `findConnection()` 方法的实现。
 
@@ -987,7 +987,7 @@ class ExchangeFinder(
 
 ## 6.5 连接 Socket
 
-![image](images/Okhttp源码分析/a180f34e960342469c548c5876751c37~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/21.png)
 
 在 `RealConnection` 的 `connect()` 方法中首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
@@ -995,7 +995,7 @@ class ExchangeFinder(
 
 关于连接隧道在后面讲 HTTPS 的时候会讲到，下面先来看下 `connectSocket()` 方法的实现。
 
-![image](images/Okhttp源码分析/cfb3871c5c8c41609bf3cd95abb8be3b~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/22.png)
 
 在 RealConnection 的 connectSocket() 方法中，首先会判断代理方式，如果代理方式为无代理（DIRECT）或 HTTP 代理，则使用 Socket 工厂创建 Socket，否则使用 `Socket(proxy)` 创建 Socket。
 
@@ -1005,11 +1005,11 @@ Platform 的 connectSocket() 方法调用了 Socket 的 connect() 方法，后�
 
 ## 6.6 建立协议
 
-![image](images/Okhttp源码分析/ac83b8bbce5440f6b2bb9e791edce182~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/23.png)
 
 创建完 Socket 后，RealConnection 的 connect() 方法就会调用 establishProtocol() 方法建立协议。
 
-![image](images/Okhttp源码分析/859de456cee549938d6a5f4453620333~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/24.png)
 
 在 establishProtocol() 方法中会判断，如果使用的方案是 HTTP 的话，则判断是否基于先验启动 HTTP/2（`rfc_7540_34`），先验指的是预先知道，也就是`客户端知道服务器端支持 HTTP/2` ，不需要升级请求，如果不是基于先验启动 HTTP/2 的话，则把协议设为 HTTP/1.1 。
 
@@ -1029,7 +1029,7 @@ val client = OkHttpClient.Builder()
 
 ### 9.1 HTTPS 基础知识
 
-![明文传输.png](images/Okhttp源码分析/d26da047f01e4dac85750a29e852ea2c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![明文传输.png](images/Okhttp源码分析/25.png)
 
 在 `HTTP` 模式下，搜索或访问请求是以`明文信息`传输，经过`代理服务器`、`路由器`、`WiFi 热点`、`服务运营商`等`中间人`通路，形成了“中间人”获取数据、篡改数据的可能。
 
@@ -1057,7 +1057,7 @@ val client = OkHttpClient.Builder()
 
 #### 9.1.2 握手层与加密层
 
-![握手层与加密层.png](images/Okhttp源码分析/066e2ea94a9847959771e5bf520e1fbf~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![握手层与加密层.png](images/Okhttp源码分析/26.png)
 
 HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两层组成，握手层在加密层的上层，提供加密所需要的信息（密钥块）。
 
@@ -1075,9 +1075,9 @@ HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两�
 
 下面分别是使用 RSA 密码套件和 DHE_RSA 密码套件的 TLS 协议流程图。
 
-![使用 RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/551d60af39e3454790808e0de83abd2d~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![使用 RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/27.png)
 
-![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/298458120d564eeeaef56ec1fdd984b7~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/28.png)
 
 #### 9.1.3 握手
 
@@ -1103,7 +1103,7 @@ HTTP 是没有握手过程的，完成一次 HTTP 交互，客户端和服务器
 
 密码套件的构成如下图所示。
 
-![密码套件结构.png](images/Okhttp源码分析/bedc333804424180b45d128d98b57c93~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![密码套件结构.png](images/Okhttp源码分析/29.png)
 
 #### 9.1.4 加密
 
@@ -1131,7 +1131,7 @@ TLS 记录协议中加密参数（Security Paramters）的值都是 TLS/SSL 握�
 
 下面是完整的 TLS/SSL 握手协议交互流程。
 
-![完整握手协议交互流程.png](images/Okhttp源码分析/876429ebcc7e464dad2cee9829ff85c2~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![完整握手协议交互流程.png](images/Okhttp源码分析/30.png)
 
 握手协议的主要步骤如下：
 
@@ -1190,7 +1190,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 基于 SessionTIcket 进行完整的握手
 
-![基于 SessionTicket 进行完整的握手.png](images/Okhttp源码分析/4e8f9bd9ed26438084f17083fcda9825~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![基于 SessionTicket 进行完整的握手.png](images/Okhttp源码分析/31.png)
 
 对于一次新连接，如果期望服务器支持 SessionTicket 会话恢复，则在客户端` Client Hello 消息中包含一个空的 SessionTicket TLS 扩展`。
 
@@ -1202,7 +1202,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 2. 基于 SessionTicket 进行简短的握手
 
-![image](images/Okhttp源码分析/53446d257f2e49adb9e89205037c4670~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/32.png)
 
 基于 SessionTicket 进行会话恢复的流程如下。
 
@@ -1215,7 +1215,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 隧道
 
-![image](images/Okhttp源码分析/f26d71621db4421b8f46037acf6762a1~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/33.png)
 
 隧道（tunnel）是建立起来后，就会在两条连接之间对原始数据进行盲转发的 HTTP 应用程序，HTTP 隧道通常用来在一条或多条 HTTP 连接上转发非 HTTP 数据，转发时不会窥探数据。
 
@@ -1225,19 +1225,19 @@ HTTP/SSL 隧道收到一条 HTTP 请求，要求建立一条到目的地之和�
 
 ##### 2. connectTunnel()
 
-![image](images/Okhttp源码分析/a96acbda44ae4218835de3b1d5828c4c~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/34.png)
 
 RealConnection 的 connect() 方法首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
 如果没有连接过的话，则判断 URL 是否用的 HTTPS 方案，是的话则连接隧道。
 
-![image](images/Okhttp源码分析/284c6f2ab2064970b4b80be6f0fb885e~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/35.png)
 
 而 RealConnection 调用 connectTunnel() 方法后，connectTunnel() 会调用 connectSocket() 和 createTunnel() 方法创建Socket 和隧道。
 
 ### 9.3 创建隧道
 
-![image](images/Okhttp源码分析/165002801ed346b0ad2fde286acf4026~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/36.png)
 
 在 RealConnection 的 createTunnel() 方法中，首先会创建 Http1ExchangeCodec ，然后用它来写入请求行，写完了就再刷新缓冲区，然后读取响应报文首部。
 
@@ -1247,7 +1247,7 @@ RealConnection 的 connect() 方法首先会判断当前连接是否已连接，
 
 ### 4 获取连接规格
 
-![image](images/Okhttp源码分析/e25463d9476748ac96f6e98c87b50617~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/37.png)
 
 在前面提到了 connectTls() 方法，下面来看下这个方法的实现。
 
@@ -1271,7 +1271,7 @@ ALPN（应用层协议协商扩展，Application Layer Protocol Negotiation）�
 
 ##### 2. 配置 TLS 扩展
 
-![image](images/Okhttp源码分析/b0cb43fc2a7e48db9e8d96acfd2e22b3~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/38.png)
 
 RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判断 ConnectionSpec 是否支持 TLS 扩展，如果支持的话，则调用特定平台（Platform）的 configureTlsExtentions() 方法配置 TLS 扩展。
 
@@ -1281,7 +1281,7 @@ RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判�
 
 ### 9.6 证书锁定
 
-![image](images/Okhttp源码分析/56cbde5b33954999bb87b39418a123f8~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/39.png)
 
 在调用了 SSLSocket 的 startHandshake() 方法后，RealConnection 就会创建一个 Handshake 对象，Handshake 包含了对端证书，对于我们客户端来说也就是服务器端的证书。
 
@@ -1362,7 +1362,7 @@ HTTP/2 中的二进制表示用于发送和接收消息数据，但是消息本�
 
 HTTP/1 是一种同步的、独占的请求—响应协议，客户端发送 HTTP/1 消息，然后服务器返回 HTTP/1 响应，为了能更快地收发更多数据，HTTP/1 的解决办法就是打开多个连接，并且使用资源合并，以减少请求数，但是这种解决办法会引入其他问题和带来性能开销。
 
-![image](images/Okhttp源码分析/ae7fed4776cb4626b8dae93df223a22f~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/40.png)
 
 而 HTTP/2 允许在单个连接上同时执行多个请求，每个 HTTP 请求或响应使用不同的流，通过使用二进制分帧层（Binary Framing Layer）给每个帧分配一个流标识符，以支持同时发出多个独立请求，当接收到该流的所有帧时，接收方可以把帧组合成完整消息。
 
@@ -1378,7 +1378,7 @@ HTTP2 与 HTTP/1 的不同主要在消息发送的层面上，在更上层，HTT
 
 ##### 3. HTTP/2 中的流
 
-![image](images/Okhttp源码分析/15d864f6545e45038aa4111757090753~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/41.png)
 
 HTTP2 中每个流的作用类似于 HTTP/1 中的连接，但是 HTTP/2 中没有重用流，而且流不是完全独立的。
 
@@ -1426,7 +1426,7 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 ### 10.2 Http2Connection.start()
 
-![image](images/Okhttp源码分析/e58b9daf618a455195c1474546590505~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![image](images/Okhttp源码分析/42.png)
 
 前面讲到了在 establishProtocol() 方法中会判断是否使用 HTTPS，如果使用 HTTPS，则调用 connectTls() 方法连接 TLS，也就是第 7 大节讲的内容。
 
@@ -1434,7 +1434,7 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 在 startHttp2() 方法中，首先会创建一个 Http2Connection，然后调用 Http2Connection.start() 方法。
 
-![RealConnection.connect__1.png](images/Okhttp源码分析/82e1e4596af447a9bc99bbac56e34df9~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__1.png](images/Okhttp源码分析/43.png)
 
 在 Http2Connection 的 start() 方法中，首先会用 Http2Writer 的 connectionPreface() 方法发送前奏消息，这时 Http2Writer 就会用把下面这个常量发送到服务器端。
 
@@ -1450,11 +1450,11 @@ object Http2 {
 
 发送了前奏消息后，start() 方法就会发送 SETTINGS 帧。
 
-![RealConnection.connect__2.png](images/Okhttp源码分析/62b7a4ab7d364cfcb34ef634c832cb44~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__2.png](images/Okhttp源码分析/44.png)
 
 发送完前奏消息和 SETTINGS 帧后，start() 方法就会判断初始化窗口大小（initialWindowSize）的值是否为默认值，如果不是的话，则把这个值与默认值的差发送给服务器端。
 
-![RealConnection.connect__.png](images/Okhttp源码分析/5bcfaa8f95054af98a17225c96bc6858~tplv-k3u1fbpfcp-jj-mark:3024:0:0:0:q75.awebp)
+![RealConnection.connect__.png](images/Okhttp源码分析/45.png)
 
 发送完初始窗口大小的变化给服务器端后，start() 方法就会用 TaskRunner 创建一个新的 TaskQueue ，然后调用 TaskQueue 的 execute() 方法把 ReaderRunnable 放到队列中执行。
 
