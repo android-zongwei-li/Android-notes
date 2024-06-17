@@ -1,52 +1,37 @@
 # 一、 源码分析
 
-### Retrofit的本质流程
+## Retrofit的本质流程
 
-一般从网络通信过程（网络请求的过程）如下图：
+网络请求的一般过程：
 
 ![img](images/Retrofit 源码解析/webp-1706461760023-2.webp)
 
-- 其实Retrofit的本质和上面是一样的套路
-- 只是Retrofit通过使用**大量的设计模式**进行**功能模块的解耦**，使得上面的过程进行得更加简单 & 流畅
-
-如下图：
+Retrofit的本质流程和上面是一样的，只是Retrofit通过使用**大量的设计模式**进行**功能模块的解耦**，使得上面的过程进行得更加简单 & 流畅
 
 ![img](images/Retrofit 源码解析/webp-1706461794307-5.webp)
 
-Retrofit的本质
-
-具体过程解释如下：
-
 1. 通过解析 网络请求接口的注解 配置 网络请求参数
 2. 通过 动态代理 生成 网络请求对象
-3. 通过 网络请求适配器 将 网络请求对象 进行平台适配
-
-> 平台包括：Android、Rxjava、Guava和java8
-
-1. 通过 网络请求执行器 发送网络请求
-2. 通过 数据转换器 解析服务器返回的数据
-3. 通过 回调执行器 切换线程（子线程 ->>主线程）
-4. 用户在主线程处理返回结果
+3. 通过 网络请求适配器 将 网络请求对象 进行平台适配（平台包括：Android、Rxjava、Guava和java8）
+4. 通过 网络请求执行器 发送网络请求
+5. 通过 数据转换器 解析服务器返回的数据
+6. 通过 回调执行器 切换线程（子线程 ->>主线程）
+7. 用户在主线程处理返回结果
 
 下面介绍上面提到的几个角色
 
 ![img](images/Retrofit 源码解析/webp-1706461819564-8.webp)
 
-### 4.2 源码分析
+# 源码分析
 
-先来回忆Retrofit的使用步骤：
+按照Retrofit的使用步骤分析：
 
 1. 创建Retrofit实例
 2. 创建 网络请求接口实例 并 配置网络请求参数
-3. 发送网络请求
+3. 发送网络请求（封装了 数据转换、线程切换的操作）
+4. 处理服务器返回的数据
 
-> 封装了 数据转换、线程切换的操作
-
-1. 处理服务器返回的数据
-
-### 4.2.1 创建Retrofit实例
-
-#### a. 使用步骤
+# 一、创建Retrofit实例
 
 ```cpp
  Retrofit retrofit = new Retrofit.Builder()
@@ -55,17 +40,17 @@ Retrofit的本质
                                  .build();
 ```
 
-#### b. 源码分析
-
 Retrofit实例是**使用建造者模式通过Builder类**进行创建的
 
-> 建造者模式：将一个复杂对象的构建与表示分离，使得用户在不知道对象的创建细节情况下就可以直接创建复杂的对象。具体请看文章：建造者模式.md
+> 建造者模式：将一个复杂对象的构建与表示分离，使得用户在不知道对象的创建细节情况下就可以直接创建复杂的对象。
+>
+> 建造者模式.md
 
-接下来，我将分五个步骤对创建Retrofit实例进行逐步分析
+将分五个步骤对创建Retrofit实例进行逐步分析
 
 ![img](images/Retrofit 源码解析/webp-1706461898701-11.webp)
 
-### 步骤1
+## 步骤1
 
 ![img](images/Retrofit 源码解析/webp-1706461904507-14.webp)
 
@@ -73,24 +58,22 @@ Retrofit实例是**使用建造者模式通过Builder类**进行创建的
 <-- Retrofit类 -->
  public final class Retrofit {
   
-  private final Map<Method, ServiceMethod> serviceMethodCache = new LinkedHashMap<>();
   // 网络请求配置对象（对网络请求接口中方法注解进行解析后得到的对象）
-  // 作用：存储网络请求相关的配置，如网络请求的方法、数据转换器、网络请求适配器、网络请求工厂、基地址等
+  // 作用：存储网络请求相关的配置，如网络请求的方法、数据转换器、网络请求适配器、网络请求工厂、base地址等
+  private final Map<Method, ServiceMethod> serviceMethodCache = new LinkedHashMap<>();
   
-  private final HttpUrl baseUrl;
   // 网络请求的url地址
+  private final HttpUrl baseUrl;
 
   private final okhttp3.Call.Factory callFactory;
   // 网络请求器的工厂
   // 作用：生产网络请求器（Call）
-  // Retrofit是默认使用okhttp
+  // Retrofit默认使用okhttp
   
-   private final List<CallAdapter.Factory> adapterFactories;
+  private final List<CallAdapter.Factory> adapterFactories;
   // 网络请求适配器工厂的集合
   // 作用：放置网络请求适配器工厂
   // 网络请求适配器工厂作用：生产网络请求适配器（CallAdapter）
-  // 下面会详细说明
-
 
   private final List<Converter.Factory> converterFactories;
   // 数据转换器工厂的集合
@@ -131,12 +114,7 @@ Retrofit(okhttp3.Call.Factory callFactory, HttpUrl baseUrl,
 - `converterFactories`：数据转换器工厂的集合
 - `callbackExecutor`：回调方法执行器
 
-所谓`xxxFactory`、“xxx工厂”其实是设计模式中**工厂模式**的体现：将“类实例化的操作”与“使用对象的操作”分开，使得使用者不用知道具体参数就可以实例化出所需要的“产品”类。
-
-> 具体请看我写的文章
->  简单工厂模式.md
->  工厂方法模式.md
->  抽象工厂模式.md
+`xxxFactory`、“xxx工厂”是设计模式中**工厂模式**的体现：将“类实例化的操作”与“使用对象的操作”分开，使得使用者不用知道具体参数就可以实例化出所需要的“产品”类。
 
 这里详细介绍一下：`CallAdapterFactory`：该`Factory`生产的是`CallAdapter`，那么`CallAdapter`又是什么呢？
 
@@ -161,7 +139,7 @@ Retrofit.Builder.addCallAdapterFactory(newRxJavaCallAdapterFactory().create());
 
 - 好处：用最小代价兼容更多平台，即能适配更多的使用场景
 
-**所以，接下来需要分析的步骤2、步骤3、步骤4、步骤4的目的是配置好上述所有成员变量**
+**所以，接下来需要分析的步骤2、步骤3、步骤4、步骤5的目的是配置好上述所有成员变量**
 
 ### 步骤2
 
@@ -1186,8 +1164,6 @@ call.enqueue(new Callback<JavaBean>() {
 
 ##### 3.2.3 源码分析
 
-
-
 ```java
 <--  call.enqueue（）解析  -->
 @Override 
@@ -1353,6 +1329,51 @@ static class Android extends Platform {
 最后贴一张非常详细的`Retrofit`源码分析图：
 
 ![img](images/Retrofit 源码解析/webp-1706462834371-44.webp)
+
+# 问题
+
+## 使用
+
+<font color='orange'>Q：Retrofit的作用</font>
+
+网络请求库，用来请求网络数据。
+
+<font color='orange'>Q：Retrofit的使用流程</font>
+
+1. 创建Retrofit实例
+2. 创建 网络请求接口实例 并 配置网络请求参数
+3. 发送网络请求（封装了 数据转换、线程切换的操作）
+4. 处理服务器返回的数据
+
+## 原理
+
+<font color='orange'>Q：网络封装框架：Retrofit实现原理</font>
+
+
+
+<font color='orange'>Q：Retrofit主要实现机制？</font>
+
+
+
+<font color='orange'>Q：Retrofit源码（流程）分析</font>
+
+
+
+<font color='orange'>Q：Retrofit在OkHttp上做了哪些封装？</font>
+
+
+
+## 代理
+
+<font color='orange'>Q：Retrofit的注解是怎么解析的：动态代理、AOP</font>
+
+
+
+<font color='orange'>Q：Retrofit中的动态代理</font>
+
+
+
+<font color='orange'>Q：为何用代理？代理的作用是什么？</font>
 
 
 

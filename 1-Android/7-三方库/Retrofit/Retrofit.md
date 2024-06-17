@@ -349,7 +349,7 @@ public <T> T create(final Class<T> service) {
 
 - **参数ClassLoader loader：定义代理类接口的类加载器**
 - **参数Class<?>[] interfaces：代理类要实现的接口列表**
-- **参数InvocationHandler h：将方法调用分派到的调用处理程序**
+- **参数InvocationHandler h：将方法调用分派到调用处理程序**
 - **返回值Object：代理实例**
 
 Proxy.newProxyInstance 返回指定接口的代理类的实例，该接口将方法调用分派给指定的调用处理程序。 关键的invoke方法里做了一些和平台相关的判断，我们重点关注loadServiceMethod(method)方法。
