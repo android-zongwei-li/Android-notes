@@ -1,6 +1,6 @@
 # 1. OkHttp 原理概述
 
-<img src="images/Okhttp源码分析/5" alt="OkHttp 请求处理流程.png" style="zoom:50%;" />
+<img src="images/OkHttp源码分析/5" alt="OkHttp 请求处理流程.png" style="zoom:50%;" />
 
 OkHttp 支持发起同步请求和异步请求，同步请求对应类的是 `RealCall` ，异步请求对应的是 `AsyncCall` ，AsynCall 是 RealCall 的`内部类`。RealCall 和 AsyncCall 可以理解为`同步请求操作`和`异步请求操作`。
 
@@ -43,10 +43,10 @@ RealConnection 的 `connect()` 方法的核心逻辑是放在 `while` 循环中�
 ```kotlin
     fun asyncGet() {
         val url = "http://wwww.baidu.com"
-        val okHttpClient = OkHttpClient()
+        val OkHttpClient = OkHttpClient()
         val request: Request = Request.Builder().url(url).get() //默认就是GET请求，可以省略
                 .build()
-        val call: Call = okHttpClient.newCall(request)
+        val call: Call = OkHttpClient.newCall(request)
         call.enqueue(object : Callback {
             override fun onFailure(call: Call, e: IOException) {
                 Log.d(TAG, "onFailure: ")
@@ -106,11 +106,11 @@ Header 用于存放 HTTP 首部，Headers 中只有一个 `namesAndValues` 字�
 
 HTTP 协议的请求和响应报文中必定包含 HTTP 首部，首部内容为客户端和服务器分别处理请求和响应提供所需要的信息，HTTP 报文由方法、URI、HTTP 版本、HTTP 首部字段等部分构成。
 
-![image](images/Okhttp源码分析/6.png)
+![image](images/OkHttp源码分析/6.png)
 
 ## 3.3 请求体 RequestBody
 
-![RequestBody.png](images/Okhttp源码分析/7.webp)
+![RequestBody.png](images/OkHttp源码分析/7.webp)
 
 RequestBody 是一个抽象类，有下面 3 个方法。
 
@@ -212,7 +212,7 @@ AsyncCall 实现了 Runnable 接口，Dispatcher 接收到 AsyncCall 后，会�
 
 和同步请求一样，在 AsyncCall 的 `run()` 方法中做的第一件事情就是让 AsyncTimeout 进入超时判断逻辑，然后用拦截器链获取响应。
 
-![RealCall.enqueue()](images/Okhttp源码分析/8.webp)
+![RealCall.enqueue()](images/OkHttp源码分析/8.webp)
 
 当请求的过程中没有遇到异常时，AsyncCall 的 run() 方法就会调用我们设定的 Callback 的 onResposne() 回调，如果遇到了异常，则会调用 onFailure() 方法。
 
@@ -256,7 +256,7 @@ Dispatcher 的 enqueue() 方法实现如下。
 Dispatcher 的 `enqueue()` 方法首先会把 `AsyncCall` 加入到待执行请求队列，然后从待运行和已运行请求队列中找出与当前请求的主机地址相同的其他请求，找到的话就找到的请求的重用 AsyncCall 的 `callsPerHost` 字段，`callsPerHost 表示当前请求的主机地址的已执行请求数量`，每执行一个相同主机地址的请求时， callsPerHost 的值就会加 1 ，如果我们的应用中经常会发起多个请求，并且不会请求多个不同的主机地址的话，我们就可以修改 Dispatcher 中的 `maxRequestsPerHost` 的值，`maxRequetsPerHost 表示单个主机地址在某一个时刻的并发请求的最大值`，修改方式如下。
 
 ```kotlin
-okHttpClient.dispatcher.maxRequestsPerHost = 10
+OkHttpClient.dispatcher.maxRequestsPerHost = 10
 ```
 
 maxRequestsPerHost 默认为 5 ，如果对应主机地址的请求数量没有超过最大值的话，Dispatcher 就会遍历待运行异步请求队列，在遍历时，Dispatcher 会判断已运行的异步请求数量是否超出了允许的并发请求的最大值 `maxRequests` ，这个值默认为 `64` ，也是可以被修改的，当异步请求数量不超过最大值，并且对应主机地址的请求数量不超过最大值时，就会把待运行请求`提交到线程池中执行`。
@@ -483,11 +483,11 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 ## 2. 重定向机制
 
-![重试与重定向处理流程.png](images/Okhttp源码分析/9.png)
+![重试与重定向处理流程.png](images/OkHttp源码分析/9.png)
 
 如果其他拦截器处理当前请求时没有抛出异常的话，那么 `RetryAndFollowUpInterceptor` 的 intercept() 方法就会判断上一个响应（priorResponse）是否为空，如果不为空的话，则用上一个响应的信息创建一个新的响应（Response），创建完新响应后，就会调用 `followUpRequest() 方法` 获取重定向请求。
 
-![image](images/Okhttp源码分析/10.png)
+![image](images/OkHttp源码分析/10.png)
 
 `followUpRequest()` 方法会根据不同的响应状态码构建重定向请求，当状态码为 407 ，并且协议为 HTTP ，则返回一个包含认证挑战的请求，而获取这个请求用的是 `Authenticator` 。Authenticator 有一个 `authenticate()` 方法，默认的是一个空实现 NONE，如果我们想替换的话，可以在创建 OkHttpClient 的时候调用 authenticator() 方法替换默认的空实现。
 
@@ -497,7 +497,7 @@ RealCall 的 `enterNetworkInterceptorExchange()` 方法用于初始化一个 Exc
 
 ## 3. 处理 3XX 重定向状态码
 
-![image](images/Okhttp源码分析/11.png)
+![image](images/OkHttp源码分析/11.png)
 
 当响应的状态码为 300、301、302、303、307、308 时， `followUpRequest()` 方法就会调用 `buildRedirectRequest()` 构建重定向请求，3xx 重定向状态码要么告诉客户端使用替代位置访问客户端感兴趣的资源，要么提供一个替代的响应而不是资源的内容。
 
@@ -651,7 +651,7 @@ class BridgeInterceptor(private val cookieJar: CookieJar) : Interceptor {
 
   首部字段 User-Agent 会将创建请求的浏览器和用户代理名称等信息传达给服务器，由网络爬虫发起请求时，有可能会在字段内添加爬虫作者的电子邮件地址，如果请求经过代理，中间也有可能被添加上代理服务器的名称。
 
-  在 BridgeInterceptor 中，当我们没有设置 User-Agent 时，默认的 UserAgent 为 okhttp:版本号，也就是`User-Agent: okhttp:4.9.0`。
+  在 BridgeInterceptor 中，当我们没有设置 User-Agent 时，默认的 UserAgent 为 OkHttp:版本号，也就是`User-Agent: OkHttp:4.9.0`。
 
 # 7.OkHttp 缓存机制
 
@@ -704,7 +704,7 @@ Etag：服务器发送的头部，通常是一个唯一标识资源当前版本�
 
 ## HTTP 缓存的处理步骤
 
-![image](images/Okhttp源码分析/12.png)
+![image](images/OkHttp源码分析/12.png)
 
 对一条 HTTP GET 报文的基本缓存处理包括`接收`、`解析`、`查询`、`新鲜度检测`、`创建响应`、`发送`和`创建日志` 7 个步骤。
 
@@ -737,7 +737,7 @@ private fun initOkHttpClient() {
 
     val cache = Cache(networkCacheDirectory, MAX_SIZE_NETWORK_CACHE)
 
-    okHttpClient = OkHttpClient.Builder()
+    OkHttpClient = OkHttpClient.Builder()
         .cache(cache)
         .build()
 }
@@ -749,7 +749,7 @@ private fun initOkHttpClient() {
 
 当 get() 方法获取到快照后，就会用快照的输入流创建 Entry ，在 Entry 的构造方法中，会从输入流读取缓存的请求和响应的相关信息，读取完后就会关闭输入流。
 
-![image](images/Okhttp源码分析/13.png)
+![image](images/OkHttp源码分析/13.png)
 
 创建完 Entry 后，Cache.get() 就会判断缓存中的请求地址和请求方法与当前请求是否匹配，匹配的话则返回响应，不匹配的话则关闭响应体并返回 null ，这里说的关闭响应体指的是关闭要用来读取响应体的文件输入流。
 
@@ -777,7 +777,7 @@ private fun initOkHttpClient() {
 
 ### 2. 临时重定向状态码的缓存判断
 
-![image](images/Okhttp源码分析/14.png)
+![image](images/OkHttp源码分析/14.png)
 
 当响应的状态码为 302 或 307 时，isCacheable() 方法就会根据响应的 Expires 首部和 Cache-Control 首部判断是否返回 false（不缓存）。
 
@@ -785,7 +785,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ## 获取响应
 
-![image](images/Okhttp源码分析/15.png)
+![image](images/OkHttp源码分析/15.png)
 
 在 CacheInterceptor 调用 compute() 方法创建 CacheStrategy 时，如果 CacheControl 中有 `onlyIfCached`（不重新加载响应）指令，那么 CacheStrategy 的 cacheResponse 字段也为空。
 
@@ -797,7 +797,7 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 ## 保存响应
 
-![image](images/Okhttp源码分析/16.png)
+![image](images/OkHttp源码分析/16.png)
 
 在获取到响应后，CacheInterceptor 会判断缓存响应的是否为空，如果不为空，并且状态码为 `304`（未修改）的话，则用新的响应替换 LruCache 中的缓存。
 
@@ -805,11 +805,9 @@ Expires 首部的作用是服务器端可以指定一个绝对的日期，如果
 
 # 8. OkHttp 连接建立机制
 
-负责建立连接的 `ConnectInterceptor`。
+负责建立连接的是 `ConnectInterceptor`，其 intercept() 主要是调用了 RealCall 的 initExchange() 方法建立连接。
 
-ConnectInterceptor 的 intercept() 主要是调用了 RealCall 的 initExchange() 方法建立连接。
-
-![image](images/Okhttp源码分析/17.png)
+![image](images/OkHttp源码分析/17.png)
 
 在 RealCall 的 initExchange() 方法中，会用 ExchangeFinder.find() 查找可重用的连接或创建新连接，ExchangeFinder.find() 方法会返回一个数据编译码器 `ExchangeCodec`。ExchangeCodec 负责编码 HTTP 请求进行以及解码 HTTP 响应，Codec 为 Coder-Decoder （编码器—解码器）的缩写。
 
@@ -850,17 +848,17 @@ class ExchangeFinder(
 }
 ```
 
-## 6.1 HTTP 连接管理
+## HTTP 连接管理
 
-HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不多，HTTP 连接是 HTTP 报文传输的文件通道，为了更好地理解网络编程中可能遇到的问题，HTTP 应用程序的开发者需要理解 HTTP 连接的来龙去脉以及如何使用这些连接。
+HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不多，HTTP 连接是 HTTP 报文传输的文件通道，为了更好地理解网络编程中可能遇到的问题，需要理解 HTTP 连接的来龙去脉以及如何使用这些连接。
 
 几乎所有的 HTTP 通信都是由 TCP/IP 承载的，TCP/IP 是全球计算机及网络设备都在使用的一种常用的分组交换网络分层协议。
 
 客户端应用程序可以打开一条 TCP/IP 连接，连接到可能运行在世界任何地方的服务器应用程序，一旦连接建立起来了，在客户端与服务器的计算机之间交换的报文就永远不会丢失、受损或失序。
 
-##### 1. TCP/IP 通信传输流
+### 1. TCP/IP 通信传输流
 
-![通信传输流.gif](images/Okhttp源码分析/18.gif)
+![通信传输流.gif](images/OkHttp源码分析/18.gif)
 
 用 TCP/IP 协议族进行网络通信时，会通过分层顺序与对方进行通信，发送端从应用层往下走，接收端从链路层往上走。
 
@@ -872,9 +870,9 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 每一层只需关注和处理改层的信息。
 
-##### 2. TCP 套接字编程
+### 2. TCP 套接字编程
 
-![image](images/Okhttp源码分析/19.png)
+![image](images/OkHttp源码分析/19.png)
 
 操作系统提供了一些操作 TCP 连接的工具，下面是 Socket API 提供的一些主要接口，Socket API 最初是为 Unix 操作系统开发的，但现在几乎所有的操作系统和语言中都有其变体存在。
 
@@ -890,9 +888,9 @@ HTTP 规范对 HTTP 报文解释得很清楚，但对 HTTP 连接介绍的并不
 
 Socket API 允许用户创建 TCP 的端点和数据结构，把这些端点与远程服务器的 TCP 端点进行连接，并对数据流进行读写。
 
-## 6.2 释放连接
+## 释放连接
 
-![image](images/Okhttp源码分析/20.png)
+![image](images/OkHttp源码分析/20.png)
 
 看完了 HTTP 连接的相关知识，下面我们来看下 ExchangeFinder 的 `findConnection()` 方法的实现。
 
@@ -908,7 +906,7 @@ RealCall 的 connection 的类型为 RealConnection，RealConnection 中维护�
 
 而释放连接的操作，其实就是看下 RealConnection 的 Call 列表中有没有当前 RealCall ，有的话就把当前 RealCall 从列表中移除，这时就表示连接已释放，如果连接的 Call 列表中没有当前 Call 的话，则返回当前 Call 的连接给 CallServerInterceptor 用。
 
-## 6.3 从连接池获取连接
+## 从连接池获取连接
 
 当 `RealCall` 的连接释放后， `ExchangeFinder` 就会尝试从连接池 `RealConnectionPool` 获取连接，RealConnectionPool 中比较重要的两个成员是 `keepAliveDuration` 和 `connection`。
 
@@ -918,7 +916,7 @@ keepAliveDuration 是持久连接时间，默认为 5 分钟，也就是`一条�
 
 当第一次从连接池获取不到连接时，ExchangeFinder 会尝试用路线选择器 RouteSelector 来选出其他可用路线，然后把这些路线（routes）传给连接池，再次尝试获取连接，获取到则返回连接。
 
-## 6.4 创建新连接
+## 创建新连接
 
 当两次从尝试从连接池连接都获取不到时，ExchangeFinder 就会创建一个新的连接 RealConnection，然后调用它的 connect() 方法，并返回该连接。
 
@@ -985,9 +983,9 @@ class ExchangeFinder(
 }
 ```
 
-## 6.5 连接 Socket
+## 连接 Socket
 
-![image](images/Okhttp源码分析/21.png)
+![image](images/OkHttp源码分析/21.png)
 
 在 `RealConnection` 的 `connect()` 方法中首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
@@ -995,7 +993,7 @@ class ExchangeFinder(
 
 关于连接隧道在后面讲 HTTPS 的时候会讲到，下面先来看下 `connectSocket()` 方法的实现。
 
-![image](images/Okhttp源码分析/22.png)
+![image](images/OkHttp源码分析/22.png)
 
 在 RealConnection 的 connectSocket() 方法中，首先会判断代理方式，如果代理方式为无代理（DIRECT）或 HTTP 代理，则使用 Socket 工厂创建 Socket，否则使用 `Socket(proxy)` 创建 Socket。
 
@@ -1003,13 +1001,13 @@ class ExchangeFinder(
 
 Platform 的 connectSocket() 方法调用了 Socket 的 connect() 方法，后面就是 Socket API 的活了。
 
-## 6.6 建立协议
+## 建立协议
 
-![image](images/Okhttp源码分析/23.png)
+![image](images/OkHttp源码分析/23.png)
 
 创建完 Socket 后，RealConnection 的 connect() 方法就会调用 establishProtocol() 方法建立协议。
 
-![image](images/Okhttp源码分析/24.png)
+![image](images/OkHttp源码分析/24.png)
 
 在 establishProtocol() 方法中会判断，如果使用的方案是 HTTP 的话，则判断是否基于先验启动 HTTP/2（`rfc_7540_34`），先验指的是预先知道，也就是`客户端知道服务器端支持 HTTP/2` ，不需要升级请求，如果不是基于先验启动 HTTP/2 的话，则把协议设为 HTTP/1.1 。
 
@@ -1029,7 +1027,7 @@ val client = OkHttpClient.Builder()
 
 ### 9.1 HTTPS 基础知识
 
-![明文传输.png](images/Okhttp源码分析/25.png)
+![明文传输.png](images/OkHttp源码分析/25.png)
 
 在 `HTTP` 模式下，搜索或访问请求是以`明文信息`传输，经过`代理服务器`、`路由器`、`WiFi 热点`、`服务运营商`等`中间人`通路，形成了“中间人”获取数据、篡改数据的可能。
 
@@ -1057,7 +1055,7 @@ val client = OkHttpClient.Builder()
 
 #### 9.1.2 握手层与加密层
 
-![握手层与加密层.png](images/Okhttp源码分析/26.png)
+![握手层与加密层.png](images/OkHttp源码分析/26.png)
 
 HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两层组成，握手层在加密层的上层，提供加密所需要的信息（密钥块）。
 
@@ -1075,9 +1073,9 @@ HTTPS（TLS/SSL协议）设计得很巧妙，主要由握手层和加密层两�
 
 下面分别是使用 RSA 密码套件和 DHE_RSA 密码套件的 TLS 协议流程图。
 
-![使用 RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/27.png)
+![使用 RSA 密码套件的 TLS 协议流程图.png](images/OkHttp源码分析/27.png)
 
-![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](images/Okhttp源码分析/28.png)
+![使用 DHE_RSA 密码套件的 TLS 协议流程图.png](images/OkHttp源码分析/28.png)
 
 #### 9.1.3 握手
 
@@ -1103,7 +1101,7 @@ HTTP 是没有握手过程的，完成一次 HTTP 交互，客户端和服务器
 
 密码套件的构成如下图所示。
 
-![密码套件结构.png](images/Okhttp源码分析/29.png)
+![密码套件结构.png](images/OkHttp源码分析/29.png)
 
 #### 9.1.4 加密
 
@@ -1131,7 +1129,7 @@ TLS 记录协议中加密参数（Security Paramters）的值都是 TLS/SSL 握�
 
 下面是完整的 TLS/SSL 握手协议交互流程。
 
-![完整握手协议交互流程.png](images/Okhttp源码分析/30.png)
+![完整握手协议交互流程.png](images/OkHttp源码分析/30.png)
 
 握手协议的主要步骤如下：
 
@@ -1190,7 +1188,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 基于 SessionTIcket 进行完整的握手
 
-![基于 SessionTicket 进行完整的握手.png](images/Okhttp源码分析/31.png)
+![基于 SessionTicket 进行完整的握手.png](images/OkHttp源码分析/31.png)
 
 对于一次新连接，如果期望服务器支持 SessionTicket 会话恢复，则在客户端` Client Hello 消息中包含一个空的 SessionTicket TLS 扩展`。
 
@@ -1202,7 +1200,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 2. 基于 SessionTicket 进行简短的握手
 
-![image](images/Okhttp源码分析/32.png)
+![image](images/OkHttp源码分析/32.png)
 
 基于 SessionTicket 进行会话恢复的流程如下。
 
@@ -1215,7 +1213,7 @@ SessionTicket 在具体实现时有很多种情况，下面一一说明。
 
 ##### 1. 隧道
 
-![image](images/Okhttp源码分析/33.png)
+![image](images/OkHttp源码分析/33.png)
 
 隧道（tunnel）是建立起来后，就会在两条连接之间对原始数据进行盲转发的 HTTP 应用程序，HTTP 隧道通常用来在一条或多条 HTTP 连接上转发非 HTTP 数据，转发时不会窥探数据。
 
@@ -1225,19 +1223,19 @@ HTTP/SSL 隧道收到一条 HTTP 请求，要求建立一条到目的地之和�
 
 ##### 2. connectTunnel()
 
-![image](images/Okhttp源码分析/34.png)
+![image](images/OkHttp源码分析/34.png)
 
 RealConnection 的 connect() 方法首先会判断当前连接是否已连接，也就是 connect() 方法被调用过没有，如果被调用过的话，则抛出非法状态异常。
 
 如果没有连接过的话，则判断 URL 是否用的 HTTPS 方案，是的话则连接隧道。
 
-![image](images/Okhttp源码分析/35.png)
+![image](images/OkHttp源码分析/35.png)
 
 而 RealConnection 调用 connectTunnel() 方法后，connectTunnel() 会调用 connectSocket() 和 createTunnel() 方法创建Socket 和隧道。
 
 ### 9.3 创建隧道
 
-![image](images/Okhttp源码分析/36.png)
+![image](images/OkHttp源码分析/36.png)
 
 在 RealConnection 的 createTunnel() 方法中，首先会创建 Http1ExchangeCodec ，然后用它来写入请求行，写完了就再刷新缓冲区，然后读取响应报文首部。
 
@@ -1247,7 +1245,7 @@ RealConnection 的 connect() 方法首先会判断当前连接是否已连接，
 
 ### 4 获取连接规格
 
-![image](images/Okhttp源码分析/37.png)
+![image](images/OkHttp源码分析/37.png)
 
 在前面提到了 connectTls() 方法，下面来看下这个方法的实现。
 
@@ -1271,7 +1269,7 @@ ALPN（应用层协议协商扩展，Application Layer Protocol Negotiation）�
 
 ##### 2. 配置 TLS 扩展
 
-![image](images/Okhttp源码分析/38.png)
+![image](images/OkHttp源码分析/38.png)
 
 RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判断 ConnectionSpec 是否支持 TLS 扩展，如果支持的话，则调用特定平台（Platform）的 configureTlsExtentions() 方法配置 TLS 扩展。
 
@@ -1281,7 +1279,7 @@ RealConnection 的 connectTls() 方法在获取到 ConnectionSpec 后，会判�
 
 ### 9.6 证书锁定
 
-![image](images/Okhttp源码分析/39.png)
+![image](images/OkHttp源码分析/39.png)
 
 在调用了 SSLSocket 的 startHandshake() 方法后，RealConnection 就会创建一个 Handshake 对象，Handshake 包含了对端证书，对于我们客户端来说也就是服务器端的证书。
 
@@ -1314,10 +1312,10 @@ javax.net.ssl.SSLPeerUnverifiedException: Certificate pinning failure!
      sha256/lCppFqbkrlJ3EcVFAkeip0+44VaoJUymbnOaEUk7tEU=: CN=AddTrust External CA Root
    Pinned certificates for publicobject.com:
      sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
-   at okhttp3.CertificatePinner.check(CertificatePinner.java)
-   at okhttp3.Connection.upgradeToTls(Connection.java)
-   at okhttp3.Connection.connect(Connection.java)
-   at okhttp3.Connection.connectAndSetOwner(Connection.java)
+   at OkHttp3.CertificatePinner.check(CertificatePinner.java)
+   at OkHttp3.Connection.upgradeToTls(Connection.java)
+   at OkHttp3.Connection.connect(Connection.java)
+   at OkHttp3.Connection.connectAndSetOwner(Connection.java)
 ```
 
 然后把这些哈希值作为 pin 添加到 CertificatePinner 中即可。
@@ -1362,7 +1360,7 @@ HTTP/2 中的二进制表示用于发送和接收消息数据，但是消息本�
 
 HTTP/1 是一种同步的、独占的请求—响应协议，客户端发送 HTTP/1 消息，然后服务器返回 HTTP/1 响应，为了能更快地收发更多数据，HTTP/1 的解决办法就是打开多个连接，并且使用资源合并，以减少请求数，但是这种解决办法会引入其他问题和带来性能开销。
 
-![image](images/Okhttp源码分析/40.png)
+![image](images/OkHttp源码分析/40.png)
 
 而 HTTP/2 允许在单个连接上同时执行多个请求，每个 HTTP 请求或响应使用不同的流，通过使用二进制分帧层（Binary Framing Layer）给每个帧分配一个流标识符，以支持同时发出多个独立请求，当接收到该流的所有帧时，接收方可以把帧组合成完整消息。
 
@@ -1378,7 +1376,7 @@ HTTP2 与 HTTP/1 的不同主要在消息发送的层面上，在更上层，HTT
 
 ##### 3. HTTP/2 中的流
 
-![image](images/Okhttp源码分析/41.png)
+![image](images/OkHttp源码分析/41.png)
 
 HTTP2 中每个流的作用类似于 HTTP/1 中的连接，但是 HTTP/2 中没有重用流，而且流不是完全独立的。
 
@@ -1426,7 +1424,7 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 ### 10.2 Http2Connection.start()
 
-![image](images/Okhttp源码分析/42.png)
+![image](images/OkHttp源码分析/42.png)
 
 前面讲到了在 establishProtocol() 方法中会判断是否使用 HTTPS，如果使用 HTTPS，则调用 connectTls() 方法连接 TLS，也就是第 7 大节讲的内容。
 
@@ -1434,7 +1432,7 @@ SETTINGS 帧是服务器和客户端必须发送的第一个帧（在前奏消�
 
 在 startHttp2() 方法中，首先会创建一个 Http2Connection，然后调用 Http2Connection.start() 方法。
 
-![RealConnection.connect__1.png](images/Okhttp源码分析/43.png)
+![RealConnection.connect__1.png](images/OkHttp源码分析/43.png)
 
 在 Http2Connection 的 start() 方法中，首先会用 Http2Writer 的 connectionPreface() 方法发送前奏消息，这时 Http2Writer 就会用把下面这个常量发送到服务器端。
 
@@ -1450,11 +1448,11 @@ object Http2 {
 
 发送了前奏消息后，start() 方法就会发送 SETTINGS 帧。
 
-![RealConnection.connect__2.png](images/Okhttp源码分析/44.png)
+![RealConnection.connect__2.png](images/OkHttp源码分析/44.png)
 
 发送完前奏消息和 SETTINGS 帧后，start() 方法就会判断初始化窗口大小（initialWindowSize）的值是否为默认值，如果不是的话，则把这个值与默认值的差发送给服务器端。
 
-![RealConnection.connect__.png](images/Okhttp源码分析/45.png)
+![RealConnection.connect__.png](images/OkHttp源码分析/45.png)
 
 发送完初始窗口大小的变化给服务器端后，start() 方法就会用 TaskRunner 创建一个新的 TaskQueue ，然后调用 TaskQueue 的 execute() 方法把 ReaderRunnable 放到队列中执行。
 
@@ -1468,23 +1466,25 @@ TaskQueue 的 execute() 方法中会创建一个 Task，并在 runOnce() 方法�
 
 <font color='orange'>Q：OkHttp框架解决了你什么问题？</font>
 
+是一个网络框架，用来请求网络数据的。其使用方便，目前遇到的大多数网络请求相关的需求都可以通过OkHttp来实现。
+
 ### 原理
 
 <font color='orange'>Q：OkHttp原理？</font>
 
 <font color='orange'>Q：OkHttp源码分析？</font>
 
-<font color='orange'>Q：OKHttp请求的整体流程是怎样的？</font>
+<font color='orange'>Q：OkHttp请求的整体流程是怎样的？</font>
 
 下面是一个最简单的`Http`请求发送代码：
 
 ```kotlin
-	val okHttpClient = OkHttpClient()
+	val OkHttpClient = OkHttpClient()
   val request: Request = Request.Builder()
        .url("https://www.google.com/")
        .build()
 
-   okHttpClient.newCall(request).enqueue(object :Callback{
+   OkHttpClient.newCall(request).enqueue(object :Callback{
        override fun onFailure(call: Call, e: IOException) {
        }
 
@@ -1499,23 +1499,23 @@ TaskQueue 的 execute() 方法中会创建一个 Task，并在 runOnce() 方法�
 - 分发器：内部维护队列与线程池，完成请求调配;
 - 拦截器：五大默认拦截器完成整个请求过程。
 
-![img](images/Okhttp源码分析/1.png)
+![img](images/OkHttp源码分析/1.png)
 
 整个网络请求过程大致如上所示
 
-1. 通过建造者模式构建`OKHttpClient`与 `Request`
-2. `OKHttpClient`通过`newCall`发起一个新的请求
+1. 通过建造者模式构建`OkHttpClient`与 `Request`
+2. `OkHttpClient`通过`newCall`发起一个新的请求
 3. 通过分发器维护请求队列与线程池，完成请求调配
 4. 通过五大默认拦截器完成请求重试，缓存处理，建立连接等一系列操作
 5. 得到网络请求结果
 
 <font color='orange'>Q：OkHttp怎么把参数组装的</font>
 
-通过建造者模式，将请求参数封装到 OKHttpClient 和 Request 对象中。
+通过建造者模式，将请求参数封装到 OkHttpClient 和 Request 对象中。
 
 ### 分发器
 
-<font color='orange'>Q：OKHttp分发器是怎样工作的？</font>
+<font color='orange'>Q：OkHttp分发器是怎样工作的？</font>
 
 分发器的主要作用是维护请求队列与线程池，比如我们有100个异步请求，肯定不能把它们同时请求，而是应该把它们排队分个类，分为正在请求中的列表和正在等待的列表， 等请求完成后，即可从等待中的列表中取出等待的请求，从而完成所有的请求。
 
@@ -1550,7 +1550,7 @@ synchronized void enqueue(AsyncCall call) {
 
 ### 拦截器
 
-<font color='orange'>Q：OKHttp拦截器是如何工作的？</font>
+<font color='orange'>Q：OkHttp拦截器是如何工作的？</font>
 
 经过分发器的任务分发后，就要利用拦截器开始一系列配置与请求了
 
@@ -1606,7 +1606,7 @@ internal fun getResponseWithInterceptorChain(): Response {
 | CallServerInterceptor             | 请求拦截器，在前置准备工作完成后，真正发起了网络请求。       |
 
 我们的网络请求就是这样经过责任链一级一级的传递下去，最终会执行到`CallServerInterceptor`的`intercept`方法，此方法会将网络响应的结果封装成一个`Response`对象并`return`。之后沿着责任链一级一级的回溯，最终就回到`getResponseWithInterceptorChain`方法的返回，如下图所示：
-![img](images/Okhttp源码分析/2.png)
+![img](images/OkHttp源码分析/2.png)
 
 <font color='orange'>Q：应用拦截器和网络拦截器有什么区别？</font>
 
@@ -1616,7 +1616,7 @@ internal fun getResponseWithInterceptorChain(): Response {
 2. 其次，除了`CallServerInterceptor`之外，每个拦截器都应该至少调用一次`realChain.proceed`方法。实际上在应用拦截器这层可以多次调用`proceed`方法（本地异常重试）或者不调用`proceed`方法（中断），但是网络拦截器这层连接已经准备好，可且仅可调用一次`proceed`方法。
 3. 最后，从使用场景看，应用拦截器因为只会调用一次，通常用于统计客户端的网络请求发起情况；而网络拦截器一次调用代表了一定会发起一次网络通信，因此通常可用于统计网络链路上传输的数据。
 
-<font color='orange'>Q：OKHttp的所有拦截器有哪些</font>
+<font color='orange'>Q：OkHttp的所有拦截器有哪些</font>
 
 | 应用拦截器                        | 拿到的是原始请求，可以添加一些自定义header、通用参数、参数加密、网关接入等等。 |
 | --------------------------------- | ------------------------------------------------------------ |
@@ -1731,20 +1731,18 @@ System.out               I  onResponse:{"message":"我是模拟的数据"}
 
 ### 缓存
 
-<font color='orange'>Q：OKHttp如何实现缓存</font>
+<font color='orange'>Q：OkHttp是如何实现/处理（网络请求）缓存的</font>
 
+OkHttp 的缓存功能是在缓存拦截器中实现的，用于对网络请求响应数据进行缓存。缓存模块主要解决两个问题，缓存的保存和缓存的获取。保存时，要判断资源是否可缓存（OkHttp只支持GET等获取资源的请求类型做缓存，不支持POST、DELETE等修改资源的请求类型的缓存；只支持部分响应码的缓存）、缓存的有效期等；获取时，要判断资源是否已过期，如果过期了，从网络获取，否则用缓存。
 
-
-<font color='orange'>Q：网络请求缓存处理，okhttp如何处理网络缓存的</font>
-
-
+网络请求的缓存，要解决的最重要的一个问题是判断资源的有效期。OkHttp 在实现时，会通过 CacheStrategy 缓存策略类来判断，是使用缓存。
 
 ### 连接
 
-<font color='orange'>Q：OKHttp如何复用TCP连接？</font>
+<font color='orange'>Q：OkHttp如何复用TCP连接？</font>
 
 `ConnectInterceptor`的主要工作就是负责建立`TCP`连接，建立`TCP`连接需要经历三次握手四次挥手等操作，如果每个`HTTP`请求都要新建一个`TCP`消耗资源比较多
-而`Http1.1`已经支持`keep-alive`,即多个`Http`请求复用一个`TCP`连接，`OKHttp`也做了相应的优化，下面我们来看下`OKHttp`是怎么复用`TCP`连接的
+而`Http1.1`已经支持`keep-alive`，即多个`Http`请求复用一个`TCP`连接，`OkHttp` 是如何实现复用`TCP`连接的
 
 `ConnectInterceptor`中查找连接的代码会最终会调用到`ExchangeFinder.findConnection`方法，具体如下：
 
@@ -1806,16 +1804,16 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
 6. 第三次若匹配到，就使用已有连接，释放刚刚新建的连接；若未匹配到，则把新连接存入连接池并返回。
 
 以上就是连接拦截器尝试复用连接的操作，流程图如下：
-![img](images/Okhttp源码分析/3.png)
+![img](images/OkHttp源码分析/3.png)
 
-<font color='orange'>Q：OKHttp空闲连接如何清除？</font>
+<font color='orange'>Q：OkHttp空闲连接如何清除？</font>
 
-上面说到我们会建立一个`TCP`连接池，但如果没有任务了，空闲的连接也应该及时清除，`OKHttp`是如何做到的呢?
+上面说到我们会建立一个`TCP`连接池，但如果没有任务了，空闲的连接也应该及时清除，`OkHttp`是如何做到的呢?
 
 ```kotlin
 # RealConnectionPool
   private val cleanupQueue: TaskQueue = taskRunner.newQueue()
-  private val cleanupTask = object : Task("$okHttpName ConnectionPool") {
+  private val cleanupTask = object : Task("$OkHttpName ConnectionPool") {
     override fun runOnce(): Long = cleanup(System.nanoTime())
   }
 
@@ -1850,7 +1848,7 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
           || idleConnectionCount > this.maxIdleConnections) {
         connections.remove(longestIdleConnection);
       } else if (idleConnectionCount > 0) {
-        // else，就返回 还剩多久到达5分钟，然后wait这个时间再来清理
+        // 返回 还剩多久到达5分钟，然后wait这个时间再来清理
         return keepAliveDurationNs - longestIdleDurationNs;
       } else if (inUseConnectionCount > 0) {
         //连接没有空闲的，就5分钟后再尝试清理.
@@ -1869,61 +1867,189 @@ private RealConnection findConnection(int connectTimeout, int readTimeout, int w
   }
 ```
 
-思路还是很清晰的：
-
 1. 在将连接加入连接池时就会启动定时任务
 2. 有空闲连接的话，如果最长的空闲时间大于5分钟 或 空闲数 大于5，就移除关闭这个最长空闲连接；如果 空闲数 不大于5 且 最长的空闲时间不大于5分钟，就返回到5分钟的剩余时间，然后等待这个时间再来清理。
 3. 没有空闲连接就等5分钟后再尝试清理。
 4. 没有连接不清理。
 
 流程如下图所示：
-![img](images/Okhttp源码分析/4.png)
+![img](images/OkHttp源码分析/4.png)
 
 ### 其他
 
-<font color='orange'>Q：OKHttp框架中用到了哪些设计模式？</font>
+<font color='orange'>Q：OkHttp框架中用到了哪些设计模式？</font>
 
 1. 构建者模式：`OkHttpClient`与`Request`的构建都用到了构建者模式
-2. 外观模式： `OkHttp`使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
-3. 责任链模式: `OKHttp`的核心就是责任链模式，通过5个默认拦截器构成的责任链完成请求的配置
-4. 享元模式: 享元模式的核心即池中复用，`OKHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
+2. 外观模式： 使用外观模式，将整个系统的复杂性隐藏起来，将子系统接口通过客户端`OkHttpClient`统一暴露出来。
+3. 责任链模式: `OkHttp`的核心就是责任链模式，通过5个默认拦截器构成的责任链完成请求的配置
+4. 享元模式: 享元模式的核心即池中复用，`OkHttp`复用`TCP`连接时用到了连接池，同时在异步请求中也用到了线程池
 
 <font color='orange'>Q：有没有做过一些网络优化？比如弱网环境</font>
 
-<font color='orange'>Q：OKhttp针对网络层有哪些优化？</font>
+网络优化方案有哪些？
 
-<font color='orange'>Q：OKHttp的超时时间，有考虑DNS超时吗</font>
+实践：做需求日历日程数据同步时，采用增量更新的方式，而不是全量，以减少数据请求量。
 
-<font color='orange'>Q：OKHttp线程池讲下</font>
+**网络优化方案**
 
-<font color='orange'>Q：HttpUrlConnection和okhttp关系</font>
+1. 减少网络请求
+   - **合并请求**：将多个小请求合并为一个请求，减少网络交互次数。
+   - **批量处理**：对于批量数据的处理，采用一次性请求获取，而不是分多次请求。
+2. 数据压缩
+   - **使用GZIP压缩**：在网络数据传输时，使用GZIP等压缩算法对数据进行压缩，减少传输数据量。
+3. 网络数据缓存
+   - **内存缓存**：使用LRU（Least Recently Used）等缓存策略，将常用数据存储在内存中，加快访问速度。
+   - **磁盘缓存**：对于不常变且数据量较大的数据，使用磁盘缓存，如SQLite数据库或文件存储。
+4. 分页加载
+   - 对于大量数据的加载，采用分页的方式，避免一次性加载过多数据导致内存溢出或网络阻塞。
+5. 使用HTTP/2.0
+   - HTTP/2.0支持多路复用、头部压缩、服务器推送等特性，能有效提高网络传输效率。
+
+**弱网环境处理**
+
+1. 优化网络请求
+   - **减少请求数据**：在弱网环境下，尽量减少请求的数据量，以减少传输时间。
+   - **合并请求**：同样地，将多个小请求合并为一个请求，减少网络交互次数。
+2. 使用缓存
+3. 增加重试机制
+   - 在网络请求失败时，增加重试机制，设置合适的重试次数和重试间隔，以提高请求成功的概率。
+4. 配置合理的超时时间
+   - 根据网络环境和业务需求，配置合理的连接超时时间和读取超时时间，避免在弱网环境下因超时而导致请求失败。
+5. 压缩请求数据
+   - 在弱网环境下，对请求数据进行压缩，减少传输的数据量，提高传输效率。
+
+通过以上优化措施，可以提高网络请求的效率，更好地应对弱网环境带来的挑战。
+
+<font color='orange'>Q：OkHttp针对网络层有哪些优化？</font>
+
+OkHttp针对网络层进行了多方面的优化，为开发者提供了高效、稳定且易用的网络通信解决方案。这些优化主要体现在以下几个方面：
+
+1. 请求和响应处理
+   - OkHttp支持同步和异步的HTTP请求，允许开发者根据需求选择合适的请求方式。
+   - 提供了详细的网络请求和响应生命周期的监听，如通过EventListener类可以监听到请求开始、DNS解析开始、连接开始、请求头发送、请求体发送、响应头接收、响应体接收等各个阶段，从而进行详细的耗时统计和性能监控。
+2. 缓存机制
+   - OkHttp内置了强大的缓存机制，可以自动缓存HTTP和HTTPS的响应内容。通过配置缓存策略，开发者可以在无网络时依然返回先前获取的数据，提高用户体验。
+3. 连接池管理
+   - OkHttp使用连接池来复用TCP连接，减少了创建和关闭连接的开销，提高了网络请求的效率和性能。
+   - 提供了连接超时、读取超时、写入超时等配置选项，可以根据网络环境和业务需求进行灵活调整。
+4. 重定向和重试策略
+   - OkHttp可以自动处理HTTP重定向，减少了开发者处理重定向的复杂性。
+   - 可以配置智能的重试策略，当网络不稳定或服务器短暂异常时，自动进行重试，减少因网络问题导致的请求失败。
+5. 安全性
+   - OkHttp支持TLS 1.2和TLS 1.3，提供了更安全的网络连接。
+   - 支持自签名证书和自定义的证书校验器，满足多种网络安全需求。
+6. 易用性和扩展性
+   - 提供了简洁易用的API接口，降低了学习成本，使开发人员可以更专注于业务逻辑而不是网络底层实现。
+   - 提供了丰富的拦截器（Interceptor）机制，允许开发者在请求发送前和响应接收后进行自定义处理，扩展性强。
+7. 错误处理
+   - 当请求失败时，OkHttp会提供详细的错误信息，包括HTTP状态码、错误原因等，有助于开发者快速定位和解决问题。
+
+<font color='orange'>Q：OkHttp的超时时间，有考虑DNS超时吗</font>
+
+连接超时时间不包含DNS解析的时间。连接超时时间（connectTimeout）主要关注的是从客户端发起请求到与服务器建立连接的时间。
+
+OkHttp的超时时间设置是一个重要的配置选项，但关于DNS超时，OkHttp的处理方式有所不同。
+
+1. OkHttp的超时时间设置
+
+   通过`OkHttpClient` 的 `Builder`设置多种超时时间，包括连接超时、读取超时、写入超时和整个流程的超时时间，都是以秒为单位，通过 TimeUnit.SECONDS 来指定。
+
+   ```java
+       var client: OkHttpClient = OkHttpClient.Builder()
+               .connectTimeout(10, TimeUnit.SECONDS) // 连接超时  
+               .readTimeout(60, TimeUnit.SECONDS) // 读取超时  
+               .writeTimeout(60, TimeUnit.SECONDS) // 写入超时  
+               .build()
+   ```
+
+   超时时间主要用于控制网络请求的不同阶段，以确保在网络不稳定或服务器响应过慢时，请求能够及时中断并返回错误。
+
+2. DNS超时
+
+   DNS解析：域名解析成IP。
+
+   - DNS超时指的是域名解析超时。在某些情况下，比如网络异常，DNS服务可能解析域名超时。
+
+   - OkHttp没有直接提供设置DNS超时的API，但支持通过自定义DNS解析器来处理DNS解析过程，并在解析过程中设置超时时间。
+
+   - 自定义DNS解析器可以通过实现 Dns 接口并覆盖 lookup 方法来实现。在 lookup 方法中，可以使用线程池和Future来控制解析过程的超时时间。例如：
+
+     ```java
+             val client: OkHttpClient = OkHttpClient.Builder()
+                     .dns(CustomNDS(3000))
+                     .build()
+     
+     import okhttp3.Dns
+     import java.net.InetAddress
+     import java.net.UnknownHostException
+     import java.util.concurrent.FutureTask
+     import java.util.concurrent.TimeUnit
+     
+     class CustomNDS(private val timeout: Long) : Dns {
+         @Throws(UnknownHostException::class)
+         override fun lookup(hostname: String): List<InetAddress> {
+             return try {
+                 val task = FutureTask { listOf(*InetAddress.getAllByName(hostname)) }
+                 Thread(task).start()
+                 task[timeout, TimeUnit.MILLISECONDS]
+             } catch (e: Exception) {
+                 val unknownHostException = UnknownHostException("Broken system behaviour for dns lookup of $hostname")
+                 unknownHostException.initCause(e)
+                 throw unknownHostException
+             }
+         }
+     }
+     ```
+
+     这个例子中使用了`ExecutorService`和`Future`来异步执行DNS解析，并通过`future.get(5, TimeUnit.SECONDS)`设置了5秒的超时时间。如果DNS解析在5秒内没有完成，就会抛出`TimeoutException`，并被转换为`UnknownHostException`抛出。
+
+虽然OkHttp没有直接提供设置DNS超时的API，但可以通过自定义DNS解析器并在解析过程中设置超时时间来实现类似的功能。
+
+<font color='orange'>Q：OkHttp线程池讲下</font>
 
 
+
+<font color='orange'>Q：HttpURLConnection和OkHttp关系</font>
+
+都是用于处理HTTP请求的库。HttpURLConnection位于java.net包下。
+
+OkHttp使用更简单，提供了比HttpURLConnection更强大和灵活的功能，如支持自定义的缓存策略、连接池管理、gzip压缩等。
 
 ### 开放
 
-<font color='orange'>Q：OKHttp有哪些优点？</font>
+<font color='orange'>Q：OkHttp有哪些优点？</font>
+
+可以从使用开始，再到其实现原理所涉及到的点逐一的说。
+
+OkHttp作为一个网络库，能够满足绝大多数网络请求相关的业务需求，其：
 
 1. 使用简单，在设计时使用了外观模式，将整个系统的复杂性给隐藏起来，将子系统接口通过一个客户端`OkHttpClient`统一暴露出来。
 2. 扩展性强，可以通过自定义应用拦截器与网络拦截器，完成用户各种自定义的需求
 3. 功能强大，支持`Spdy`、`Http1.X`、`Http2`、以及`WebSocket`等多种协议
-4. 通过连接池复用底层`TCP`(`Socket`)，减少请求延时
-5. 无缝的支持`GZIP`减少数据流量
+4. 生态好，支持配合 Retrofit、Glide等库的使用
+5. 支持请求失败自动重试主机的其他`ip`，自动重定向
 6. 支持数据缓存，减少重复的网络请求
-7. 支持请求失败自动重试主机的其他`ip`，自动重定向
+7. 通过连接池复用底层`TCP`(`Socket`)，减少请求延时
+8. 无缝的支持`GZIP`减少数据流量
 
-<font color='orange'>Q：对OKHttp有哪些了解？这个框架设计怎么样？</font>
+<font color='orange'>Q：对OkHttp有哪些了解？这个框架设计怎么样？</font>
 
+拦截器、缓存、连接池、易用性等
 
+设计的怎么样：讲讲优点、设计模式等
 
 ### 对比
 
-<font color='orange'>Q：okHttp、volley、retrofit等网络框架的使用和原理</font>
+<font color='orange'>Q：OkHttp、retrofit等网络框架的使用和原理</font>
 
-<font color='orange'>Q：Volley与OKHttp有什么区别？</font>
+<font color='orange'>Q：Volley与OkHttp有什么区别？</font>
 
 # 参考
 
 1、[【知识点】OkHttp 原理 8 连问](https://juejin.cn/post/7020027832977850381)
 
 2、[探索 OkHttp 原理](https://juejin.cn/post/6968773787374321677)
+
+# 待学
+
+[OkHttp源码解析(一)--初阶](https://www.jianshu.com/p/82f74db14a18)
