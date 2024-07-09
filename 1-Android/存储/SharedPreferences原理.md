@@ -4,15 +4,11 @@
 
 
 
-目录
-
-[TOC]
-
-
-
 # 一、SharedPreferences 是什么
 
-SharedPreferences 是用来存放**简单键值对**的一种方式。适用于**单进程、小批量**的数据。SharedPreferences 是基于 XML 文件实现的，并且所有要持久化的数据都是一次性加载到内存，如果数据过大，不合适用 SP。然后 Android 的文件访问也是不支持多进程互斥的，因此 SP 也不支持跨进程（支持，但是有问题），如果多个进程更新一个 XML 文件，就会存在不互斥问题，数据存储会有问题。
+SharedPreferences 是用来存放**简单键值对**的一种方式。适用于**单进程、小批量**的数据。
+
+SharedPreferences 是基于 XML 文件实现的，并且所有要持久化的数据都是一次性加载到内存，如果数据过大，不合适用 SP。然后 Android 的文件访问也是不支持多进程互斥的，因此 SP 也不支持跨进程（支持，但是有问题），如果多个进程更新一个 XML 文件，就会存在不互斥问题，数据存储会有问题。
 
 
 
@@ -21,8 +17,6 @@ SharedPreferences 是用来存放**简单键值对**的一种方式。适用于*
 ## 1、getSharedPreferences() 
 
 调用 `getSharedPreferences()` 时会创建一个 SharedPreferences 对象，其中会先判断是否存在对应的 xml 文件，如果发现存在则会有一个预加载操作——就是把 xml 文件的内容通过 IO 操作和 XmlUitl 解析后存入一个 map 对象中，所以我们调用 `SharedPreferences::getString()` 等 get 操作是不会对文件做 IO 操作的，而是直接访问刚刚创建的 map 集合的内容，这提高了效率。如果对应的 xml 不存在则重新创建一个对应的 xml 文件。
-
-部分实现如下：
 
 ```java
 // SharedPreferencesImpl.java
@@ -43,25 +37,19 @@ public SharedPreferences getSharedPreferences(String name, int mode) {
 }
 ```
 
-
-
 ## 2、put 写操作
 
 写操作也有两步，一是把数据先写入内存中，即 map 集合，二是把数据写入硬盘文件中。这样才能保证数据的完整性。
 
 写操作有两个提交的方式：
 
-commit()：线程安全，性能慢，一般来说在当前线程完成写文件操作
+commit()：线程安全，性能慢，在当前线程完成写文件操作
 
 apply()：线程不安全，性能高，异步处理 IO 操作，一定会把这个写文件操作放入一个 SingleThreadExecutor 线程池中处理 
-
-
 
 ## 3、SharedPreferences 多次创建
 
 在第一次创建后会一直维持一个 Singleton ， 每次调用 getSharedPreferences() 都返回唯一的一个实例，从上面的 getSharedPreference() 代码可以看到，每个prefs文件都会以name作为key保存，每次取之前都会判空的。
-
-
 
 # 三、SharedPreferences 使用封装
 
@@ -126,8 +114,6 @@ class PreferenceManager {
 由于应用版本升级时并不会删除 SharedPreferences 文件，所以可以加个版本判断，来进行一些数据更新。
 
 从上面看来，由于每一次调用 getSharedPreferences() 都会有 IO 操作，当内容比较多时，那么就不适宜在 Application 的 onCreate 中进行 SharedPreferences 文件初始化了，最好的办法是开个子线程去完成它的创建和数据的预加载！！！
-
-
 
 # 四、使用优化
 
@@ -294,7 +280,7 @@ class PreferenceManager {
 
 ## 4、全量写入
 
-即使只修改了一个键值对，在调用apply()或commit()将这些改动写到本地时都会将内存中的键值对集合重新全部写到sp文件中，这无疑是低效的，我们应该寻找一种能增强更新的方式。
+即使只修改了一个键值对，在调用apply()或commit()将这些改动写到本地时都会将内存中的键值对集合重新全部写到sp文件中，这无疑是低效的，我们应该寻找一种能增量更新的方式。
 
 ```java
     private void writeToFile(MemoryCommitResult mcr, boolean isFromSyncCommit) {
@@ -478,7 +464,7 @@ apply()。
 
 MMKV 好像还有新的方法，我还不是很懂。
 
-<font color='orange'>Q：shareprefrence不是进程安全,假设一个apk两个进程同时修改shareprefrence怎么办?</font>
+<font color='orange'>Q：shareprefrence不是进程安全，假设一个apk两个进程同时修改shareprefrence怎么办?</font>
 
 可以用 ContentProvider 来进行同步。
 
@@ -490,11 +476,11 @@ MMKV 好像还有新的方法，我还不是很懂。
 
 1. SharePreferences是Android基于xml实现的一种数据持久化手段。
 
-2. sp不适合存储过大的数据,因为它一直保存在内存中,数据过大容易造成内存溢出。
+2. sp不适合存储过大的数据，因为它一直保存在内存中，数据过大容易造成内存溢出。
 
-3. SharePreferences的commit与apply一个是同步一个是异步（大部分场景下），sp的commit方法是直接在当前线程执行文件写入操作,而apply方法是在工作线程执行文件写入,尽可能使用apply,因为不会阻塞当前线程。
+3. SharePreferences的commit与apply一个是同步一个是异步（大部分场景下），sp的commit方法是直接在当前线程执行文件写入操作，而apply方法是在工作线程执行文件写入，尽可能使用apply，因为不会阻塞当前线程。
 
-4. sp并不支持跨进程,因为它不能保证更新本地数据后被另一个进程所知道,而且跨进程的操作标记已经被弃用。
+4. sp并不支持跨进程，因为它不能保证更新本地数据后被另一个进程所知道，而且跨进程的操作标记已经被弃用。
 
 5. sp批量更改数据时,只需要保留最后一个apply即可,避免添加多余的写文件任务。
 
@@ -502,15 +488,11 @@ MMKV 好像还有新的方法，我还不是很懂。
 
 7. **频繁更改的配置项和不常更改的配置项应该分开为不同的sp存放**,避免不必要的io操作。
 
+## 缺点
 
+性能问题（Xml中键值对过多、键值对本身数据量大）：全量加载、全量写入
 
-## 【精益求精】我还能做（补充）些什么？
-
-1、
-
-
-
-# 脑图
+多进程使用存在问题
 
 
 
@@ -519,5 +501,3 @@ MMKV 好像还有新的方法，我还不是很懂。
 1、[浅谈sharepreference](https://www.jianshu.com/p/4497f06fd484)
 
 2、https://blog.csdn.net/qq_29882585/article/details/108267867
-
-这个里面的总结还行，可以再看看。

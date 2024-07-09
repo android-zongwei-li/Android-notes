@@ -529,6 +529,6 @@ https://blog.csdn.net/qq_37321098/article/details/81535449?utm_medium=distribute
 
 https://blog.csdn.net/wsq_tomato/article/details/80301851?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-5.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-5.channel_param
 
-参考：
-1、[Handler消息机制(50题)](https://blog.csdn.net/feather_wch/article/details/81136078?utm_medium=distribute.pc_relevant_right.none-task-blog-BlogCommendFromMachineLearnPai2-4.channel_param_right&depth_1-utm_source=distribute.pc_relevant_right.none-task-blog-BlogCommendFromMachineLearnPai2-4.channel_param_right)
-主要就是参考了他的博客，可以算是转载了吧，他的源码分析讲的挺清楚的。
+# 参考
+
+[Handler消息机制(50题)](https://blog.csdn.net/feather_wch/article/details/81136078?utm_medium=distribute.pc_relevant_right.none-task-blog-BlogCommendFromMachineLearnPai2-4.channel_param_right&depth_1-utm_source=distribute.pc_relevant_right.none-task-blog-BlogCommendFromMachineLearnPai2-4.channel_param_right)

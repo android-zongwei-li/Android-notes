@@ -946,6 +946,27 @@ Caused by: java.lang.IllegalArgumentException: Could not locate ResponseBody con
                 .build()
 ```
 
+
+
+# 问题
+
+<font color='orange'>Q：Retrofit的作用</font>
+
+网络请求库。封装了OkHttp，简化了网络请求操作。
+
+<font color='orange'>Q：Retrofit的使用流程</font>
+
+使用 Retrofit 的步骤共有7个：
+
+**步骤1：**添加 Retrofit库的依赖
+**步骤2：**创建 接收服务器返回数据的类
+**步骤3：**创建 用于描述网络请求 的接口
+**步骤4：**创建 Retrofit 实例
+**步骤5：**创建 网络请求接口实例 并 配置网络请求参数
+**步骤6：**发送网络请求（异步 / 同步）
+
+**步骤7： **处理服务器返回的数据
+
 # 参考
 
 [Carson带你学Android：网络请求库Retrofit使用教程(含实例讲解)](https://www.jianshu.com/p/a3e162261ab6)

@@ -1,8 +1,8 @@
 # 前置知识
 
-提前掌握这些知识，可以更容易地理解 Glide 的原理，因为这些知识点都在Glide中有用到。反之，如果不懂的话，那理解起来就有阻碍，不那么通畅。
+GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，ReferenceQueue），线程池，synchronized，volatile，LinkedHashMap，泛型，DiskLruCache，Bitmap，Handler，反射
 
-GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，ReferenceQueue），线程池，synchronized，volatile，LinkedHashMap，泛型，DiskLruCache，Bitmap，Handler，
+Glide使用，包括自定义模块配置（比如配置通过OkHttp来请求网络）
 
 下面对各个模块所涉及的知识点做个归纳：
 
@@ -10,60 +10,320 @@ GC原理，强软弱虚引用（java.lang.ref.Reference，WeakReference，Refere
 
 缓存模块：
 
-生命周期管理：androidx.lifecycle 中的 LifecycleRegistry、Lifecycle
+生命周期管理：androidx.lifecycle 中的Lifecycle、LifecycleRegistry、LifecycleOwner、LifecycleObserver、LifecycleEventObserver
+
+Fragment、FragmentManager
 
 > 基于 4.16.0
 >
 > 不分析 @Deprecated 标记的方法或类，比如 with() 就有几个弃用的。
 
-# Glide流程分析
+# Glide 初始化流程
 
-## 
+本节分析目标：**Glide 实例（单例）是如何完成初始化的，以及 Glide 初始化时做了什么**。
 
-队列怎么维护的？在`MainActivity`中我们调用了如下代码：
+从 Glide.with() 到 Glide.get(context) 获取 Glide 实例
 
-```java
-RequestManager with = Glide.with(this);
-```
+```kotlin
+public class Glide {
+	public static RequestManager with(@NonNull Context context) {
+    	return getRetriever(context).get(context);
+  	}
 
-**继续跟踪到**
+  	private static RequestManagerRetriever getRetriever(@Nullable Context context) {
+    	Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
+    	return Glide.get(context).getRequestManagerRetriever();
+  	}
 
-```java
-getRetriever(activity).get(activity)//这里得到了一个RequestManagerRetriever对象,再通过RequestManagerRetriever调用get方法得到RequestManager
-```
-
-**继续往下**
-
-```java
-androidx.fragment.app.FragmentManager fm = activity.getSupportFragmentManager();
-return this.supportFragmentGet(activity, fm, (Fragment)null);
-```
-
-通过`this.supportFragmentGet`方法（如下代码），最终我们得到`SupportRequestManagerFragment`对象；
-
-```java
-private RequestManager supportFragmentGet(@NonNull Context context, @NonNull androidx.fragment.app.FragmentManager fm, @Nullable Fragment parentHint) {
-    SupportRequestManagerFragment current = this.getSupportRequestManagerFragment(fm, parentHint);//这段代码的内部如果能够得到Fragment就得到，得不到就重新new一个，并且这个fragment中没有进行任何的UI处理；
-    RequestManager requestManager = current.getRequestManager();
-    if (requestManager == null) {
-        Glide glide = Glide.get(context);
-        requestManager = this.factory.build(glide, current.getGlideLifecycle(), current.getRequestManagerTreeNode(), context);
-        current.setRequestManager(requestManager);
+    // 获取 Glide 单例，双重校验锁（Double checked locking）实现。
+    public static Glide get(@NonNull Context context) {
+    	if (glide == null) {
+      		// 分析1：GeneratedAppGlideModule的作用
+      		GeneratedAppGlideModule annotationGeneratedModule =
+          		getAnnotationGeneratedGlideModules(context.getApplicationContext());
+      		synchronized (Glide.class) {
+        		if (glide == null) {
+        		  checkAndInitializeGlide(context, annotationGeneratedModule);
+       		 	}
+     	 	}
+    	}
+     	return glide;
     }
 
-    return requestManager;
+  static void checkAndInitializeGlide(
+      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
+    if (isInitializing) {
+      throw new IllegalStateException(
+          "Glide has been called recursively, this is probably an internal library error!");
+    }
+    
+    isInitializing = true;
+    try {
+      initializeGlide(context, generatedAppGlideModule);
+    } finally {
+      isInitializing = false;
+    }
+  }
+
+  private static void initializeGlide(
+      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
+    // 分析2：GlideBuilder的作用
+    initializeGlide(context, new GlideBuilder(), generatedAppGlideModule);
+  }
+
+  private static void initializeGlide(
+      @NonNull Context context,
+      @NonNull GlideBuilder builder,
+      @Nullable GeneratedAppGlideModule annotationGeneratedModule) {
+    // 无论with()传入的参数是什么，用于初始化 Glide 的 Context 总是 ApplicationContext
+    Context applicationContext = context.getApplicationContext();
+    
+    // 分析3start：过时的Manifest自定义模块解析，一般项目中不会再用了
+    List<GlideModule> manifestModules = Collections.emptyList();
+    if (annotationGeneratedModule == null || annotationGeneratedModule.isManifestParsingEnabled()) {
+      // 解析清单文件配置的自定义GlideModule的metadata标签，返回一个GlideModule集合
+      manifestModules = new ManifestParser(applicationContext).parse();
+    }
+
+    if (annotationGeneratedModule != null
+        && !annotationGeneratedModule.getExcludedModuleClasses().isEmpty()) {
+      Set<Class<?>> excludedModuleClasses = annotationGeneratedModule.getExcludedModuleClasses();
+      Iterator<GlideModule> iterator = manifestModules.iterator();
+      while (iterator.hasNext()) {
+        GlideModule current = iterator.next();
+        if (!excludedModuleClasses.contains(current.getClass())) {
+          continue;
+        }
+        ...
+        iterator.remove();
+      }
+    }
+    // 分析3-end
+...
+    // 分析4 RequestManagerRetriever 
+    RequestManagerRetriever.RequestManagerFactory factory =
+        annotationGeneratedModule != null
+            ? annotationGeneratedModule.getRequestManagerFactory()
+            : null;
+    builder.setRequestManagerFactory(factory);
+	
+    // 已过时的Manifest处理，一搬不会用到了
+    for (GlideModule module : manifestModules) {
+      module.applyOptions(applicationContext, builder);
+    }
+
+    if (annotationGeneratedModule != null) {
+      annotationGeneratedModule.applyOptions(applicationContext, builder);
+    }
+    
+    // 分析2.1：GlideBuilder.build()
+    // GlideBuilder会为Glide设置一默认配置，如：Engine，RequestOptions，GlideExecutor，MemorySizeCalculator
+    Glide glide = builder.build(applicationContext, manifestModules, annotationGeneratedModule);
+    // 分析5
+    applicationContext.registerComponentCallbacks(glide);
+    Glide.glide = glide;
+  }
 }
 ```
 
-得到`Fragment`对象后，再将`RequestManager`对象赋值进去，如果`RequestManager`为空，则帮助创建；
+1. 创建 GeneratedAppGlideModule 对象
+2. 完成 Glide 的初始化
 
-而`RequestManager`对象则是生命周期管理的重要一环，因为它实现了`LifecycleListener`接口，并且在创建`RequestManager`的时候，会将这个接口设置给自己；也就意味着，Glide创建了一个无UI的`fragment`，这个`fragment`又与`RequestManager`进行绑定；当用户的`activity`或者`fragment`被调用，系统会自动调用`fragment`的生命周期方法；而生命周期方法中又会回调`LifecycleListener`的方法，进而调用`RequestManager`，`RequestManager`则也拥有了生命周期；
+## 分析1：GeneratedAppGlideModule的作用
 
-当`RequestManager`的`onStart`方法被调用后，会通过一系列的调用，将运行中的请求全部放开，进行访问；
+作用：用于加载我们实现的自定义模块配置
 
-当`onStop`方法被调用时，则将运行中队列的数据取出来，如果当前请求正在运行则暂停，然后将所有的数据从运行队列中添加到等待队列中去；
+```kotlin
+// 分析1.1 GeneratedAppGlideModule 是什么
+GeneratedAppGlideModule annotationGeneratedModule =
+// 分析1.2 使用 getAnnotationGeneratedGlideModules 获取 GeneratedAppGlideModule 实例
+          getAnnotationGeneratedGlideModules(context.getApplicationContext());
+```
 
-当`onDestory`方法被调用时，则将运行队列和等待队列中的数据全部清除；再将监听移除；将`requestManager`从Glide中的绑定关系解除；
+**分析1.1 GeneratedAppGlideModule 是什么**
+
+```kotlin
+abstract class GeneratedAppGlideModule extends AppGlideModule {
+  /** This method can be removed when manifest parsing is no longer supported. */
+  @NonNull
+  Set<Class<?>> getExcludedModuleClasses() {
+    return new HashSet<>();
+  }
+
+  @Nullable
+  RequestManagerRetriever.RequestManagerFactory getRequestManagerFactory() {
+    return null;
+  }
+}
+
+public abstract class AppGlideModule extends LibraryGlideModule implements AppliesOptions {
+  /**
+   * Returns {@code true} if Glide should check the AndroidManifest for {@link GlideModule}s.
+   * 
+   * <p>Implementations should return {@code false} after they and their dependencies have migrated
+   * to Glide's annotation processor.
+   *
+   * <p>Returns {@code true} by default.
+   */
+  public boolean isManifestParsingEnabled() {
+    return true;
+  }
+
+  @Override
+  public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder) {
+    // Default empty impl.
+  }
+}
+```
+
+1. 项目中，会通过继承 AppGlideModule（并用注解@GlideModule标记）  来自定义模块配置Glide。比如，配置OkHttp请求网络数据并添加日志拦截器。
+
+   ```kotlin
+   @GlideModule
+   class GlideOkHttpModule : AppGlideModule() {
+   
+       override fun registerComponents(context: Context, glide: Glide, registry: Registry) {
+           val httpLoggingInterceptor = HttpLoggingInterceptor()
+           httpLoggingInterceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+   
+           Log.i(TAG, "registerComponents: ")
+           val client: OkHttpClient = OkHttpClient.Builder()
+               .retryOnConnectionFailure(true)
+               .addInterceptor(httpLoggingInterceptor)
+               .addInterceptor(ProgressInterceptor())
+               .connectTimeout(6, TimeUnit.SECONDS)
+               .build()
+   
+           registry.replace(
+               GlideUrl::class.java, InputStream::class.java, OkHttpUrlLoader.Factory(client)
+           )
+       }
+   
+       override fun applyOptions(context: Context, builder: GlideBuilder) {
+           super.applyOptions(context, builder)
+       }
+   
+       // 关闭过时的 Manifest 自定义配置解析
+       override fun isManifestParsingEnabled(): Boolean {
+           return false
+       }
+   }
+   ```
+
+   自定义模块后，build会通过注解处理器生成一个类，如下：
+
+   ![image-20240702105744167](images/Glide解析/image-20240702105744167.png)
+
+   ```kotlin
+   final class GeneratedAppGlideModuleImpl extends GeneratedAppGlideModule {
+     private final GlideOkHttpModule appGlideModule;
+   
+     public GeneratedAppGlideModuleImpl(Context context) {
+       appGlideModule = new GlideOkHttpModule();
+       ...
+     }
+   
+     @Override
+     public void applyOptions(@NonNull Context context, @NonNull GlideBuilder builder) {
+       appGlideModule.applyOptions(context, builder);
+     }
+   
+     @Override
+     public void registerComponents(@NonNull Context context, @NonNull Glide glide,
+         @NonNull Registry registry) {
+       new OkHttpLibraryGlideModule().registerComponents(context, glide, registry);
+       appGlideModule.registerComponents(context, glide, registry);
+     }
+   
+     @Override
+     public boolean isManifestParsingEnabled() {
+       return appGlideModule.isManifestParsingEnabled();
+     }
+   
+     @Override
+     @NonNull
+     public Set<Class<?>> getExcludedModuleClasses() {
+       return Collections.emptySet();
+     }
+   
+     @Override
+     @NonNull
+     GeneratedRequestManagerFactory getRequestManagerFactory() {
+       return new GeneratedRequestManagerFactory();
+     }
+   }
+   ```
+
+   类名称：com.bumptech.glide.GeneratedAppGlideModuleImpl
+
+   这个类中会把我们的自定义模块实例包含进去，这样在运行时、Glide初始化时，会通过反射加载此类（分析1.2中），从而拿到我们的自定义配置信息。
+
+2. **实践建议**。`isManifestParsingEnabled()`注释提到：当我们的项目从 `通过 AndroidManifest 自定义模块` 迁移到 `用注解（@GlideModule）来自定义模块` 时，要将`isManifestParsingEnabled()` 的返回值设置为 false。
+
+   `通过 AndroidManifest 自定义模块`：这种实现方式在运行时需要解析 xml，已经过时了，被 `用注解（@GlideModule）来自定义模块` 替代了，新的方式利用了编译时注解生成类，在运行时通过反射生成类，然后获取到我们的配置类。
+
+**分析1.2 使用 getAnnotationGeneratedGlideModules 获取 GeneratedAppGlideModule 实例**
+
+```kotlin
+  private static GeneratedAppGlideModule getAnnotationGeneratedGlideModules(Context context) {
+    GeneratedAppGlideModule result = null;
+    try {
+      Class<GeneratedAppGlideModule> clazz =
+          (Class<GeneratedAppGlideModule>)
+              Class.forName("com.bumptech.glide.GeneratedAppGlideModuleImpl");
+      result =
+          clazz.getDeclaredConstructor(Context.class).newInstance(context.getApplicationContext());
+    } catch (ClassNotFoundException e) {
+      ...
+    }
+    return result;
+  }
+```
+
+通过反射生成GeneratedAppGlideModule类。
+
+## 分析2：GlideBuilder
+
+GlideBuilder 是用来创建 Glide 实例的类，其中包含了很多个 get/set 方法。
+
+在GlideBuilder#build()中，设置 BitmapPool、MemoryCache、ArrayPool、RequestManagerRetriever、Engine等，最终这些设置用作参数创建 Glide 实例。
+
+**分析2.1：GlideBuilder.build()**
+
+```kotlin
+Glide glide = builder.build(applicationContext, manifestModules, annotationGeneratedModule);
+```
+
+[GlideBuilder.build()源码解析](##GlideBuilder)
+
+## 分析3start：过时的Manifest自定义模块解析
+
+一般项目中不会再用了
+
+## 分析4 RequestManagerRetriever.RequestManagerFactory
+
+作用：RequestManager工厂，用于生成 RequestManager。
+
+使用了自定义模块功能后，会自动生成一个类：
+
+```kotlin
+final class GeneratedRequestManagerFactory implements RequestManagerRetriever.RequestManagerFactory {
+  @Override
+  @NonNull
+  public RequestManager build(@NonNull Glide glide, @NonNull Lifecycle lifecycle,
+      @NonNull RequestManagerTreeNode treeNode, @NonNull Context context) {
+    return new GlideRequests(glide, lifecycle, treeNode, context);
+  }
+}
+```
+
+GlideRequests 是 RequestManager 的具体实现，但是如果没有其他自定义的话，内部实现默认都是用的父类（RequestManager）的方法。
+
+## 分析5：Glide 实现 ComponentCallbacks2 接口
+
+Glide 实现了 ComponentCallbacks2 接口来实现内存的管理，系统内存变化时回调到 onTrimMemory 方法。
+
+
 
 # 总览
 
@@ -111,83 +371,443 @@ Glide#with() 方法会将 RequestManager 的创建委托给 RequestManagerRetrie
 
 ## GlideBuilder
 
-GlideBuilder 是用来创建 Glide 实例的类，其中包含了很多个 get/set 方法，例如设置 BitmapPool、MemoryCache、ArrayPool 等，最终通过这些设置调用 build 方法构建 Glide，可以截取 build 方法中的一段代码来看一下：
+GlideBuilder 是用来创建 Glide 实例的类，其中包含了很多个 get/set 方法，在GlideBuilder#build()中，设置 BitmapPool、MemoryCache、ArrayPool、RequestManagerRetriever、Engine等，最终这些设置用作参数创建 Glide 实例。
 
-```java
-if (bitmapPool == null) {
-    //创建 Bitmap 池
-    int size = memorySizeCalculator.getBitmapPoolSize();
-    if (size > 0) {
-        bitmapPool = new LruBitmapPool(size);
-    } else {
-        bitmapPool = new BitmapPoolAdapter();
+```kotlin
+  Glide build(
+      @NonNull Context context,
+      List<GlideModule> manifestModules,
+      AppGlideModule annotationGeneratedGlideModule) {
+    if (sourceExecutor == null) {
+      sourceExecutor = GlideExecutor.newSourceExecutor();
     }
-}
 
-//创建数组池
-if (arrayPool == null) {
-    arrayPool = new LruArrayPool(memorySizeCalculator.getArrayPoolSizeInBytes());
-}
+    if (diskCacheExecutor == null) {
+      diskCacheExecutor = GlideExecutor.newDiskCacheExecutor();
+    }
 
-//创建内存缓存
-if (memoryCache == null) {
-    memoryCache = new LruResourceCache(memorySizeCalculator.getMemoryCacheSize());
-}
+    if (animationExecutor == null) {
+      animationExecutor = GlideExecutor.newAnimationExecutor();
+    }
 
-//创建磁盘缓存
-if (diskCacheFactory == null) {
-    diskCacheFactory = new InternalCacheDiskCacheFactory(context);
+    // 创建内存大小计算器
+    if (memorySizeCalculator == null) {
+      memorySizeCalculator = new MemorySizeCalculator.Builder(context).build();
+    }
+
+    if (connectivityMonitorFactory == null) {
+      connectivityMonitorFactory = new DefaultConnectivityMonitorFactory();
+    }
+      
+    // 创建 Bitmap 池
+    if (bitmapPool == null) {
+      int size = memorySizeCalculator.getBitmapPoolSize();
+      if (size > 0) {
+        bitmapPool = new LruBitmapPool(size);
+      } else {
+        bitmapPool = new BitmapPoolAdapter();
+      }
+    }
+	// 创建数组池
+    if (arrayPool == null) {
+      arrayPool = new LruArrayPool(memorySizeCalculator.getArrayPoolSizeInBytes());
+    }
+	// 创建内存缓存
+    if (memoryCache == null) {
+      memoryCache = new LruResourceCache(memorySizeCalculator.getMemoryCacheSize());
+    }
+	// 创建磁盘缓存
+    if (diskCacheFactory == null) {
+      diskCacheFactory = new InternalCacheDiskCacheFactory(context);
+    }
+
+    if (engine == null) {
+      engine =
+          new Engine(memoryCache,diskCacheFactory,diskCacheExecutor,sourceExecutor,GlideExecutor.newUnlimitedSourceExecutor(),
+              animationExecutor,isActiveResourceRetentionAllowed);
+    }
+
+    if (defaultRequestListeners == null) {
+      defaultRequestListeners = Collections.emptyList();
+    } else {
+      defaultRequestListeners = Collections.unmodifiableList(defaultRequestListeners);
+    }
+
+    GlideExperiments experiments = glideExperimentsBuilder.build();
+    // 分析：创建 RequestManagerRetriever
+    RequestManagerRetriever requestManagerRetriever = new RequestManagerRetriever(requestManagerFactory);
+
+    return new Glide(
+        context,engine,memoryCache,bitmapPool,arrayPool,requestManagerRetriever,connectivityMonitorFactory,
+        logLevel,defaultRequestOptionsFactory,defaultTransitionOptions,defaultRequestListeners,manifestModules,
+        annotationGeneratedGlideModule,experiments);
+  }
+```
+
+- 分析：创建 RequestManagerRetriever
+
+## manager
+
+com.bumptech.glide.manager
+
+### RequestManagerRetriever
+
+```kotlin
+public class RequestManagerRetriever implements Handler.Callback {
+  public RequestManagerRetriever(@Nullable RequestManagerFactory factory) {
+    this.factory = factory != null ? factory : DEFAULT_FACTORY;
+    lifecycleRequestManagerRetriever = new LifecycleRequestManagerRetriever(this.factory);
+    frameWaiter = buildFrameWaiter();
+  }
+    
+  @NonNull
+  public RequestManager get(@NonNull FragmentActivity activity) {
+    if (Util.isOnBackgroundThread()) {
+      return get(activity.getApplicationContext());
+    }
+    assertNotDestroyed(activity);
+    frameWaiter.registerSelf(activity);
+    boolean isActivityVisible = isActivityVisible(activity);
+    Glide glide = Glide.get(activity.getApplicationContext());
+    return lifecycleRequestManagerRetriever.getOrCreate(
+        activity,
+        glide,
+        activity.getLifecycle(),
+        activity.getSupportFragmentManager(),
+        isActivityVisible);
+  }
+
+  // 默认的 RequestManagerFactory
+  private static final RequestManagerFactory DEFAULT_FACTORY =
+      new RequestManagerFactory() {
+        @NonNull
+        @Override
+        public RequestManager build(
+            @NonNull Glide glide,
+            @NonNull Lifecycle lifecycle,
+            @NonNull RequestManagerTreeNode requestManagerTreeNode,
+            @NonNull Context context) {
+          return new RequestManager(glide, lifecycle, requestManagerTreeNode, context);
+        }
+      };    
 }
 ```
 
-上面截取的几行代码很具有代表性，这些数组池、缓存实现等最终都会当做 Glide 构造器的参数创建 Glide 实例。
+- 构造方法中
+  1. 使用默认的RequestManagerFactory
+  2. 将 Lifecycle 和 RequestManager 进行绑定
+  3. [LifecycleRequestManagerRetriever](##LifecycleRequestManagerRetriever)
 
-## RequestManagerRetriever
+生命周期绑定情况：
 
-上面说的 5 个重载的 Glide#with() 方法对应 RequestManagerRetriever 中的 5 个重载的 get() 方法。
-由于这个比较重要，而且跟我们使用息息相关，所以仔细的说一下~
+在RequestManagerRetriever中，会创建 RequestManager，并最终根据 Context 的类型决定监听Applicantion或Activity/Fragment的生命周期：
 
-创建 RequestManager 逻辑如下：
+1. 对于androidx中的Activity和Fragment，会获取到 Activity和Fragment 中的Lifecycle， 并由 LifecycleRequestManagerRetriever 将 Lifecycle 和 RequestManager 进行绑定。从而实现对生命周期的监听。
+2. 对于非androidx中的Activity和Fragment、以及Applicantion Context、在子线程中调用with()，都会绑定 Applicantion 的生命周期回调。
+3. 子线程发起 Glide 请求或传入对象为 ApplicationContext，生命周期与 APP 周期保持一致。
 
-1. 如果 with 方法的参数为 Activity 或者 Fragment ，则最终调用 RequestManagerRetriever 中的 fragmentGet(Context, android.app.FragmentManager) 方法创建 RequestManager；
-2. 如果 with 方法的参数为 android.support.v4.app.Fragment 或者android.support.v4.app.FragmentActivity，则最终调用 supportFragmentGet(Context, android.support.v4.app.FragmentManager) 方法创建 RequestManager；
-3. 如果 with 方法的参数为 Context，则会判断其来源是否属于 FragmentActivity 及 Activity，是则按照上面的逻辑进行处理，否则最终调用 getApplicationManager(Context) 方法创建 RequestManager。
+### LifecycleRequestManagerRetriever
 
-上面说的情况有个条件都是在主线程调用 Glide#with() 方法， 如果子线程调用 Glide#with() 或者系统版本小于 17，则最终会调用 getApplicationManager(Context) 方法创建 RequestManager 。
+```kotlin
+final class LifecycleRequestManagerRetriever {
+  // 将 Lifecycle 和 RequestManager 生成 Map 键值对缓存起来
+  @Synthetic final Map<Lifecycle, RequestManager> lifecycleToRequestManager = new HashMap<>();
+  @NonNull private final RequestManagerFactory factory;
 
-也就是说，无论使用什么参数，最终都会进入如下三个方法创建 RequestManager：
+  LifecycleRequestManagerRetriever(@NonNull RequestManagerFactory factory) {
+    this.factory = factory;
+  }
 
-```java
-RequestManager fragmentGet(Context context, android.app.FragmentManager fm);
-RequestManager supportFragmentGet(Context context, android.support.v4.app.FragmentManager fm);
-RequestManager getApplicationManager(Context context);
+  RequestManager getOnly(Lifecycle lifecycle) {
+    Util.assertMainThread();
+    return lifecycleToRequestManager.get(lifecycle);
+  }
+
+  RequestManager getOrCreate(
+      Context context,
+      Glide glide,
+      final Lifecycle lifecycle,
+      FragmentManager childFragmentManager,
+      boolean isParentVisible) {
+    Util.assertMainThread();
+    RequestManager result = getOnly(lifecycle);
+    if (result == null) {
+      // 监听Lifecycle方法
+      LifecycleLifecycle glideLifecycle = new LifecycleLifecycle(lifecycle);
+      // 分析：RequestManagerFactory 生成 RequestManager
+      result =
+          factory.build(
+              glide,
+              glideLifecycle,
+              new SupportRequestManagerTreeNode(childFragmentManager),
+              context);
+      lifecycleToRequestManager.put(lifecycle, result);
+      glideLifecycle.addListener(
+          new LifecycleListener() {
+            @Override
+            public void onStart() {}
+
+            @Override
+            public void onStop() {}
+
+            @Override
+            public void onDestroy() {
+              lifecycleToRequestManager.remove(lifecycle);
+            }
+          });
+      if (isParentVisible) {
+        result.onStart();
+      }
+    }
+    return result;
+  }
+
+  private final class SupportRequestManagerTreeNode implements RequestManagerTreeNode {
+    private final FragmentManager childFragmentManager;
+
+    SupportRequestManagerTreeNode(FragmentManager childFragmentManager) {
+      this.childFragmentManager = childFragmentManager;
+    }
+
+    // 返回当前上下文的所有后代的 RequestManager。
+    @NonNull
+    @Override
+    public Set<RequestManager> getDescendants() {
+      Set<RequestManager> result = new HashSet<>();
+      getChildFragmentsRecursive(childFragmentManager, result);
+      return result;
+    }
+
+    private void getChildFragmentsRecursive(
+        FragmentManager fragmentManager, Set<RequestManager> requestManagers) {
+      List<Fragment> children = fragmentManager.getFragments();
+      for (int i = 0, size = children.size(); i < size; i++) {
+        Fragment child = children.get(i);
+        getChildFragmentsRecursive(child.getChildFragmentManager(), requestManagers);
+        RequestManager fromChild = getOnly(child.getLifecycle());
+        if (fromChild != null) {
+          requestManagers.add(fromChild);
+        }
+      }
+    }
+  }
+}
 ```
 
-可以看到这三个方法作用都是用来创建 RequestManager，前两个方法主要是用来兼容 support 包中的 FragmentActivity、Fragment。
+- 分析：RequestManagerFactory 生成 RequestManager，最终是：new RequestManager(glide, lifecycle, requestManagerTreeNode, context)
 
-至于为什么需要传入一个 FragmentManager 参数留在后面说。
+  ```kotlin
+    private static final RequestManagerFactory DEFAULT_FACTORY =
+        new RequestManagerFactory() {
+          @NonNull
+          @Override
+          public RequestManager build(
+              @NonNull Glide glide,
+              @NonNull Lifecycle lifecycle,
+              @NonNull RequestManagerTreeNode requestManagerTreeNode,
+              @NonNull Context context) {
+            return new RequestManager(glide, lifecycle, requestManagerTreeNode, context);
+          }
+        };
+  ```
 
-此外还有一种情况，即在**子线程**调用 Glide#with() 方法或传入 Context 对象为 ApplicationContext，此时会创建一个全局唯一的 RequestManager，生命周期与 APP 周期保持一致。
+### LifecycleLifecycle
 
-根据上述规则可以得出以下几个结论：
+作用：监听Activity和Fragment的生命周期，比如 RequestManager 就实现了 LifecycleListener，从而可以通过此类来监听生命周期方法的。
 
-1. 同一个 Activity 对应一个 FragmentManager，一个 FragmentManager 对应一个 RequestManagerFragment，一个 RequestManagerFragment 对应一个 RequestManager，所以**一个 Activity 对应 一个 RequestManager**；
-2. 同一个 Fragment 同样可得出上述结论；
-3. 但如果 Fragment 属于 Activity，或者 Fragment 属于 Fragment，在 Activity、Framgnent 中分别创建 Glide 请求是并不会只创建一个 RequestManager；
-4. **子线程**发起 Glide 请求或传入对象为 ApplicationContext，则使用全局单例的 RequestManager。
+流程：
 
-## RequestManager
+1. RequestManager 实现 LifecycleListener 接口
+2. RequestManager 通过 LifecycleLifecycle#addListener 添加到 LifecycleLifecycle 中
+3. RequestManager 接收回调：Activity#onDestroy() -> LifecycleLifecycle#onDestroy(LifecycleOwner owner) -> LifecycleListener#onDestroy()
 
-RequestManager 主要由两个作用：
+com.bumptech.glide.manager.Lifecycle
+
+```kotlin
+/** An interface for listening to Activity/Fragment lifecycle events. */
+public interface Lifecycle {
+  /** Adds the given listener to the set of listeners managed by this Lifecycle implementation. */
+  void addListener(@NonNull LifecycleListener listener);
+
+  /**
+   * Removes the given listener from the set of listeners managed by this Lifecycle implementation,
+   * returning {@code true} if the listener was removed successfully, and {@code false} otherwise.
+   *
+   * <p>This is an optimization only, there is no guarantee that every added listener will
+   * eventually be removed.
+   */
+  void removeListener(@NonNull LifecycleListener listener);
+}
+```
+
+com.bumptech.glide.manager.LifecycleListener
+
+```kotlin
+public interface LifecycleListener {
+
+  /**
+   * Callback for when {@link android.app.Fragment#onStart()}} or {@link
+   * android.app.Activity#onStart()} is called.
+   */
+  void onStart();
+
+  /**
+   * Callback for when {@link android.app.Fragment#onStop()}} or {@link
+   * android.app.Activity#onStop()}} is called.
+   */
+  void onStop();
+
+  /**
+   * Callback for when {@link android.app.Fragment#onDestroy()}} or {@link
+   * android.app.Activity#onDestroy()} is called.
+   */
+  void onDestroy();
+}
+```
+
+LifecycleLifecycle 对 androidx.lifecycle.Lifecycle 做了一次包装，并注册了对 androidx.lifecycle.Lifecycle 的监听，当生命周期发生变化时，会回调到LifecycleLifecycle 的对应方法中。
+
+Glide中对Activity和Fragment的生命周期监听是通过 LifecycleLifecycle、LifecycleListener 间接完成的。
+
+```kotlin
+final class LifecycleLifecycle implements Lifecycle, LifecycleObserver {
+  @NonNull
+  private final Set<LifecycleListener> lifecycleListeners = new HashSet<LifecycleListener>();
+
+  @NonNull private final androidx.lifecycle.Lifecycle lifecycle;
+
+  LifecycleLifecycle(androidx.lifecycle.Lifecycle lifecycle) {
+    this.lifecycle = lifecycle;
+    lifecycle.addObserver(this);
+  }
+
+  @OnLifecycleEvent(Event.ON_START)
+  public void onStart(@NonNull LifecycleOwner owner) {
+    for (LifecycleListener lifecycleListener : Util.getSnapshot(lifecycleListeners)) {
+      lifecycleListener.onStart();
+    }
+  }
+
+  @OnLifecycleEvent(Event.ON_STOP)
+  public void onStop(@NonNull LifecycleOwner owner) {
+    for (LifecycleListener lifecycleListener : Util.getSnapshot(lifecycleListeners)) {
+      lifecycleListener.onStop();
+    }
+  }
+
+  @OnLifecycleEvent(Event.ON_DESTROY)
+  public void onDestroy(@NonNull LifecycleOwner owner) {
+    for (LifecycleListener lifecycleListener : Util.getSnapshot(lifecycleListeners)) {
+      lifecycleListener.onDestroy();
+    }
+    owner.getLifecycle().removeObserver(this);
+  }
+
+  @Override
+  public void addListener(@NonNull LifecycleListener listener) {
+    lifecycleListeners.add(listener);
+
+    if (lifecycle.getCurrentState() == State.DESTROYED) {
+      listener.onDestroy();
+    } else if (lifecycle.getCurrentState().isAtLeast(State.STARTED)) {
+      listener.onStart();
+    } else {
+      listener.onStop();
+    }
+  }
+
+  @Override
+  public void removeListener(@NonNull LifecycleListener listener) {
+    lifecycleListeners.remove(listener);
+  }
+}
+```
+
+思考：为什么 Glide 要对 androidx.lifecycle.Lifecycle 做一次包装？
+
+### RequestManager
+
+RequestManager 作用：
 
 1. 创建 RequestBuilder ；
-2. 通过生命周期管理请求的启动结束等。
+2. 将图片加载的生命周期与Activity/Fragment的生命周期进行绑定。添加生命周期监听；实现了`LifecycleListener` 接口，处理回调
+3. 通过生命周期管理请求的启动结束等。
 
-使用 Glide 加载图片时，如果当前页面被销毁或者不可见时会停止加载图片，但我们使用 Glide 加载图片时并没有显式的去设置 Glide 与当前页面的生命周期关联起来，只是传了个 Context 对象，那么 Glide 是如何通过一个上下文对象就能获取到页面生命周期的呢？
+- RequestManager构造方法
 
-创建 RequestManager 时需要一个 FragmentManager 参数（全局 RequestManager 除外），那么再创建 RequestManager 时会**先创建一个不可见的 Fragment** ，通过 FM 加入到当前页面，用这个不可见的 Fragment 即可检测页面的生命周期。代码中保证了每个 Activity/Fragment 中只包含一个 RequestManagerFragment 与 一个 RequestManager。
+```kotlin
+  RequestManager(
+      Glide glide,
+      Lifecycle lifecycle,
+      RequestManagerTreeNode treeNode,
+      RequestTracker requestTracker,
+      ConnectivityMonitorFactory factory,
+      Context context) {
+    this.glide = glide;
+    this.lifecycle = lifecycle;
+    this.treeNode = treeNode;
+    this.requestTracker = requestTracker;
+    this.context = context;
 
-创建 RequestBuilder 的 load 方法有很多：
+    connectivityMonitor =
+        factory.build(
+            context.getApplicationContext(),
+            new RequestManagerConnectivityListener(requestTracker));
+
+    glide.registerRequestManager(this);
+
+    if (Util.isOnBackgroundThread()) {
+      Util.postOnUiThread(addSelfToLifecycle);
+    } else {
+      // 分析：添加生命周期监听
+      lifecycle.addListener(this);
+    }
+    lifecycle.addListener(connectivityMonitor);
+
+    defaultRequestListeners =
+        new CopyOnWriteArrayList<>(glide.getGlideContext().getDefaultRequestListeners());
+    setRequestOptions(glide.getGlideContext().getDefaultRequestOptions());
+  }
+```
+
+- 分析：添加生命周期监听，并处理回调
+
+  当前页面被销毁或者不可见时会停止加载图片
+
+  ```kotlin
+    @Override
+    public synchronized void onStart() {
+      // 恢复请求
+      resumeRequests();
+      targetTracker.onStart();
+    }
+  
+    @Override
+    public synchronized void onStop() {
+      targetTracker.onStop();
+      // 暂停或者清除请求，取决于是否调用过方法 RequestManager#clearOnStop()
+      if (clearOnStop) {
+        clearRequests();
+      } else {
+        pauseRequests();
+      }
+    }
+  
+    @Override
+    public synchronized void onDestroy() {
+      // 清除请求；移除生命周期监听；
+      targetTracker.onDestroy();
+      clearRequests();
+      requestTracker.clearRequests();
+      lifecycle.removeListener(this);
+      lifecycle.removeListener(connectivityMonitor);
+      Util.removeCallbacksOnUiThread(addSelfToLifecycle);
+      glide.unregisterRequestManager(this);
+    }
+  ```
+
+- 通过load() 创建 RequestBuilder
+
 
 ```java
 RequestBuilder<Drawable> load(@Nullable Bitmap bitmap);
@@ -201,8 +821,7 @@ RequestBuilder<Drawable> load(@Nullable byte[] model);
 RequestBuilder<Drawable> load(@Nullable Object model);
 ```
 
-这些重载方法，每一个都代表不同的加载源。
-除此之外还有两个特殊的方法，是用来下载图片的：
+这些重载方法，每一个都代表不同的加载源。除此之外还有两个方法，是用来下载图片的：
 
 ```java
 RequestBuilder<File> downloadOnly();
@@ -211,8 +830,147 @@ RequestBuilder<File> download(@Nullable Object model);
 
 ## RequestBuilder
 
-RequestBuilder 用来构建请求，例如设置 RequestOption、缩略图、加载失败占位图等等。
-上面说到的 RequestManager 中诸多的 load 重载方法，同样也对应 RequestBuilder 中的重载 load 方法，一般来说 load 方法之后就是调用 into 方法设置 ImageView 或者 Target，into 方法中最后会创建 Request，并启动。
+```kotlin
+public class RequestBuilder<TranscodeType> extends BaseRequestOptions<RequestBuilder<TranscodeType>>
+    implements Cloneable, ModelTypes<RequestBuilder<TranscodeType>> {
+
+  protected RequestBuilder(
+      @NonNull Glide glide,
+      RequestManager requestManager,
+      Class<TranscodeType> transcodeClass,
+      Context context) {
+    this.glide = glide;
+    this.requestManager = requestManager;
+    this.transcodeClass = transcodeClass;
+    this.context = context;
+    this.transitionOptions = requestManager.getDefaultTransitionOptions(transcodeClass);
+    this.glideContext = glide.getGlideContext();
+
+	// 从 RequestManager 中获取请求监听器
+    initRequestListeners(requestManager.getDefaultRequestListeners());
+    // 从 RequestManager 中获取请求配置
+    apply(requestManager.getDefaultRequestOptions());
+  }
+
+  public RequestBuilder<TranscodeType> load(@Nullable String string) {
+    return loadGeneric(string);
+  }
+
+  @NonNull
+  private RequestBuilder<TranscodeType> loadGeneric(@Nullable Object model) {
+    if (isAutoCloneEnabled()) {
+      return clone().loadGeneric(model);
+    }
+    this.model = model;
+    isModelSet = true;
+    return selfOrThrowIfLocked();
+  }
+
+  // 分析：into(ImageView view)
+  @NonNull
+  public ViewTarget<ImageView, TranscodeType> into(@NonNull ImageView view) {
+    // 确保在主线程
+    Util.assertMainThread();
+    // view 不为 null
+    Preconditions.checkNotNull(view);
+
+    BaseRequestOptions<?> requestOptions = this;
+    // 判断是否支持转换
+    if (!requestOptions.isTransformationSet()
+        && requestOptions.isTransformationAllowed()
+        && view.getScaleType() != null) {
+      // 支持转换，根据图片的 ScaleType 进行转换配置
+      switch (view.getScaleType()) {
+        case CENTER_CROP:
+          requestOptions = requestOptions.clone().optionalCenterCrop();
+          break;
+        case CENTER_INSIDE:
+          requestOptions = requestOptions.clone().optionalCenterInside();
+          break;
+        case FIT_CENTER:
+        case FIT_START:
+        case FIT_END:
+          requestOptions = requestOptions.clone().optionalFitCenter();
+          break;
+        case FIT_XY:
+          requestOptions = requestOptions.clone().optionalCenterInside();
+          break;
+        case CENTER:
+        case MATRIX:
+        default:
+          // Do nothing.
+      }
+    }
+
+    return into(
+        // 将 View 封装到 BitmapImageViewTarget 或者 DrawableImageViewTarget 中。
+        glideContext.buildImageViewTarget(view, transcodeClass),
+        /* targetListener= */ null,
+        requestOptions,
+        // 用于将 Rununable 切换到主线程执行
+        Executors.mainThreadExecutor());
+  }
+	
+  // 分析：into(Y target, RequestListener<TranscodeType> targetListener,BaseRequestOptions<?> options,Executor callbackExecutor)
+  private <Y extends Target<TranscodeType>> Y into(
+      @NonNull Y target,
+      @Nullable RequestListener<TranscodeType> targetListener,
+      BaseRequestOptions<?> options,
+      Executor callbackExecutor) {
+    Preconditions.checkNotNull(target);
+    if (!isModelSet) {
+      throw new IllegalArgumentException("You must call #load() before calling #into()");
+    }
+
+    // 创建请求
+    Request request = buildRequest(target, targetListener, options, callbackExecutor);
+
+    Request previous = target.getRequest();
+    if (request.isEquivalentTo(previous)
+        && !isSkipMemoryCacheWithCompletePreviousRequest(options, previous)) {
+      if (!Preconditions.checkNotNull(previous).isRunning()) {
+        previous.begin();
+      }
+      return target;
+    }
+
+    requestManager.clear(target);
+    // 请求和target进行关联
+    target.setRequest(request);
+    // 发起请求
+    requestManager.track(target, request);
+
+    return target;
+  }
+}
+```
+
+- 构造方法：从 RequestManager 中获取请求监听器；从 RequestManager 中获取请求参数RequestOption
+
+- load()：将 需要加载的资源地址 向上转型成 Object，作为 model 持有着，用于后续加载使用
+
+- 分析：into(ImageView view)
+
+  将 View 封装到 BitmapImageViewTarget 或者 DrawableImageViewTarget 中。
+
+- 分析：into(Y target, RequestListener<TranscodeType> targetListener,BaseRequestOptions<?> options,Executor callbackExecutor)
+
+  创建请求；
+
+  请求和target进行关联；
+
+  将请求交给 RequestManager
+
+  ```kotlin
+  RequestManager#track
+    synchronized void track(@NonNull Target<?> target, @NonNull Request request) {
+      targetTracker.track(target);
+      // 由 RequestTracker 负责执行请求
+      requestTracker.runRequest(request);
+    }
+  ```
+
+
 
 ## Request
 
@@ -297,6 +1055,28 @@ Target 代表一个**可被 Glide 加载并且具有生命周期的资源**。�
 表示加载完成后的图片应该放在哪， Target 默认提供了很多很有用的实现类，我们也可以自定义 Target。
 
 Glide 默认提供了用于放在 ImageView 上的 ImageViewTarget（以及其各种子类）、放在 AppWidget 上的 AppWidgetTarget、用于同步加载图片的 FutureTarget（只有一个实现类：RequestFutureTarget）等等。
+
+#### ImageViewTargetFactory
+
+根据 Class 的类型，判断使用 BitmapImageViewTarget 还是 DrawableImageViewTarget。
+
+```kotlin
+public class ImageViewTargetFactory {
+  @NonNull
+  @SuppressWarnings("unchecked")
+  public <Z> ViewTarget<ImageView, Z> buildTarget(
+      @NonNull ImageView view, @NonNull Class<Z> clazz) {
+    if (Bitmap.class.equals(clazz)) {
+      return (ViewTarget<ImageView, Z>) new BitmapImageViewTarget(view);
+    } else if (Drawable.class.isAssignableFrom(clazz)) {
+      return (ViewTarget<ImageView, Z>) new DrawableImageViewTarget(view);
+    } else {
+      throw new IllegalArgumentException(
+          "Unhandled class: " + clazz + ", try .as*(Class).transcode(ResourceTranscoder)");
+    }
+  }
+}
+```
 
 #### CustomViewTarget
 
@@ -973,537 +1753,21 @@ Glide 在这里使用 WeakReference 的主要是为了追踪资源，即知道�
 
 上面已经说过，图片的加载最终是通过 DataFetcher 来实现，但是此处并没有直接这么调用，考虑到缓存文件，这里面使用的是 DataFetcherGenerator，其有三个实现类，对应不同的加载方式，这里就不多做介绍了，只需要知道它会根据资源类型去 Glide 中获取已注册的 DataFetcher ，然后**通过 DataFetcher#loadData 方法获取原始数据**，获取完成后使用 Encoder 将数据存入磁盘缓存文件中，同时使用对应的解码器将原始数据转换为相应的资源文件，这样整个流程就差不多结束了。
 
-
-
 # 缓存模块
 
-关于缓存的获取、数据加载相关的逻辑在 Engine#load 方法中。先来看看缓存流程，流程如下图：
-
-<img src="images/Glide解析/10.png" alt="image-20240328170713559" style="zoom:50%;" />
-
-Glide 实例化时会实例化三个缓存相关的类以及一个计算缓存大小的类：
-
-```java
-//根据当前机器参数计算需要设置的缓存大小
-MemorySizeCalculator calculator = new MemorySizeCalculator(context);
-//创建 Bitmap 池
-if (bitmapPool == null) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB) {
-        int size = calculator.getBitmapPoolSize();
-        bitmapPool = new LruBitmapPool(size);
-    } else {
-        bitmapPool = new BitmapPoolAdapter();
-    }
-}
-//创建内存缓存
-if (memoryCache == null) {
-    memoryCache = new LruResourceCache(calculator.getMemoryCacheSize());
-}
-//创建磁盘缓存
-if (diskCacheFactory == null) {
-    diskCacheFactory = new InternalCacheDiskCacheFactory(context);
-}
-```
-
-除此之外 Engine 中还有一个 ActiveResources 作为第一级缓存。下面分别来介绍一下。
-
-## ActiveResources
-
-ActiveResources 是**第一级缓存**，管理的资源是正在使用的或者最近使用的（刚用完还没被 gc 回收的），没有大小限制。类路径：
-
-```css
-com.bumptech.glide.load.engine.ActiveResources
-```
-
-Engine#load 方法中构建好 Key 之后第一件事就是去这个缓存中获取资源，获取到则直接返回，获取不到才继续从其他缓存中寻找。
-
-当资源加载成功，或者通过缓存命中资源后都会将其放入 ActiveResources 中，资源被释放时移除出 ActiveResources 。
-
-ActiveResources 中通过一个 Map 来存储数据，数据保存在一个**弱引用**（WeakReference）中。
-
-刚刚说的 activeResource 使用一个 Map<Key, WeakReference<EngineResource<?>>> 来存储的，此外还有一个引用队列：
-
-```php
-ReferenceQueue<EngineResource<?>> resourceReferenceQueue;
-```
-
-每当向 activeResource 中添加一个 WeakReference 对象时都会将 resourceReferenceQueue 和这个 WeakReference 关联起来，用来跟踪这个 WeakReference 的 gc，一旦这个弱引用持有的对象被 gc 掉，就会将它从 activeResource 中移除。
-
-那么 ReferenceQueue 具体是在何时去判断 WeakReference 是否被 gc 了呢，Handler 机制大家应该都知道，但不知道大家有没有用过 MessageQueue.IdleHandler ，可以调用 MessageQueue#addIdleHandler 添加一个 MessageQueue.IdleHandler 对象，Handler 会在**线程空闲时调用这个方法**。resourceReferenceQueue 在创建时会创建一个 Engine#RefQueueIdleHandler 对象并将其添加到当前线程的 MessageQueue 中，ReferenceQueue 会在 IdleHandler 回调的方法中去判断 activeResource 中的 WeakReference 是不是被 gc 了，如果是，则将引用从 activeResource 中移除，代码如下：
-
-```java
-//MessageQueue 中的消息暂时处理完回调
-@Override
-public boolean queueIdle() {
-    ResourceWeakReference ref = (ResourceWeakReference) queue.poll();
-    if (ref != null) {
-        activeResources.remove(ref.key);
-    }
-    //返回 true，表示下次处理完仍然继续回调
-    return true;
-}
-```
-
-## MemorySizeCalculator
-
-------
-
-这个类是用来计算 BitmapPool 、ArrayPool 以及 MemoryCache **大小**的。计算方式如下：
-
-```java
-//默认为 4MB，如果是低内存设备则在此基础上除以二
-arrayPoolSize =
-        isLowMemoryDevice(builder.activityManager)
-                ? builder.arrayPoolSizeBytes / LOW_MEMORY_BYTE_ARRAY_POOL_DIVISOR
-                : builder.arrayPoolSizeBytes;
-//其中会先获取当前进程可使用内存大小，
-//然后通过判断是否是否为低内存设备乘以相应的系数，
-//普通设备是乘以 0.4，低内存为 0.33，这样得到的是 Glide 可使用的最大内存阈值 maxSize
-int maxSize =
-        getMaxSize(
-                builder.activityManager, builder.maxSizeMultiplier, builder.lowMemoryMaxSizeMultiplier);
-
-int widthPixels = builder.screenDimensions.getWidthPixels();
-int heightPixels = builder.screenDimensions.getHeightPixels();
-//计算一张格式为 ARGB_8888 ，大小为屏幕大小的图片的占用内存大小
-//BYTES_PER_ARGB_8888_PIXEL 值为 4
-int screenSize = widthPixels * heightPixels * BYTES_PER_ARGB_8888_PIXEL;
-
-int targetBitmapPoolSize = Math.round(screenSize * builder.bitmapPoolScreens);
-
-int targetMemoryCacheSize = Math.round(screenSize * builder.memoryCacheScreens);
-//去掉 ArrayPool 占用的内存后还剩余的内存
-int availableSize = maxSize - arrayPoolSize;
-
-if (targetMemoryCacheSize + targetBitmapPoolSize <= availableSize) {
-    //未超出内存限制
-    memoryCacheSize = targetMemoryCacheSize;
-    bitmapPoolSize = targetBitmapPoolSize;
-} else {
-    //超出内存限制
-    float part = availableSize / (builder.bitmapPoolScreens + builder.memoryCacheScreens);
-    memoryCacheSize = Math.round(part * builder.memoryCacheScreens);
-    bitmapPoolSize = Math.round(part * builder.bitmapPoolScreens);
-}
-```
-
-## BitmapPool
-
-BitmapPool 是用来**复用 Bitmap** 从而避免重复创建 Bitmap 而带来的内存浪费，Glide 通过 SDK 版本不同创建不同的 BitmapPool 实例，版本低于 Build.VERSION_CODES.HONEYCOMB(11) 实例为 BitmapPoolAdapter，其中的方法体几乎都是空的，也就是是个实例不做任何缓存。否则实例为 LruBitmapPool，先来看这个类。
-
-### LruBitmapPool
-
-LruBitmapPool 中没有做太多的事，主要任务都交给了 **LruPoolStrategy**，这里只是做一些缓存大小管理、封装、日志记录等等操作。
-
-每次调用 put 缓存数据时都会调用 trimToSize 方法判断已缓存内容是否大于设定的最大内存，如果大于则使用 LruPoolStrategy#removeLast 方法逐步移除，直到内存小于设定的最大内存为止。
-
-LruPoolStrategy 有两个实现类：SizeConfigStrategy 以及 AttributeStrategy，根据系统版本创建不同的实例，这两个差异不大，KITKAT 之后使用的都是 SizeConfigStrategy，这个比较重要。
-
-#### SizeConfigStrategy
-
-SizeConfigStrategy 顾名思义，是通过 Bitmap 的 size 与 Config 来当做 key 缓存 Bitmap，Key 也会通过 KeyPool 来缓存在一个队列（Queue）中。
-
-与 AttributeStrategy 相同的是，其中都使用 Glide 内部自定义的数据结构：**GroupedLinkedMap** 来存储 Bitmap。
-
-当调用 put 方法缓存一个 Bitmap 时会先通过 Bitmap 的大小以及 Bitmap.Config 创建（从 KeyPool 中获取）Key，然后将这个 Key 与 Bitmap 按照键值对的方式存入 GroupedLinkedMap 中。
-
-此外其中还包含一个 sortedSizes，这是一个 HashMap，Key 对应 put 进来的 Bitmap.Config，value 对应一个 TreeMap，TreeMap 中记录着每一个 size 的 Bitmap 在当前缓存中的个数，即 put 时加一，get 时减一。
-
-TreeMap 是**有序的**数据结构，当需要通过 Bitmap 的 size 与 Config 从缓存中获取一个 Biamp 时未必会一定要获取到 size 完全相同的 Bitmap，由于 TreeMap 的特性，调用其 ceilingKey 可以获取到一个相等或大于当前 size 的一个最小值，用这个 Key 去获取 Bitmap，然后重置一下大小即可。
-
-重点看一下 GroupedLinkedMap，这是 Glide 为了 实现 [LRU 算法](https://links.jianshu.com/go?to=https%3A%2F%2Fbaike.baidu.com%2Fitem%2FLRU)自定义的一个数据结构，看名字是已分组的链表 Map？看一下下面的图就明白了：
-
-![img](images/Glide解析/11.png)
-
-GroupedLinkedMap
-
-其中包含三种数据结构：哈希表（HashMap）、[循环链表](https://links.jianshu.com/go?to=https%3A%2F%2Fzh.wikipedia.org%2Fwiki%2F%E5%BE%AA%E7%8E%AF%E9%93%BE%E8%A1%A8)以及列表（ArrayList）。
-这个结构其实类似 Java 里提供的 [LinkedHashMap](https://links.jianshu.com/go?to=https%3A%2F%2Fdocs.oracle.com%2Fjavase%2F8%2Fdocs%2Fapi%2Fjava%2Futil%2FLinkedHashMap.html) 类。
-
-循环链表是通过内部类 GroupedLinkedMap$LinkedEntry 实现的，其中除了定义了链表结构需要的上下两个节点信息之外还包含着一个 Key 与一个 Values，定义如下：
-
-```java
-private static class LinkedEntry<K, V> {
-    private final K key;
-    private List<V> values;
-    LinkedEntry<K, V> next;
-    LinkedEntry<K, V> prev;
-    
-    ...
-}
-```
-
-其实就是将 HashMap 的 Values 使用**链表**串了起来，每个 Value 中又存了个 **List**。
-
-调用 put 方法时会先根据 Key 去这个 Map 中获取 LinkedEntry，获取不到则创建一个，并且加入到链表的尾部，然后将 value （也就是 Bitmap）存入 LinkedEntry 中的 List 中。
-
-所以这里说的分组指的是通过 Key 来对 Bitmap 进行分组，对于同一个 Key（size 与 config 都相同）的 Bitmap 都会存入同一个 LinkedEntry 中。
-
-调用 get 方法获取 Bitmap 时会先通过 Key 去 keyToEntry 中获取 LinkedEntry 对象，获取不到则创建一个，然后将其加入到链表头部，此时已经有了 LinkedEntry 对象，调用 LinkedEntry#removeLast 方法返回并删除 List 中的最后一个元素。
-
-通过上面两步可以看到之所以使用链表是为了**支持 LRU 算法**，最近使用的 Bitmap 都会移动到链表的前端，使用次数越少就越靠后，当调用 removeLast 方法时就直接调用链表最后一个元素的 removeLast 方法移除元素。
-
-好了 BitmapPool 大概就这么多内容，总结一下：
-
-1. BitmapPool 大小通过 MemorySizeCalculator 设置；
-2. 使用 LRU 算法维护 BitmapPool ；
-3. Glide 会根据 Bitmap 的大小与 Config 生成一个 Key；
-4. Key 也有自己对应的对象池，使用 Queue 实现；
-5. 数据最终存储在 GroupedLinkedMap 中；
-6. GroupedLinkedMap 使用哈希表、循环链表、List 来存储数据。
-
-## MemoryCache
-
-如果从 ActiveResources 中没获取到资源则开始从 MemoryCache 寻找。
-
-内存缓存同样使用 **LRU 算法**，实现类为 LruResourceCache，继承自 LruCache。
-
-### LruResourceCache
-
-LruResourceCache 是在 LruCache 的基础上，拓展了一些回调方法，比如 trimMemory(int level) 回调，以及 ResourceRemovedListener 接口，当有资源从 MemoryCache 中被移除时会回调其中的方法，Engine 中接收到这个消息后就会进行 Bitmap 的回收操作。
-
-```kotlin
-public class LruResourceCache extends LruCache<Key, Resource<?>> implements MemoryCache {
-}
-```
-
-缓存功能主要是在 LruCache 实现的。
-
-### LruCache
-
-```java
-public class LruCache<T, Y> {
-  private final Map<T, Entry<Y>> cache = new LinkedHashMap<>(100, 0.75f, true);
-  private final long initialMaxSize;
-  // 最大缓存
-  private long maxSize;
-  // 当前已经缓存的内存大小
-  private long currentSize;
-
-    public synchronized Y put(@NonNull T key, @Nullable Y item) {
-    final int itemSize = getSize(item);
-      // 1、itemSize >= maxSize，不缓存
-    if (itemSize >= maxSize) {
-      onItemEvicted(key, item);
-      return null;
-    }
-
-    if (item != null) {
-      // 2、计算新的 currentSize
-      currentSize += itemSize;
-    }
-     // 3、put 新的 item
-    @Nullable Entry<Y> old = cache.put(key, item == null ? null : new Entry<>(item, itemSize));
-    if (old != null) {
-      // 如果是替换，将旧的大小减去
-      currentSize -= old.size;
-
-      if (!old.value.equals(item)) {
-        onItemEvicted(key, old.value);
-      }
-    }
-      // 触发回收
-    evict();
-
-    return old != null ? old.value : null;
-  }
-  
-  // 回收处理。遍历 item 直到 currentSize 小于 maxSize。
-    protected synchronized void trimToSize(long size) {
-    Map.Entry<T, Entry<Y>> last;
-    Iterator<Map.Entry<T, Entry<Y>>> cacheIterator;
-      // 如果 currentSize 大于 maxSize
-    while (currentSize > size) {
-      cacheIterator = cache.entrySet().iterator();
-      last = cacheIterator.next();
-      final Entry<Y> toRemove = last.getValue();
-      currentSize -= toRemove.size;
-      final T key = last.getKey();
-      // 移除首个 item，根据 LinkedHashMap accessOrder = true 时的特性，首个 item 时最近最少使用的
-      cacheIterator.remove();
-      onItemEvicted(key, toRemove.value);
-    }
-  }
-
-  private void evict() {
-    trimToSize(maxSize);
-  }
-}  
-```
-
-Java 集合里面提供了一个很好的用来实现 LRU 算法的数据结构——**LinkedHashMap**。其基于 HashMap 实现，同时又将 HashMap 中的 Entity 串成了一个双向链表。LruCache 中就是使用这个集合来缓存数据，主要是在 LinkedHashMap 的基础上又提供了对内存的管理操作。
-
-Glide LruCache 的实现策略是根据缓存资源大小来决定是否回收（移除item）的，另一种常见的实现 LruCache 方式是按照 LinkedHashMap 中 size 数量去回收的，显然 Glide 的这种实现更合适些，这样如果每张图片都很小的话，就可以缓存更多张了。
-
-## 磁盘缓存
-
-缓存路径默认为 Context#getCacheDir() 下面的 image_manager_disk_cache 文件夹，默认缓存大小为 250MB。
-
-磁盘缓存实现类由 InternalCacheDiskCacheFactory 创建，最终会通过缓存路径及缓存文件夹最大值创建一个 DiskLruCacheWrapper 对象。
-
-DiskLruCacheWrapper 实现了 DiskCache 接口，接口主要的代码如下：
-
-```java
-File get(Key key);
-void put(Key key, Writer writer);
-void delete(Key key);
-void clear();
-```
-
-可以看到其中提供了作为一个缓存类必须的几个方法，并且文件以 Key 的形式操作。
-
-**SafeKeyGenerator** 类用来将 Key 对象转换为字符串，Key 不同的实现类生成 Key 的方式也不同，一般来说会通过图片宽高、加密解码器、引擎等等生成一个 byte[] 然后再转为字符串，以此来保证图片资源的**唯一性**。
-
-另外，在向磁盘写入文件时（put 方法）会使用**重入锁**来同步代码，也就是 DiskCacheWriteLocker 类，其中主要是对 **ReentrantLock** 的包装。
-
-DiskLruCacheWrapper 顾名思义也是一个包装类，包装的是 **DiskLruCache**。
-
-### DiskLruCache
-
-这里考虑一个问题，磁盘缓存同样使用的是 LRU 算法，但文件是存在磁盘中的，如何在 APP 启动之后准确的按照使用次数排序读取缓存文件呢？
-
-Glide 是使用一个**日志清单文件**来保存这种顺序，DiskLruCache 在 APP 第一次安装时会在缓存文件夹下创建一个 **journal** 日志文件来记录图片的添加、删除、读取等等操作，后面每次打开 APP 都会读取这个文件，把其中记录下来的缓存文件名读取到 LinkedHashMap 中，后面每次对图片的操作不仅是操作这个 LinkedHashMap 还要记录在 journal 文件中.
-journal 文件内容如下图：
-
-![img](images/Glide解析/12.png)
-
-开头的 libcore.io.DiskLruCache 是魔数，用来标识文件，后面的三个 1 是版本号 valueCount 等等，再往下就是图片的操作日志了。
-
-DIRTY、CLEAN 代表操作类型，除了这两个还有 REMOVE 以及 READ，紧接着的一长串字符串是文件的 Key，由上文提到的 SafeKeyGenerator 类生成，是由图片的宽、高、加密解码器等等生成的 SHA-256 散列码 后面的数字是图片大小。
-
-根据这个字符串就可以在同目录下找到对应的图片缓存文件，那么打开缓存文件夹即可看到上面日志中记录的文件：
-
-![img](images/Glide解析/13.png)
-
-缓存文件列表
-
-可以看到日志文件中记录的缓存文件就在这个文件夹下面。
-
-由于涉及到磁盘缓存的外部排序问题，所以相对而言磁盘缓存比较复杂。
-
-那么 Glide 的缓存模块至此就结束了，主要是 BitmapPool 中的数据结构以及磁盘缓存比较复杂，其他的倒也不是很复杂。
-
-
+在【Glide缓存功能.md】中
 
 # 生命周期绑定原理
 
-1、实现原理
-
-在Activity中添加无UI的Fragment，通过Fragment接收Activity传递的生命周期。Fragment和RequestManager基于LifeCycle接口建立联系，并传递生命周期事件，实现生命周期感知。
-
-如何绑定生命周期
-
-在调用Glide.with(Activity activity)的时候，我们跟一下流程
-
-```kotlin
- // with入口
- public static RequestManager with(@NonNull FragmentActivity activity) {
-     return getRetriever(activity).get(activity);
- }
-
- // 此处拿到对应的 FragmentManager，为生成Fragment做准备
- public RequestManager get(@NonNull FragmentActivity activity) {
-     if(Util.isOnBackgroundThread()) {
-         return this.get(activity.getApplicationContext());
-     } else {
-         assertNotDestroyed(activity);
-         android.support.v4.app.FragmentManager fm = activity.getSupportFragmentManager();
-         return this.supportFragmentGet(activity, fm, (Fragment)null, isActivityVisible(activity));
-     }
- }
- 
- private RequestManager supportFragmentGet(@NonNull Context context, @NonNull android.support.v4.app.FragmentManager fm, @Nullable Fragment parentHint, boolean isParentVisible) {
- 	// current就是一个无UI的Fragment实例
-     SupportRequestManagerFragment current = this.getSupportRequestManagerFragment(fm, parentHint, isParentVisible);
-     RequestManager requestManager = current.getRequestManager();
-     if(requestManager == null) {
-         Glide glide = Glide.get(context);
- 		// 将Fragment的LifeCycle传入RequestManager中，建立起来联系
-         requestManager = this.factory.build(glide, current.getGlideLifecycle(), current.getRequestManagerTreeNode(), context);
-         current.setRequestManager(requestManager);
-     }
-
-     return requestManager;
- }
-
- //RequestManager的构造方法中绑定LifeCycle，将自己的引用存入LifeCycle，调用LifeCycle的生命周期时进行回调
- lifecycle.addListener(this);
-
-```
-
- 1. Glide绑定Activity时，生成一个无UI的Fragment
- 2. 将无UI的Fragment的LifeCycle传入到RequestManager中
- 3. 在RequestManager的构造方法中，将RequestManager存入到之前传入的Fragment的LifeCycle，在回调LifeCycle时会回调到
-
-如何通过Fragment的生命周期回调调用Glide的对应方法
-
-通过Fragment的回调调用到Glide的RequestManager的对应的方法即可执行不同的操作，主要绑定的三个方法为：`onStart()`,`onStop()`,`onDestroy()`。回调的源码：
-
-```kotlin
- //RequestManager的构造方法中绑定LifeCycle，将自己的引用存入LifeCycle，调用LifeCycle的生命周期时进行回调
- //这个this是RequestManager的实例
- lifecycle.addListener(this);
-
- // onDestory的回调示例
- void onDestroy() {
-     this.isDestroyed = true;
-     Iterator var1 = Util.getSnapshot(this.lifecycleListeners).iterator();
-
-     while(var1.hasNext()) {
-         LifecycleListener lifecycleListener = (LifecycleListener)var1.next();
-         lifecycleListener.onDestroy();
-     }
-
- }
-
- //下面看一下RequestManager里面的onDestory方法，里面主要做一些解绑和清除操作
- public void onDestroy() {
-     this.targetTracker.onDestroy();
-     Iterator var1 = this.targetTracker.getAll().iterator();
-
-     while(var1.hasNext()) {
-         Target<?> target = (Target)var1.next();
-         this.clear(target);
-     }
-
-     this.targetTracker.clear();
-     this.requestTracker.clearRequests();
-     this.lifecycle.removeListener(this);
-     this.lifecycle.removeListener(this.connectivityMonitor);
-     this.mainHandler.removeCallbacks(this.addSelfToLifecycle);
-     this.glide.unregisterRequestManager(this);
- }
-```
+见【Glide生命周期.md】
 
 
-
-
-
-# Glide 初始化流程分析
-
-从 Glide.with() 到 Glide.get(context) 获取 Glide 实例
-
-```kotlin
-  	public static RequestManager with(@NonNull Context context) {
-      // 步骤1：调用 getRetriever 获得 RequestManagerRetriever 对象 - 单例实现
-      // 步骤2：调用RequestManagerRetriever实例的get()获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析2
-    	return getRetriever(context).get(context);
-  	}  
-
-  	private static RequestManagerRetriever getRetriever(@Nullable Context context) {
-    	Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
-    	return Glide.get(context).getRequestManagerRetriever();
-  	}
-
-// 获取 Glide 单例，双重校验锁（Double checked locking）实现。
-public static Glide get(@NonNull Context context) {
-    if (glide == null) {
-      // 分析1：GeneratedAppGlideModule的作用
-      GeneratedAppGlideModule annotationGeneratedModule =
-          getAnnotationGeneratedGlideModules(context.getApplicationContext());
-      synchronized (Glide.class) {
-        if (glide == null) {
-          checkAndInitializeGlide(context, annotationGeneratedModule);
-        }
-      }
-    }
-
-    return glide;
-  }
-
-  static void checkAndInitializeGlide(
-      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
-    ...
-    isInitializing = true;
-    try {
-      initializeGlide(context, generatedAppGlideModule);
-    } finally {
-      isInitializing = false;
-    }
-  }
-
-  private static void initializeGlide(
-      @NonNull Context context, @Nullable GeneratedAppGlideModule generatedAppGlideModule) {
-    initializeGlide(context, new GlideBuilder(), generatedAppGlideModule);
-  }
-
-  private static void initializeGlide(
-      @NonNull Context context,
-      @NonNull GlideBuilder builder,
-      @Nullable GeneratedAppGlideModule annotationGeneratedModule) {
-    // 分析0：无论with()传入的参数是什么，用于初始化 Glide 的 Context 总是 ApplicationContext
-    Context applicationContext = context.getApplicationContext();
-    
-    // 分析1.1-start
-    List<GlideModule> manifestModules = Collections.emptyList();
-    if (annotationGeneratedModule == null || annotationGeneratedModule.isManifestParsingEnabled()) {
-      // 解析清单文件配置的自定义GlideModule的metadata标签，返回一个GlideModule集合
-      manifestModules = new ManifestParser(applicationContext).parse();
-    }
-
-    if (annotationGeneratedModule != null
-        && !annotationGeneratedModule.getExcludedModuleClasses().isEmpty()) {
-      Set<Class<?>> excludedModuleClasses = annotationGeneratedModule.getExcludedModuleClasses();
-      Iterator<GlideModule> iterator = manifestModules.iterator();
-      while (iterator.hasNext()) {
-        GlideModule current = iterator.next();
-        if (!excludedModuleClasses.contains(current.getClass())) {
-          continue;
-        }
-        ...
-        iterator.remove();
-      }
-    }
-...
-    RequestManagerRetriever.RequestManagerFactory factory =
-        annotationGeneratedModule != null
-            ? annotationGeneratedModule.getRequestManagerFactory()
-            : null;
-    builder.setRequestManagerFactory(factory);
-    for (GlideModule module : manifestModules) {
-      module.applyOptions(applicationContext, builder);
-    }
-    if (annotationGeneratedModule != null) {
-      annotationGeneratedModule.applyOptions(applicationContext, builder);
-    }
-    // 分析1.1-end
-    
-    // 分析2：GlideBuilder的作用
-    // GlideBuilder会为Glide设置一默认配置，如：Engine，RequestOptions，GlideExecutor，MemorySizeCalculator
-    Glide glide = builder.build(applicationContext, manifestModules, annotationGeneratedModule);
-    // 分析3
-    applicationContext.registerComponentCallbacks(glide);
-    Glide.glide = glide;
-  }
-```
-
-分析0：无论with()传入的参数是什么，用于初始化 Glide 的 Context 总是 ApplicationContext
-
-### 分析1：GeneratedAppGlideModule的作用
-
-支持应用自定义 AppGlideModule（用注解@GlideModule标记） 来配置 Glide。比如项目中常用的给 Glide 添加 OkHttp 日志。
-
-分析1.1-start —— 分析1.1-end：
-
-GlideModule接口 和 AppGlideModule 作用一样，都是为了给 Glide 作自定义配置。
-
-> 注意：这里的 GlideModule 是接口，跟注解@GlideModule是两个东西，Glide 用了相同的命名）
-
-但是 GlideModule 已经被 AppGlideModule 替代了。因为 GlideModule 是通过 Manifest 配置的，在运行时还需要解析 xml。而 AppGlideModule 则是利用了编译时注解生成类，在运行时通过反射生成类，然后获取到我们的配置类。
-
-### 分析2：GlideBuilder的作用
-
-通过 build() 构造 Glide 所需的对象实例，比如RequestManagerRetriever、Engine、MemoryCache、BitmapPool、ArrayPool等，最后通过参数传给 Glide 构造方法，并完成 Glide 的创建。
-
-### 分析3：Glide 实现 ComponentCallbacks2 接口
-
-Glide 实现了 ComponentCallbacks2 接口来实现内存的管理，系统内存变化时回调到 onTrimMemory 方法。
 
 # 图片加载源码分析
 
-`Glide`源码较为难懂、难分析的其中一个原因是：许多对象都是很早之前就初始化好，而并非在使用前才初始化。所以当真正使用该对象时，开发者可能已经忘记是在哪里初始化、该对象是作什么用的了。**所以本文会在每个阶段进行一次总结，而读者则需要经常往返看该总结，从而解决上述问题。**
+Glide 中的许多对象都是在 Glide 初始化时就创建好、后续再使用。
 
-下面将根据 `Glide` 加载图片的使用步骤分析源码：
+使用步骤：
 
 ```csharp
 Glide.with(this).load(url).into(imageView);
@@ -1525,287 +1789,67 @@ Q：为什么支持传入不同的参数？
 
 Q：不同的参数是被怎么处理的
 
-- 具体源码
-
 ### 分析1：从 Glide.with() 开始
 
 ```java
 public class Glide {
-    // with()重载种类非常多，根据传入的参数可分为：
-    // 1. 非Application类型的参数（Activity & Fragment  ）
-    // 2. Application类型的参数（Context）
-    // 下面将详细分析
-
- 		// 参数1：Application类型
+ 	// 参数1：Application类型
   	public static RequestManager with(@NonNull Context context) {
-      // 步骤1：调用 getRetriever 获得 RequestManagerRetriever 对象 - 单例实现
-      // 步骤2：调用RequestManagerRetriever实例的get()获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析2
     	return getRetriever(context).get(context);
   	}
-    
+
   	// 参数2：非Application类型（Activity & Fragment ）
     public static RequestManager with(@NonNull FragmentActivity activity) {
+        // 步骤1：调用 getRetriever 获取 RequestManagerRetriever 对象 - 单例实现
+      	// 步骤2：调用 RequestManagerRetriever 实例的 get() 获取RequestManager对象 & 绑定图片加载的生命周期 ->>分析2
     	return getRetriever(activity).get(activity);
   	}
     
-  	public static RequestManager with(@NonNull Fragment fragment) {
-    	return getRetriever(fragment.getContext()).get(fragment);
-  	}
-      
-   	public static RequestManager with(@NonNull View view) {
-  	  return getRetriever(view.getContext()).get(view);
- 	 	}
-  	
-  	private static RequestManagerRetriever getRetriever(@Nullable Context context) {
-    	Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
-    	return Glide.get(context).getRequestManagerRetriever();
-  	}
-}
-```
-
-将请求参数转交给 RequestManagerRetriever 处理，并通过 RequestManagerRetriever.get(Context | FragmentActivity | Fragment | View) 获取 RequestManager。
-
-Glide.get(context) 在【Glide初始化流程分析】一节分析。
-
-### 分析2：RequestManagerRetriever 的作用
-
-```kotlin
-	// 作用：
-  // 1. 获取RequestManager对象
-  // 2. 将图片加载的生命周期与Activity/Fragment的生命周期进行绑定
-public class RequestManagerRetriever implements Handler.Callback {
-...
-   public RequestManager get(Context context) {
-     // 在子类中找是否有匹配的类型，优先使用 FragmentActivity、ContextWrapper 来创建 RequestManager
-         if (context == null) {
-      throw new IllegalArgumentException("You cannot start a load on a null Context");
-    } else if (Util.isOnMainThread() && !(context instanceof Application)) {
-      if (context instanceof FragmentActivity) {
-        return get((FragmentActivity) context);
-      } else if (context instanceof ContextWrapper
-          && ((ContextWrapper) context).getBaseContext().getApplicationContext() != null) {
-        return get(((ContextWrapper) context).getBaseContext());
-      }
-    }
-    // 调用getApplicationManager（）最终获取一个RequestManager对象 ->>分析2
-    // 因为Application对象的生命周期即App的生命周期
-    // 所以Glide加载图片的生命周期是自动与应用程序的生命周期绑定，不需要做特殊处理（若应用程序关闭，Glide的加载也会终止）
-    return getApplicationManager(context);
-    }
-
   @NonNull
-  public RequestManager get(@NonNull FragmentActivity activity) {
-    if (Util.isOnBackgroundThread()) {
-      return get(activity.getApplicationContext());
-    }
-    // 判断activity是否已经销毁
-    assertNotDestroyed(activity);
-    frameWaiter.registerSelf(activity);
-    boolean isActivityVisible = isActivityVisible(activity);
-    Glide glide = Glide.get(activity.getApplicationContext());
-    return lifecycleRequestManagerRetriever.getOrCreate(
-        activity,
-        glide,
-      	// 获取 activity 的 Lifecycle
-        activity.getLifecycle(),
-      	// 获取FragmentManager 对象
-        activity.getSupportFragmentManager(),
-        isActivityVisible);
+  private static RequestManagerRetriever getRetriever(@Nullable Context context) {
+    // context 为 null 时，抛出异常
+    Preconditions.checkNotNull(context, DESTROYED_ACTIVITY_WARNING);
+    // Glide.get(context)：首次初始化并获取Glide 或者 已经初始化完成，则直接获取Glide
+    return Glide.get(context).getRequestManagerRetriever();
   }
-  
-    public RequestManager get(Fragment fragment) {
-      // 逻辑同上
-    }
+    ...
 }
 ```
 
-### 小结
+1. 创建 Glide 实例（第一次），并创建了 RequestManagerRetriever 对象
 
-1. 创建 Glide 实例（第一次）
-2. 得到一个`RequestManager`对象（其实现了 LifecycleListener 接口），因此可以响应 `Activity` 和 `Fragment` 的生命周期方法。
+   [Glide.get(context) 分析](##Glide 初始化流程)
+
+2. 通过 RequestManagerRetriever 对象获取到 `RequestManager`对象，获取过程中将 RequestManager 与 Activity/Fragment或 Application 的生命周期绑定
+
+   [RequestManagerRetriever](##RequestManagerRetriever)
+
+   [RequestManager](##RequestManager)
 
 ## load()
 
-RequestManager#load() 会预先创建好对图片进行一系列操作（加载、编解码、转码）的对象，并全部封装到 `DrawableTypeRequest` 对象中。
-
-> 1. `Glide` 支持加载 图片的URL字符串、图片本地路径等，因此`RequestManager` 类 存在`load()`的重载
-> 2. 此处主要讲解 最常见的加载图片 `URL` 字符串的`load()`，即`load(String url)`
-
-- 具体过程
-
-```java
+```kotlin
 public class RequestManager implements LifecycleListener {
-
-    // 仅贴出关键代码
-    ...
-      
+  
   public RequestBuilder<Drawable> load(@Nullable String string) {
     return asDrawable().load(string);
   }
-  
+
   public RequestBuilder<Drawable> asDrawable() {
     return as(Drawable.class);
   }
-  
+
   public <ResourceType> RequestBuilder<ResourceType> as(
       @NonNull Class<ResourceType> resourceClass) {
+    // 创建一个 RequestBuilder 对象。传入 Glide，RequestManaer，资源类型，Context
     return new RequestBuilder<>(glide, this, resourceClass, context);
   }
-  
-<-- 分析2：loadGeneric（）-->
-    private <T> DrawableTypeRequest<T> loadGeneric(Class<T> modelClass) {
-
-        ModelLoader<T, InputStream> streamModelLoader = Glide.buildStreamModelLoader(modelClass, context);
-        // 创建第1个ModelLoader对象；作用：加载图片
-        // Glide会根据load()方法传入不同类型参数，得到不同的ModelLoader对象
-        // 此处传入参数是String.class，因此得到的是StreamStringLoader对象（实现了ModelLoader接口）
-
-        ModelLoader<T, ParcelFileDescriptor> fileDescriptorModelLoader = Glide.buildFileDescriptorModelLoader(modelClass, context);
-         // 创建第2个ModelLoader对象，作用同上：加载图片
-        // 此处得到的是FileDescriptorModelLoader对象
-
-        return optionsApplier.apply(
-                new DrawableTypeRequest<T>(modelClass, streamModelLoader, fileDescriptorModelLoader, context,
-                        glide, requestTracker, lifecycle, optionsApplier));
-            // 创建DrawableTypeRequest对象 & 传入刚才创建的ModelLoader对象 和 其他初始化配置的参数
-            // DrawableTypeRequest类分析 ->>分析3
-    }
-
-    ...
-
-<-- 分析3：DrawableTypeRequest类（）-->
-public class DrawableTypeRequest<ModelType> extends DrawableRequestBuilder<ModelType> implements DownloadOptions {
-
-// 关注1：构造方法
-      DrawableTypeRequest(Class<ModelType> modelClass, ModelLoader<ModelType, InputStream> streamModelLoader,
-            ModelLoader<ModelType, ParcelFileDescriptor> fileDescriptorModelLoader, Context context, Glide glide,
-            RequestTracker requestTracker, Lifecycle lifecycle, RequestManager.OptionsApplier optionsApplier) {
-        super(context, modelClass,
-                buildProvider(glide, streamModelLoader, fileDescriptorModelLoader, GifBitmapWrapper.class,
-                        GlideDrawable.class, null),
-                glide, requestTracker, lifecycle);
-      // 调用buildProvider()方法 -->分析4
-      // 并把上述创建的streamModelLoader和fileDescriptorModelLoader等参数传入到buildProvider()中
-
-// 关注2：DrawableTypeRequest类主要提供2个方法： asBitmap() & asGif() 
-
-    // asBitmap()作用：强制加载 静态图片
-    public BitmapTypeRequest<ModelType> asBitmap() {
-        return optionsApplier.apply(new BitmapTypeRequest<ModelType>(this, streamModelLoader,
-                fileDescriptorModelLoader, optionsApplier));
-        // 创建BitmapTypeRequest对象
-    }
-
-    // asGif() 作用：强制加载 动态图片
-    public GifTypeRequest<ModelType> asGif() {
-        return optionsApplier.apply(new GifTypeRequest<ModelType>(this, streamModelLoader, optionsApplier));
-        // 创建GifTypeRequest对象
-
-        // 注：若没指定，则默认使用DrawableTypeRequest
-    }
-
-}
-
-<-- 分析4：buildProvider(）-->
-private static <A, Z, R> FixedLoadProvider<A, ImageVideoWrapper, Z, R> buildProvider(Glide glide,
-            ModelLoader<A, InputStream> streamModelLoader,
-            ModelLoader<A, ParcelFileDescriptor> fileDescriptorModelLoader, Class<Z> resourceClass,
-            Class<R> transcodedClass,
-            ResourceTranscoder<Z, R> transcoder) {
-
-        if (transcoder == null) {
-            transcoder = glide.buildTranscoder(resourceClass, transcodedClass);
-            // 创建GifBitmapWrapperDrawableTranscoder对象（实现了ResourceTranscoder接口）
-            // 作用：对图片进行转码
-        }
-
-        DataLoadProvider<ImageVideoWrapper, Z> dataLoadProvider = glide.buildDataProvider(ImageVideoWrapper.class,
-                resourceClass);
-        // 创建ImageVideoGifDrawableLoadProvider对象（实现了DataLoadProvider接口）
-        // 作用：对图片进行编解码
-
-        ImageVideoModelLoader<A> modelLoader = new ImageVideoModelLoader<A>(streamModelLoader,
-                fileDescriptorModelLoader);
-        // 创建ImageVideoModelLoader
-        // 并把上面创建的两个ModelLoader：streamModelLoader和fileDescriptorModelLoader封装到了ImageVideoModelLoader中
-
-        return new FixedLoadProvider<A, ImageVideoWrapper, Z, R>(modelLoader, transcoder, dataLoadProvider);
-       // 创建FixedLoadProvider对象
-       // 把上面创建的GifBitmapWrapperDrawableTranscoder、ImageVideoModelLoader、ImageVideoGifDrawableLoadProvider都封装进去
-      // 注：FixedLoadProvider对象就是第3步into（）中onSizeReady()的loadProvider对象
-    }
-      // 回到分析3的关注点2
-```
-
-
-
-```kotlin
-class RequestBuilder {
-    @Nullable private Object model;
-  
-  public RequestBuilder<TranscodeType> load(@Nullable String string) {
-    return loadGeneric(string);
-  }
-  
-  private RequestBuilder<TranscodeType> loadGeneric(@Nullable Object model) {
-    if (isAutoCloneEnabled()) {
-      return clone().loadGeneric(model);
-    }
-    this.model = model;
-    isModelSet = true;
-    return selfOrThrowIfLocked();
-  }
-  
-  protected final T selfOrThrowIfLocked() {
-    if (isLocked) {
-      throw new IllegalStateException("You cannot modify locked T, consider clone()");
-    }
-    return self();
-  }
-  
-    private T self() {
-    return (T) this;
-  }
-}  
-```
-
-### 小结
-
-通过 load 将要加载的资源地址保存到 RequestBuilder.model 字段中。
-
-- 在`RequestManager`的`load()`中，通过`fromString()`最终返回一个`DrawableTypeRequest`对象，并调用该对象的`load()` 传入图片的URL地址
-
-> 请回看分析1上面的代码
-
-- 但从上面的分析3可看出，`DrawableTypeRequest`类中并没有`load()`和第3步需要分析的`into（）`，所以`load()` 和 `into（）` 是在`DrawableTypeRequest`类的父类中：`DrawableRequestBuilder`类中。继承关系如下：
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-f5780a3e42011902.png?imageMogr2/auto-orient/strip|imageView2/2/w/180/format/webp)
-
-```java
-public class DrawableRequestBuilder<ModelType>
-        extends GenericRequestBuilder<ModelType, ImageVideoWrapper, GifBitmapWrapper, GlideDrawable>
-        implements BitmapOptions, DrawableOptions {
-
-        ... 
-
-// 最终load()方法返回的其实就是一个DrawableTypeRequest对象
-@Override
-    public Target<GlideDrawable> into(ImageView view) {
-        return super.into(view);
-    }
-
-// 特别注意：DrawableRequestBuilder类中有很多使用Glide的API方法，此处不做过多描述
-
 }
 ```
 
-至此，第2步的 `load（）`分析完成
-
-### 总结
-
-`load（）`中预先创建好对图片进行一系列操作（加载、编解码、转码）的对象，并全部封装到 `DrawableTypeRequest`对象中。
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-b3b2dae583d9a690.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+1. 传入 Glide，RequestManaer，资源类型，Context等参数，创建一个 RequestBuilder 对象。
+2. 执行 RequestBuilder#load(url)：将 `要加载的资源地址` 向上转型成 model，保存到 RequestBuilder.model 字段中，以备后用。
+3. 返回 RequestBuilder 对象
 
 ## into()
 
@@ -1816,8 +1860,6 @@ public class DrawableRequestBuilder<ModelType>
 - 总体逻辑如下:
 
   ![img](https:////upload-images.jianshu.io/upload_images/944365-f27576b3fa7d63f6.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-  示意图
 
 - 详细过程：
 
@@ -1831,11 +1873,7 @@ public class DrawableRequestBuilder<ModelType>
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-e53445a13dd5144b.png?imageMogr2/auto-orient/strip|imageView2/2/w/180/format/webp)
 
-示意图
-
 所以，第三步是调用`DrawableRequestBuilder`类的 `into（）`完成图片的最终加载。
-
-
 
 ```kotlin
   @NonNull
@@ -2685,65 +2723,77 @@ EngineJob#reschedule
   } 
 ```
 
-
-
-
-
-
-
 [![Glide加载基本流程图](images/Glide解析/Glide基本请求流程图.jpg)](https://github.com/maoqitian/MaoMdPhoto/raw/master/从源码角度深入理解Glide/Glide基本请求流程图.jpg)
-
-
 
 
 
 # 相关问题
 
-<font color='orange'>Q：</font>
+## 原理
+
+<font color='orange'>Q：图片加载框架：Glide实现原理</font>
+
+加载模块、缓存模块、生命周期管理模块等功能实现的一个图片加载框架。
+
+<font color='orange'>Q：Glide：加载、缓存、LRU算法（LRUCache原理）</font>
+
+load()传入要加载的资源；
+
+into()创建Request，并最终执行请求加载资源；
+
+加载资源时，会先从内存缓存和磁盘缓存获取数据，最后通过网络获取。缓存用到了LruCache（最近最少使用）算法。
+
+加完资源完成后，先保存资源到磁盘，再加载到内存使用。
+
+<font color='orange'>Q：Glide如何加载GIF</font>
 
 
 
-### 原理
-
-图片加载框架：Glide实现原理
-
-Glide：加载、缓存、LRU算法（LRUCache原理）
-
-Glide如何加载GIF
-
-Glide如何确定图片加载完毕？
-
-Glide生命周期是如何绑定的？
-
-### 缓存
-
-Glide的缓存实现？
-
-Glide的图片三级缓存
-
-Glide缓存特点
-
-Glide内存缓存如何控制大小？
-
-Glide为我们做了哪些内存优化
-
-LruCache的底层实现？
-
-图片缓存框架设计
-
-### 对比
-
-Fresco与Glide的对比
-
-Glide和Picasso有什么区别？
-
-### 开放&拓展
-
-Glide的优点
-
-如何自己设计一个大图加载框架
+<font color='orange'>Q：Glide如何确定图片加载完毕？</font>
 
 
+
+<font color='orange'>Q：Glide生命周期是如何绑定的？</font>
+
+在RequestManagerRetriever中，会创建 RequestManager，并最终根据 Context 的类型决定监听Applicantion或Activity/Fragment的生命周期：
+
+1. 对于androidx中的Activity和Fragment，会获取到 Activity和Fragment 中的Lifecycle， 并由 LifecycleRequestManagerRetriever 将 Lifecycle 和 RequestManager 进行绑定。从而实现对生命周期的监听。
+2. 对于非androidx中的Activity和Fragment、以及Applicantion Context、在子线程中调用with()，都会绑定 Applicantion 的生命周期回调。
+
+## 缓存
+
+在【Glide缓存功能.md】中
+
+## 对比
+
+<font color='orange'>Q：Fresco与Glide的对比</font>
+
+<font color='orange'>Q：Glide和Picasso有什么区别？</font>
+
+## 开放&拓展
+
+<font color='orange'>Q：Glide的优点</font>
+
+1. 使用方便
+2. 支持多种数据源，本地、网络、assets、gif等都支持。
+3. 可感知生命周期
+4. 高效处理Bitmap；使用Bitmap pool复用Bitmap
+5. 高效缓存，支持memory和disk图片缓存，默认使用二级缓存
+6. 图片加载过程可以监听
+7. 可配置度高，自适应高
+
+<font color='orange'>Q：如何自己设计一个大图加载框架</font>
+
+性能
+
+- 异步加载：线程池
+- 切换线程：Handler
+- 缓存：LruCache、DiskLruCache
+
+内存
+
+- 防止OOM：软引用、LruCache、图片压缩、Bitmap像素存储位置
+- 内存泄露：注意ImageView的正确引用，生命周期管理
 
 # 参考
 
@@ -2758,3 +2808,5 @@ Glide的优点
 [Glide 源码分析解读-缓存模块-基于最新版Glide 4.9.0](https://www.jianshu.com/p/62b7f990ee83)
 
 [Carson带你学Android：手把手带你深入图片加载库Glide源码分析](https://www.jianshu.com/p/216df89bf59c)
+
+[Android：深入了解图片加载库Glide的生命周期管理(源码分析）](https://www.jianshu.com/p/349d0e20245f)

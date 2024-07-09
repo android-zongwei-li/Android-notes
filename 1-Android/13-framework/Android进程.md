@@ -17,7 +17,7 @@ ps 的几个参数如下：
 
 下面看下 **ps -ef** 的输出结果：
 
-**![image-20210305140830234](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210305140830234.png)**
+
 
 UIP	程序被该 UID 所拥有
 
@@ -37,7 +37,7 @@ CMD 	所下达的指令为何
 
 
 
-![image-20210305142329069](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210305142329069.png)
+
 
 1、可以看到 init进程是开机后第一个启动的进程，zygote进程在init进程之后启动。
 
@@ -47,7 +47,7 @@ CMD 	所下达的指令为何
 
 下面再看两个APP的进程示例：
 
-![image-20210305144608701](C:\Users\NJCS\AppData\Roaming\Typora\typora-user-images\image-20210305144608701.png)
+
 
 上面的是我写的demo，其父进程为503，即zygote。
 
@@ -58,8 +58,6 @@ CMD 	所下达的指令为何
 
 
 **PID越大，进程创建的越晚。**（<u>还不是十分确定</u>）
-
-
 
 
 

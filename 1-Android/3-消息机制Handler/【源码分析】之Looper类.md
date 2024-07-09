@@ -1156,18 +1156,8 @@ HandlerThread是一个封装了Handler的线程。
 
 
 
-# 总结
 
 
-
-## 【精益求精】我还能做（补充）些什么？
-
-1、这篇要多看几遍，其中有一些问题还没有完全搞清楚，还需要继续完善。
-
-
-
-
-
-参考：
+# 参考
 
 [万字图文，带你学懂Handler和内存屏障](https://blog.csdn.net/c10WTiybQ1Ye3/article/details/116076728)

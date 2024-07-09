@@ -2,21 +2,7 @@
 >
 > review：
 
-
-
-目录
-
-[TOC]
-
-
-
-
-
-# 一、前置知识
-
-
-
-# 二、概述
+# 概述
 
 Android 提供了 5 种方式来让用户保存持久化应用程序数据，分别是： 
 
@@ -328,22 +314,6 @@ SQLite 数据库只允许增加字段而不允许修改和删除表字段，只�
 ContentValues 的容量调整：ContentValues 内部采用HashMap 来存储 Key-Value 数据，ContentValues 初始容量为 8，扩容时翻倍。因此建议对 ContentValues 填入的内容进行估量，设置合理的初始化容量，减少不必要的内部扩容操作
 
 使用索引加快检索速度：对于查询操作量级较大、业务对查询要求较高的推荐使用索引
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
-
-
-
-<font color='orange'>Q：</font>
 
 
 

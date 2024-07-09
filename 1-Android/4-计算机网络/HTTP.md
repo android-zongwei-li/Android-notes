@@ -3,17 +3,11 @@
 - `HTTP`网络通信协议在任何的开发工作中都非常重要
 - 今天，我将献上一份`HTTP`的说明指南，希望你们会喜欢
 
-------
-
 # 目录
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-38bddd4279238551.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
-------
-
-# 1. 储备知识
+# 储备知识
 
 讲解`HTTP`协议前，先了解一些基础的计算机网络相关知识
 
@@ -62,7 +56,6 @@
 
   ![img](https:////upload-images.jianshu.io/upload_images/944365-73d7d56b1f54d945.png?imageMogr2/auto-orient/strip|imageView2/2/w/780/format/webp)
 
-  示意图
 
 ### 1.2 HTTP 协议通信的基础模型
 
@@ -75,8 +68,6 @@
   
 
 - `HTTP`协议 属于 最高层的应用层
-
-------
 
 # 2. 简介
 
@@ -305,19 +296,11 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-820f955afd57185f.png?imageMogr2/auto-orient/strip|imageView2/2/w/712/format/webp)
 
-示意图
+
 
 ### 5.3 HTTP处理长连接的方式
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-1ae8c95acbb1b364.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/899/format/webp)
-
-示意图
-
-------
-
-# 6. 总结
-
-- 本文全面总结了`HTTP`的基础知识
 
 
 

@@ -1,32 +1,32 @@
 # 一、 源码分析
 
-### Retrofit的本质流程
+## Retrofit的本质流程
 
 一般从网络通信过程（网络请求的过程）如下图：
 
 ![img](images/Retrofit 源码解析/webp-1706461760023-2.webp)
 
-- 其实Retrofit的本质和上面是一样的套路
-- 只是Retrofit通过使用**大量的设计模式**进行**功能模块的解耦**，使得上面的过程进行得更加简单 & 流畅
-
-如下图：
+Retrofit的本质和上面是一样的套路，只是Retrofit通过使用**大量的设计模式**进行**功能模块的解耦**，使得上面的过程进行得更加简单 & 流畅。如下图：
 
 ![img](images/Retrofit 源码解析/webp-1706461794307-5.webp)
 
-Retrofit的本质
-
-具体过程解释如下：
+Retrofit的本质，具体过程解释如下：
 
 1. 通过解析 网络请求接口的注解 配置 网络请求参数
+
 2. 通过 动态代理 生成 网络请求对象
+
 3. 通过 网络请求适配器 将 网络请求对象 进行平台适配
 
-> 平台包括：Android、Rxjava、Guava和java8
+   > 平台包括：Android、Rxjava、Guava和java8
 
-1. 通过 网络请求执行器 发送网络请求
-2. 通过 数据转换器 解析服务器返回的数据
-3. 通过 回调执行器 切换线程（子线程 ->>主线程）
-4. 用户在主线程处理返回结果
+4. 通过 网络请求执行器 发送网络请求
+
+5. 通过 数据转换器 解析服务器返回的数据
+
+6. 通过 回调执行器 切换线程（子线程 ->>主线程）
+
+7. 用户在主线程处理返回结果
 
 下面介绍上面提到的几个角色
 
@@ -34,15 +34,17 @@ Retrofit的本质
 
 ### 4.2 源码分析
 
-先来回忆Retrofit的使用步骤：
+Retrofit的使用步骤：
 
 1. 创建Retrofit实例
+
 2. 创建 网络请求接口实例 并 配置网络请求参数
+
 3. 发送网络请求
 
-> 封装了 数据转换、线程切换的操作
+   > 封装了 数据转换、线程切换的操作
 
-1. 处理服务器返回的数据
+4. 处理服务器返回的数据
 
 ### 4.2.1 创建Retrofit实例
 
@@ -133,11 +135,6 @@ Retrofit(okhttp3.Call.Factory callFactory, HttpUrl baseUrl,
 
 所谓`xxxFactory`、“xxx工厂”其实是设计模式中**工厂模式**的体现：将“类实例化的操作”与“使用对象的操作”分开，使得使用者不用知道具体参数就可以实例化出所需要的“产品”类。
 
-> 具体请看我写的文章
->  简单工厂模式.md
->  工厂方法模式.md
->  抽象工厂模式.md
-
 这里详细介绍一下：`CallAdapterFactory`：该`Factory`生产的是`CallAdapter`，那么`CallAdapter`又是什么呢？
 
 #### `CallAdapter`详细介绍
@@ -157,8 +154,6 @@ Retrofit.Builder.addCallAdapterFactory(newRxJavaCallAdapterFactory().create());
 // 关于RxJava的使用这里不作更多的展开
 ```
 
-> 1. Retrofit还支持java8、Guava平台。
-
 - 好处：用最小代价兼容更多平台，即能适配更多的使用场景
 
 **所以，接下来需要分析的步骤2、步骤3、步骤4、步骤4的目的是配置好上述所有成员变量**
@@ -167,9 +162,7 @@ Retrofit.Builder.addCallAdapterFactory(newRxJavaCallAdapterFactory().create());
 
 ![img](images/Retrofit 源码解析/webp-1706461934938-17.webp)
 
-我们先来看Builder类
-
-> 请按下面提示的步骤进行查看
+Builder类
 
 ```java
 <-- Builder类-->
@@ -402,7 +395,6 @@ public final class GsonConverterFactory extends Converter.Factory {
     }
 ```
 
-- 至此，分析完毕
 - 总结：步骤4用于创建一个含有Gson对象实例的GsonConverterFactory并放入到数据转换器工厂converterFactories里
 
 > 1. 即Retrofit默认使用Gson进行解析
@@ -455,11 +447,10 @@ public final class GsonConverterFactory extends Converter.Factory {
     }
 ```
 
-- 至此，步骤5分析完毕
 - 总结：在最后一步中，通过前面步骤设置的变量，将Retrofit类的所有成员变量都配置完毕。
 - 所以，成功创建了Retrofit的实例
 
-# 总结
+## 总结
 
 Retrofit**使用建造者模式通过Builder类**建立了一个Retrofit实例，具体创建细节是配置了：
 
@@ -484,8 +475,6 @@ Retrofit**使用建造者模式通过Builder类**建立了一个Retrofit实例�
 由于使用了建造者模式，所以开发者并不需要关心配置细节就可以创建好Retrofit实例，建造者模式get。
 
 在创建Retrofit对象时，你可以通过更多更灵活的方式去处理你的需求，如使用不同的Converter、使用不同的CallAdapter，这也就提供了你使用RxJava来调用Retrofit的可能
-
-------
 
 # 二、创建网络请求接口的实例
 
@@ -549,7 +538,6 @@ AccessApi NetService = retrofit.create(NetService.class);
      // 特别注意：如果不是提前验证则进行动态解析对应方法（下面会详细说明），得到一个ServiceMethod对象，最后存入到LinkedHashMap集合中，类似延迟加载（默认）
     }  
 
-
         // 创建了网络请求接口的动态代理对象，即通过动态代理创建网络请求接口的实例 （并最终返回）
         // 该动态代理是为了拿到网络请求接口实例上所有注解
     return (T) Proxy.newProxyInstance(
@@ -611,11 +599,8 @@ private void eagerlyValidateMethods(Class<?> service) {
 >
 > 1. 静态代理：代理类在程序运行前已经存在的代理方式
 > 2. 动态代理：代理类在程序运行前不存在、运行时由程序动态生成的代理方式
->     具体请看文章：**代理模式.md**
 
-- `return (T) roxy.newProxyInstance(ClassLoader loader, Class<?>[] interfaces, InvocationHandler invocationHandler)`通过代理模式中的动态代理模式，动态生成网络请求接口的代理类，并将代理类的实例创建交给`InvocationHandler类` 作为具体的实现，并最终返回一个动态代理对象。
-
-> 生成实例过程中含有生成实现类的缓存机制（单例模式），下面会详细分析
+- `return (T) Proxy.newProxyInstance(ClassLoader loader, Class<?>[] interfaces, InvocationHandler invocationHandler)`通过代理模式中的动态代理模式，动态生成网络请求接口的代理类，并将代理类的实例创建交给`InvocationHandler类` 作为具体的实现，并最终返回一个动态代理对象。
 
 使用动态代理的好处：
 
@@ -809,7 +794,6 @@ ServiceMethod(Builder<T> builder) {
 // 该对象保存有一个Request内容转换器——根据参数的类型从Retrofit的内容转换器工厂集合中获取一个Request内容转换器或者一个String内容转换器。
     }
 
-
 <-- 关注点1：createCallAdapter() -->
  private CallAdapter<?> createCallAdapter() {
 
@@ -925,20 +909,11 @@ final class GsonResponseBodyConverter<T> implements Converter<ResponseBody, T> {
 - 工厂负责如何提供、提供何种功能模块
 - Retrofit 只负责提供选择何种工厂的决策信息（如网络接口方法的参数、返回值类型、注解等）
 
-这正是所谓的**高内聚低耦合**，工厂模式get。
-
-> 关于工厂模式请看我写的文章：
->  **简单工厂模式.md**
->  **工厂方法模式.md**
->  **抽象工厂模式.md**
-
 终于配置完网络请求参数（即配置好`ServiceMethod`对象）。接下来将讲解第二行代码：`okHttpCall对象`的创建
 
 ### 第二行：`OkHttpCall okHttpCall = new OkHttpCall<>(serviceMethod, args);`
 
 根据第一步配置好的`ServiceMethod`对象和输入的请求参数创建`okHttpCall`对象
-
-
 
 ```java
 <--OkHttpCall类 -->
@@ -963,8 +938,6 @@ public class OkHttpCall {
 将第二步创建的`OkHttpCall`对象传给第一步创建的`serviceMethod`对象中对应的网络请求适配器工厂的`adapt（）`
 
 > 返回对象类型：Android默认的是`Call<>`；若设置了RxJavaCallAdapterFactory，返回的则是`Observable<>`
-
-
 
 ```csharp
 <--  adapt（）详解-->
@@ -1006,7 +979,7 @@ public <R> Call<R> adapt(Call<R> call) {
 > 1. `OkHttpCall`类是`OkHttp`的包装类
 > 2. 创建了`OkHttpCall`类型的Call对象还不能发送网络请求，需要创建`Request`对象才能发送网络请求
 
-# 总结
+## 总结
 
 Retrofit采用了外观模式统一调用创建网络请求接口实例和网络请求参数配置的方法，具体细节是：
 
@@ -1015,8 +988,6 @@ Retrofit采用了外观模式统一调用创建网络请求接口实例和网络
 - 对 `serviceMethod` 对象进行网络请求参数配置：通过解析网络请求接口方法的参数、返回值和注解类型，从Retrofit对象中获取对应的网络请求的url地址、网络请求执行器、网络请求适配器 & 数据转换器。**（策略模式）**
 - 对 `serviceMethod` 对象加入线程切换的操作，便于接收数据后通过Handler从子线程切换到主线程从而对返回数据结果进行处理**（装饰模式）**
 - 最终创建并返回一个`OkHttpCall`类型的网络请求对象
-
-------
 
 # 3. 执行网络请求
 
@@ -1047,8 +1018,6 @@ Retrofit采用了外观模式统一调用创建网络请求接口实例和网络
 
 #### 3.1.2 具体使用
 
-
-
 ```xml
 Response<JavaBean> response = call.execute();  
 ```
@@ -1056,8 +1025,6 @@ Response<JavaBean> response = call.execute();
 上面简单的一行代码，其实包含了整个发送网络同步请求的三个步骤。
 
 #### 3.1.3 源码分析
-
-
 
 ```java
 @Override 
@@ -1159,8 +1126,6 @@ Response<T> parseResponse(okhttp3.Response rawResponse) throws IOException {
 
 ##### 3.2.2 具体使用
 
-
-
 ```csharp
 call.enqueue(new Callback<JavaBean>() {
             @Override
@@ -1185,8 +1150,6 @@ call.enqueue(new Callback<JavaBean>() {
 > 这里的额外操作是：线程切换，即将子线程切换到主线程，从而在主线程对返回的数据结果进行处理
 
 ##### 3.2.3 源码分析
-
-
 
 ```java
 <--  call.enqueue（）解析  -->
@@ -1224,7 +1187,6 @@ public void enqueue(final Callback<T> callback) {
         }
       });
     }
-
 
 <-- 分析1：delegate.enqueue（）解析 -->
 @Override 
@@ -1324,7 +1286,6 @@ static class Android extends Platform {
     static class MainThreadExecutor implements Executor {
       private final Handler handler = new Handler(Looper.getMainLooper());
 
-
       @Override 
       public void execute(Runnable r) {
         // Retrofit获取了主线程的handler
@@ -1353,6 +1314,44 @@ static class Android extends Platform {
 最后贴一张非常详细的`Retrofit`源码分析图：
 
 ![img](images/Retrofit 源码解析/webp-1706462834371-44.webp)
+
+
+
+# 问题
+
+<font color='orange'>Q：网络封装框架：Retrofit实现原理</font>
+
+通过反射、注解解析和动态代理，生成一个网络请求实例，通过这个实例完成网络请求，底层的接口用的是OkHttp。
+
+<font color='orange'>Q：Retrofit主要实现机制？</font>
+
+反射、注解解析和动态代理。
+
+<font color='orange'>Q：Retrofit源码（流程）分析</font>
+
+
+
+<font color='orange'>Q：Retrofit在OkHttp上做了哪些封装？</font>
+
+直接使用OkHttp的话，每次请求都需要创建Request、Body等参数，这些代码属于重复的模板代码，通过Retrofit就可以将这些代码从业务层屏蔽掉。具体实现是用的接口、反射、注解解析和动态代理。
+
+<font color='orange'>Q：Retrofit的注解是怎么解析的：动态代理、AOP</font>
+
+通过Java反射解析注解。
+
+通过动态代理，生成网络接口的实现类，并将接口方法上的注解参数解析到ServiceMethod中，用来做后续的网络请求。
+
+<font color='orange'>Q：Retrofit中的动态代理</font>
+
+使用Java提供的Proxy.newProxyInstance()和InvocationHandler实现动态代理。当调用代理类的方法时，会在InvocationHandler的方法中，执行网络请求逻辑。
+
+<font color='orange'>Q：为何用代理？代理的作用是什么？</font>
+
+Retrofit选择用interface来描述一个网络请求接口。
+
+使用动态代理，可以由Retrofit来执行OkHttp的请求流程，比如参数组装。
+
+通过动态代理可以生成网络请求接口实例。
 
 
 
