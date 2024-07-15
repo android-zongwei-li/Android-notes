@@ -620,7 +620,9 @@ public class MainActivity extends AppCompatActivity {
 
 # 三、同步屏障
 
-在理解同步屏障的概念前，我们需要先搞懂几个前置知识：
+同步屏障消息会屏蔽掉其`when大于同步屏障消息when`的同步消息，优先执行异步消息，直到同步屏障消息被移除。
+
+在理解同步屏障的概念前，需要先搞懂几个前置知识：
 
 ## 1、同步和异步消息
 
@@ -672,11 +674,16 @@ private int postSyncBarrier(long when) {
         Message prev = null;
         Message p = mMessages;
         if (when != 0) {
+            // 遍历，直到 p 指向 null，prev 指向 p 的前一个
+            // 或者直到 p 指向一个 p.when 大于 when（同步屏障消息的）的结点，prev 指向 p 的前一个
+			// 其实即使将 msg（同步屏障消息）按照时间 when 加入到消息队列中
+            // 所以，如果消息队列中，有几个消息的时间都<=同步屏障消息的when时，同步屏障消息会插入到这些消息的后面
             while (p != null && p.when <= when) {
                 prev = p;
                 p = p.next;
             }
         }
+        // 将 同步屏障消息 插入到 prev 和 p 结点之间
         if (prev != null) { // invariant: p == prev.next
             msg.next = p;
             prev.next = msg;
@@ -696,10 +703,10 @@ mMessage这个变量，表明是将要被处理的消息，将要被返回的消
 - 从消息池取一个可用消息
 - 头结点（mMessage）是否为空
 
-- 不为空：插到头结点的下一节点位置
+- 不为空：通过while遍历，直到p指向null或者p指向的p.when>when的结点，然后prev指向p的前一个结点。同步屏障消息 插入到 prev 和 p 结点之间。
 - 为空：成为头结点
 
-- 同步屏障消息是直接插到消息队列，他没有设置target属性且不经过enqueueMessage方法，故其target属性为null
+- 同步屏障消息是直接插到消息队列，它没有设置target属性且不经过enqueueMessage方法，故其target属性为null
 
 ## 3、同步屏障流程
 
@@ -709,7 +716,7 @@ MessageQueue.java
 Message next() {
     final long ptr = mPtr;
     ...
- 
+
     int pendingIdleHandlerCount = -1; // -1 only during first iteration
     int nextPollTimeoutMillis = 0;
     for (;;) {
@@ -726,6 +733,9 @@ Message next() {
                 do {
                     prevMsg = msg;
                     msg = msg.next;
+                    
+                    // 一直找到 msg 指向 null 或者 msg 是异步消息时
+                    // 也就是在有同步屏障消息时，会遍历把异步消息提前找出来处理
                 } while (msg != null && !msg.isAsynchronous());
             }
  
@@ -785,7 +795,7 @@ Message next() {
 - 消息队列中如果有异步消息，同步屏障的逻辑会放行异步消息
 - 同步屏障里面对prevMsg赋值了！请记住在整个方法里面，只有同步屏障逻辑里面对prevMsg赋值了！这个参数为null与否，对消息队列节点影响很大
 - prevMsg为空：会直接将msg的next赋值给mMessage；说明分发完消息后，会直接移除头结点，将头结点的下一节点赋值为头结点
-- prevMsg不为空：不会对mMessage投节点操作；会将分发消息的上一节点的下一节点位置，换成分发节点的下一节点
+- prevMsg不为空：不会对mMessage头节点操作；会将分发消息的上一节点的下一节点位置，换成分发节点的下一节点
 - 通过上面分析，可知；异步消息分发完后，会将其直接从消息队列中移除，头结点位置不变
 
 ![同步屏障流程](images/4c536dc15791f35aedcbf1dd560eeda4.png)
@@ -801,7 +811,7 @@ pauseEvents()：Device内部涉及的是打开设备的时候，会添加一个�
 pauseEvents()是Device类中私有内部类DeviceHandler的方法
 
 - 这说明，我们无法调用这个方法；事实上，我们连Device类都无法调用，Device属于被隐藏的类，和他同一目录的还有Event和Hid，这些类系统都不想对外暴露
-- 这就很鸡贼了，说明插入同步屏障的消息的方法，系统确实不想对外暴露；当然不包括非常规方法：反射
+- 说明插入同步屏障的消息的方法，系统确实不想对外暴露；当然不包括非常规方法：反射
 
 同步屏障添加：开机时，添加同步屏障
 
@@ -880,7 +890,7 @@ void scheduleTraversals() {
 }
 ```
 
-> 我们调用View的requestLayout或者invalidate时，最终都会触发ViewRootImp执行scheduleTraversals()方法。这个方法中ViewRootImp会通过Choreographer来注册个接收Vsync的监听，当接收到系统体层发送来的Vsync后我们就执行doTraversal()来重新绘制界面。通过上面的分析我们调用invalidate等刷新操作时，系统并不会立即刷新界面，而是等到Vsync消息后才会刷新页面。
+> 我们调用View的requestLayout或者invalidate时，最终都会触发ViewRootImpl执行scheduleTraversals()方法。这个方法中ViewRootImpl会通过Choreographer来注册个接收Vsync的监听，当接收到系统层发送来的Vsync后就执行doTraversal()来重新绘制界面。通过上面的分析我们调用invalidate等刷新操作时，系统并不会立即刷新界面，而是等到Vsync消息后才会刷新页面。
 
 我们知道了界面刷新（requestLayout或者invalidate）的过程一定会触发scheduleTraversals()方法，这说明会添加同步屏障消息，那肯定有移除同步屏障消息的步骤，这个步骤很有可能存在doTraversal()方法中，来看下这个方法。
 
@@ -928,7 +938,7 @@ final class TraversalRunnable implements Runnable {
 }
 ```
 
-postCallback是Choreographer类中方法，该类涉及巨多的消息传递，而且都是使用了异步消息setAsynchronous(true)，这些都是和界面刷新相关，所以都是优先处理
+postCallback是Choreographer类中方法，该类涉及巨多的消息传递，而且都是使用了异步消息setAsynchronous(true)，这些都是和界面刷新相关，所以都是优先处理。
 
 postCallback的核心就是让DisplayEventReceiver注册了个Vsync的通知，后期收到送来的Vsync后，我们就执行doTraversal()来重新绘制界面。
 

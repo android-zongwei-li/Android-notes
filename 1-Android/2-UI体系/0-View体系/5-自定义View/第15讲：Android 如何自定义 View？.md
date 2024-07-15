@@ -90,11 +90,11 @@ onDraw 方法接收一个 Canvas 类型的参数。Canvas 可以理解为一个�
 
 最终运行显示效果如下：
 
-![image (9).png](images/第15讲：Android 如何自定义 View？/Ciqc1F66btyAc0PJAAIpVraUjo0218.png)
+<img src="images/第15讲：Android 如何自定义 View？/Ciqc1F66btyAc0PJAAIpVraUjo0218.png" alt="image (9).png" style="zoom:33%;" />
 
 如果在上面代码中的布局文件中，将 PieImageView 的宽高设置为 wrap_content（也就是自适应），重新运行则显示效果如下：
 
-![image (10).png](images/第15讲：Android 如何自定义 View？/CgqCHl66buWAP4coAAG7qEuu7jo510.png)
+<img src="images/第15讲：Android 如何自定义 View？/CgqCHl66buWAP4coAAG7qEuu7jo510.png" alt="image (10).png" style="zoom: 33%;" />
 
 很显然，PieImageView 并没有正常显示。问题的主要原因就是在 PieImageView 中并没有在 onMeasure 方法中进行重新测量，并重新设置宽高。
 
@@ -153,8 +153,6 @@ LinearLayout 的宽高为 wrap_content 表示由子控件的大小决定，而 3
 
 在大多数 App 的搜索界面经常会使用 FlowLayout 来展示历史搜索记录或者热门搜索项。
 FlowLayout 的每一行上的 item 个数不一定，当每行的 item 累计宽度超过可用总宽度，则需要重启一行摆放 item 项。因此我们需要在 onMeasure 方法中主动的分行计算出 FlowLayout 的最终高度，如下所示：
-
-复制代码
 
 
          //测量控件的宽和高
@@ -295,5 +293,3 @@ ViewGroup 中的 onLayout 方法声明如下：
 onDraw：主要负责绘制 UI 元素；
 onMeasure：主要负责测量自定义控件具体显示的宽高；
 onLayout：主要是在自定义 ViewGroup 中复写，并实现子 View 的显示位置，并在其中介绍了自定义属性的使用方法。
-
-所有代码都已经提交到：拉勾课程代码仓库 课时15

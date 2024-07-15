@@ -1,28 +1,24 @@
-> version：2021/9/22，2021/9/25
->
-> review：
+# 关键词
 
+MeasureSpec、
 
-
-### 一、前置知识
+# 一、前置知识
 
 想要更好的理解View的绘制流程，需要先掌握Activity、Window、DecorView、ViewRootImpl等类之间关系。
 
-> 可参考以下笔记：
->
-> 1、
-
-### 二、Measure过程
+# 二、Measure过程
 
 对于测量首先还是得认识几个基本知识点：
 
-####  1、对MeasureSpec 的理解
+##  1、对 MeasureSpec 的理解
 
-对于View的测量，肯定会和MeasureSpec接触，MeasureSpec翻译过来是“测量规格”或者“测量参数”，官方文档对它的定义是“一个MeasureSpec封装了从父容器传递给子容器的布局要求”，这个MeasureSpec是由父View的MeasureSpec和子View的LayoutParams通过简单的计算得出的一个针对子View的测量要求。这么说不是很好理解，后面看着代码就很好理解了。
+对于View的测量，肯定会和MeasureSpec接触，MeasureSpec翻译过来是“测量规格”或者“测量参数”，官方文档对它的定义是“**一个MeasureSpec封装了从父容器传递给子容器的测量要求**”，MeasureSpec是由父View的MeasureSpec和子View的LayoutParams通过简单的计算得出的一个针对子View的测量要求。
+
+这么说不是很好理解，后面看着代码就很好理解了。
 
 > 本质上就是一个Bean类，封装了两个值：size和mode，由父View创建，用来给子View测量时使用的。
 
-MeasureSpec是一个大小和模式的组合值，MeasureSpec中的值是一个整型（32位）将size和mode合成一个int型，高两位是mode，后30位是size，是为了减少对象的分配开支。MeasureSpec 类似于下图，只不过这边用的是十进制数，而MeasureSpec 是二进制存储的。
+MeasureSpec是一个大小和模式的组合值，MeasureSpec中的值是一个由size和mode合成的int整数（32位），高两位是mode，后30位是size，这样组合是为了减少对象的分配开支。MeasureSpec 类似于下图，只不过这边用的是十进制数，而MeasureSpec 是二进制存储的。
 
 ![img](images/【总结篇】View的绘制流程？/966283-c330852c971b02a8.png)
 
@@ -30,15 +26,17 @@ MeasureSpec是一个大小和模式的组合值，MeasureSpec中的值是一个�
 
 - MeasureSpec一共有三种模式
 
-**UPSPECIFIED** : 未指定。父容器对于子容器没有任何限制，子容器想要多大就多大，一般设置为0。
-**EXACTLY**: 父容器已经为子容器设置了尺寸，子容器应当服从这些边界，不论子容器想要多大的空间。
-**AT_MOST**：子容器可以是声明大小内的任意大小。定义了最大值。
+  **UNSPECIFIED**：未指定。父容器对于子容器没有任何限制，子容器想要多大就多大，一般设置为0。
+  **EXACTLY**：父容器已经为子容器设置了尺寸，子容器应当服从这些边界，不论子容器想要多大的空间。
+  **AT_MOST**：定义了最大值。子容器可以是声明大小内的任意大小。
 
-这样说不是很好理解，尤其是这三种模式还和MATCH_PARENT和WRAP_CONTENT 联系在一起。如果从代码上来看view.measure(int widthMeasureSpec, int heightMeasureSpec) 的两个MeasureSpec是父类传递过来的，但并不完全是父View的要求，而是父View的MeasureSpec和子View自己的LayoutParams共同决定的，而子View的LayoutParams其实就是我们在xml中设置的layout_width和layout_height 转化而来的。
+这样说不是很好理解，尤其是这三种模式还和 MATCH_PARENT和WRAP_CONTENT 联系在一起。
 
-#### 2、测量的过程
+如果从代码上来看view.measure(int widthMeasureSpec, int heightMeasureSpec) 的两个MeasureSpec是父类传递过来的，但并不完全是父View的要求，而是父View的MeasureSpec和子View自己的LayoutParams共同决定的，而子View的 LayoutParams 就是我们在xml中设置的layout_width和 layout_height 转化而来的。
 
-这里先简单阐述一下View树的测量过程：
+## 2、测量的过程
+
+先简单阐述一下View树的测量过程：
 
 从performTraversals()开始，其中执行了performMeasure(childWidthMeasureSpec, childHeightMeasureSpec);方法。
 
@@ -53,11 +51,13 @@ ViewRootImpl.java
     }
 
     public final void measure(int widthMeasureSpec, int heightMeasureSpec) {
-                // measure ourselves, this should set the measured dimension flag back
+        // measure ourselves, this should set the measured dimension flag back
         // step2：这里要考虑多态，即onMeasure()是可以被重写的。
-                onMeasure(widthMeasureSpec, heightMeasureSpec);
+        onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 ```
+
+childWidthMeasureSpec，childHeightMeasureSpec：这两个参数是什么？从何而来？
 
 step1：mView是当前Activity的根布局DecorView，发起measure。
 
@@ -88,17 +88,17 @@ step2：从View.measure()开始，会执行到其onMeasure()方法。注意View�
     }
 ```
 
-直接看View#onMeasure()、getDefaultSize()方法不太容易理解，为什么呢？因为measureSpec是由父View传给子View的，如果不知道父View传过来的是什么，代表什么含义，那就不能深刻理解为什么要这么处理。因此我们需要先分析父View的onMeasure()，我们就顺着DecorView的onMeasure()往下看。
+直接看View#onMeasure()、getDefaultSize()方法或许还不太容易理解，因为measureSpec是由父View传给子View的，如果不知道父View传过来的是什么，代表什么含义，那就不能深刻理解为什么要这么处理。因此我们需要先分析父View的onMeasure()，我们就顺着DecorView的onMeasure()往下看。
 
 > 因为onMeasure方法可以重写，也是经常被重写的，因此看代码时要注意看具体的View是否重写了。
 
-#### 3、DecorView的测量过程
+## 3、DecorView的测量过程
 
 ```java
 DecorView.java
 	@Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-    。。。
+    ...
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 FrameLayout.java
@@ -205,11 +205,9 @@ FrameLayout.java
 2. 测量自己（父View）。（通过resolveSizeAndState(maxWidth, widthMeasureSpec, childState)方法）
 3. 再一次测量match_parent的子View。
 
-下面来分析下这几步这三步是如果做的，首先看子View的测量。3
+下面来分析下这几步是如果做的，首先看子View的测量。
 
-#### 4、measureChildWithMargins()方法
-
-measureChildWithMargins()是如何测量子View的。具体看注释：
+## 4、measureChildWithMargins()方法
 
 ```java
 ViewGroup.java
@@ -233,14 +231,12 @@ child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
 }   
 ```
 
-小结：
-
 1. 为子View计算出一个MeasureSpec
 2. 子View执行测量
 
 可以看到，在测量子View之前，父View是要先算为子View算出来一个MeasureSpec的，然后传递给子View。下面看一下这个给子View使用的MeasureSpec是如何计算出来的。
 
-#### 4.1、getChildMeasureSpec()
+### 4.1、getChildMeasureSpec()
 
 > 这一步是理解测量过程的关键，理解了MeasureSpec的含义，基本测量过程就明朗了。
 
@@ -397,9 +393,9 @@ int size = Math.max(0, specSize - padding);
 
 最后，将计算出的这个size和mode封装到MeasureSpec中，交给子View计算宽高。
 
-#### 5、View.measure的默认实现
+## 5、View.measure的默认实现
 
-又走到这个方法了，最开始的时候就是调用DecorView的measure方法开始测量的。测量过程主要是在onMeasure()方法。现在我们可以回过头看看最开始View的onMeasure的默认实现了。
+最开始的时候就是调用DecorView的measure方法开始测量的。测量过程主要是在onMeasure()方法。现在我们可以回过头看看最开始View的onMeasure的默认实现了。
 
 ```java
 View.java
@@ -446,12 +442,11 @@ getDefaultSize的参数解释：
 
 到这里，子View的测量过程就结束了，我们可以继续看下ViewGroup（我们还是分析DecorView）是怎么测量自己的了。即第三节中的，DecorView的测量过程的测量自己的部分。
 
-#### 6、DecorView（父View）测量自己
+## 6、DecorView（父View）测量自己
 
 DecorView是使用了的FrameLayout的onMeasure方法。
 
 ```java
-
 // FrameLayout 的测量
 protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {  
 ....
@@ -548,7 +543,7 @@ UNSPECIFIED：未指定，使用自己算的。
 
 到这里，父View的大小也就测量好了。
 
-#### 7、处理子View为match_parent的情况
+## 7、处理子View为match_parent的情况
 
 通过前面的测量可以知道，当子View为match_parent时，有这么几种情况：
 
@@ -624,7 +619,9 @@ FrameLayout.java
 
 接下来通过一个实例来讲解整个measure的过程。
 
-### Measure流程示例
+# 示例
+
+## Measure流程示例
 
 首先看下面的代码：
 
@@ -633,8 +630,8 @@ FrameLayout.java
 <LinearLayout  xmlns:android="http://schemas.android.com/apk/res/android"    
    android:id="@+id/linear"
    android:layout_width="match_parent"    
-   android:layout_height="wrap_content"    
-   android:layout_marginTop="50dp"    
+   android:layout_height="wrap_content"
+   android:layout_marginTop="50dp"
    android:background="@android:color/holo_blue_dark"    
    android:paddingBottom="70dp"    
    android:orientation="vertical">    
@@ -658,20 +655,24 @@ FrameLayout.java
 
 ![img](images/【总结篇】View的绘制流程？/966283-4a11f92ac8c5e224.png)
 
-整个图是一个DecorView,DecorView可以理解成整个页面的根View,DecorView是一个FrameLayout,包含两个子View，一个id=statusBarBackground的View和一个是LineaLayout，id=statusBarBackground的View，我们可以先不管（我也不是特别懂这个View,应该就是statusBar的设置背景的一个控件，方便设置statusBar的背景)，而这个LinearLayout比较重要，它包含一个title和一个content，title很好理解其实就是TitleBar或者ActionBar,content 就更简单了，setContentView()方法你应该用过吧，android.R.id.content 你应该听过吧，没错就是它,content是一个FrameLayout，你写的页面布局通过setContentView加进来就成了content的直接子View。
+整个图是一个DecorView，DecorView是整个页面的根View，DecorView是一个FrameLayout，包含两个子View，一个id=statusBarBackground的View和一个是LineaLayout。id=statusBarBackground的View，可以先不管。
+
+另一个LinearLayout比较重要，它包含一个title和一个content，title是TitleBar或者ActionBar。content是一个FrameLayout，Id是android.R.id.content，通过setContentView()方法设置的View会成为content的直接子View。
 
 整个View的布局图如下：
 
 ![img](images/【总结篇】View的绘制流程？/966283-4096801e91e2eccc.png)
 
-这张图在下面分析measure，会经常用到，主要用于了解递归的时候 view 的measure顺序
+这张图在分析measure时，会经常用到，主要用于了解递归的时候 view 的measure顺序
 
->  1、 header的是个ViewStub,用来惰性加载ActionBar，为了便于分析整个测量过程，我把Theme设成NoActionBar，避免ActionBar 相关的measure干扰整个过程，这样可以忽略掉ActionBar 的测量，在调试代码更清晰。
->  2、包含Header(ActionBar）和id/content 的那个父View，我不知道叫什么名字好，我们姑且叫它ViewRoot（看上图）,它是垂直的LinearLayout，放着整个页面除statusBar 的之外所有的东西，叫它ViewRoot 应该还ok，一个代号而已。
+>  1、 header的是个ViewStub，用来惰性加载ActionBar，为了便于分析整个测量过程，把Theme设成NoActionBar，这样可以忽略掉ActionBar 的测量，避免ActionBar 相关的measure干扰整个过程，在调试代码时更清晰。
+>  2、包含Header(ActionBar）和id/content 的那个父View，我不知道叫什么名字好，我们姑且叫它ViewRoot（看上图），它是垂直的LinearLayout，放着整个页面除statusBar 的之外所有的东西。
 
-既然我们知道整个View的Root是DecorView，那么View的绘制是从哪里开始的呢，我们知道每个Activity 均会创建一个 PhoneWindow对象，是Activity和整个View系统交互的接口，每个Window都对应着一个View和一个ViewRootImpl，Window和View通过ViewRootImpl来建立联系，对于Activity来说，ViewRootImpl是连接WindowManager和DecorView的纽带，绘制的入口是由ViewRootImpl的performTraversals方法来发起Measure，Layout，Draw等流程的。
+既然我们知道整个View的Root是DecorView，那么View的绘制是从哪里开始的呢？我们知道每个Activity 均会创建一个 PhoneWindow 对象，是Activity和整个View系统交互的接口，每个Window都对应着一个View和一个ViewRootImpl，Window和View通过ViewRootImpl来建立联系，对于Activity来说，ViewRootImpl是连接WindowManager和DecorView的纽带，绘制的入口是由ViewRootImpl的performTraversals方法来发起Measure，Layout，Draw等流程的。
 
-我们来看下ViewRootImpl的performTraversals 方法：
+> todo：ViewRootImpl#performTraversals 的首次调用是在哪？后续如何调用？
+
+ViewRootImpl的performTraversals 方法：
 
 ```java
 private void performTraversals() { 
@@ -700,15 +701,24 @@ private static int getRootMeasureSpec(int windowSize, int rootDimension) {
 }
 ```
 
-View的绘制从DecorView开始，在mView.measure()的时候调用getRootMeasureSpec获得两个MeasureSpec做为参数，getRootMeasureSpec的两个参数（mWidth, lp.width）mWith和mHeight 是屏幕的宽度和高度， lp是WindowManager.LayoutParams，它的lp.width和lp.height的默认值是MATCH_PARENT，所以通过getRootMeasureSpec 生成的测量规格MeasureSpec 的mode是EXACTLY ，size是屏幕的宽高。因为DecorView 是一个FrameLayout 那么接下来会进入FrameLayout 的measure方法，measure的两个参数就是刚才getRootMeasureSpec的生成的两个MeasureSpec，DecorView的测量开始了。
+View的绘制从DecorView开始，在mView.measure()的时候调用getRootMeasureSpec获得两个MeasureSpec做为参数，getRootMeasureSpec的两个参数（mWidth, lp.width）mWidth和mHeight 是屏幕的宽度和高度， lp是WindowManager.LayoutParams，它的lp.width和lp.height的默认值是MATCH_PARENT，所以通过getRootMeasureSpec 生成的测量规格MeasureSpec 的mode是EXACTLY ，size是屏幕的宽高。
+
+> todo：代码中，什么地方可以确定`mWidth和mHeight 是屏幕的宽度和高度`、`lp.width和lp.height的默认值是MATCH_PARENT`
+
+因为DecorView 是一个FrameLayout，那么接下来会进入FrameLayout 的measure方法，measure的两个参数是通过getRootMeasureSpec生成的两个MeasureSpec，DecorView的测量开始了。
+
+### DecorView测量
+
 首先是DecorView 的 MeasureSpec ，根据上面的分析DecorView 的 MeasureSpec是Windows传过来的，我们画出DecorView 的MeasureSpec 图：
 
 ![img](images/【总结篇】View的绘制流程？/966283-c330852c971b02a8.png)
 
 1、-1 代表的是EXACTLY，-2 是AT_MOST
-2、由于屏幕的像素是1440x2560,所以DecorView 的MeasureSpec的size 对应于这两个值
+2、由于屏幕的像素是1440x2560，所以DecorView 的MeasureSpec的size 对应于这两个值
 
-那么接下来在FrameLayout 的onMeasure()方法中，DecorView开始for循环测量自己的子View，测量完所有的子View再来测量自己，由下图可知，接下来要测量ViewRoot的大小
+那么接下来在 FrameLayout 的onMeasure()方法中，**DecorView开始for循环测量自己的子View，测量完所有的子View再来测量自己**，由下图可知，接下来要测量ViewRoot的大小：
+
+> todo：DecorView为什么要先测量子View，再测量自己呢？
 
 ![img](images/【总结篇】View的绘制流程？/966283-4096801e91e2eccc.png)
 
@@ -724,7 +734,7 @@ for (int i = 0; i < count; i++) {
    if (mMeasureAllChildren || child.getVisibility() != GONE) {   
     // 遍历自己的子View，只要不是GONE的都会参与测量，measureChildWithMargins方法在最上面
     // 的源码已经讲过了，如果忘了回头去看看，基本思想就是父View把自己当MeasureSpec 
-    // 传给子View结合子View自己的LayoutParams 算出子View 的MeasureSpec，然后继续往下穿，
+    // 传给子View结合子View自己的LayoutParams 算出子View 的MeasureSpec，然后继续往下传，
     // 传递叶子节点，叶子节点没有子View，只要负责测量自己就好了。
      measureChildWithMargins(child, widthMeasureSpec, 0, heightMeasureSpec, 0);      
      ....
@@ -734,6 +744,8 @@ for (int i = 0; i < count; i++) {
 ....
 }  
 ```
+
+### 测量 ViewRoot
 
 DecorView 测量 ViewRoot 的时候把自己的widthMeasureSpec和heightMeasureSpec传进去了，接下来去看measureChildWithMargins的源码
 
@@ -854,9 +866,11 @@ id/linear 的子View的高度都计算完毕了，接下来id/linear就通过所
 
 最终算出id/linear的mMeasureWidth=1440px,mMeasureHeight=987px。
 
-最终算出id/linear出来后，id/content 就要根据它唯一的子View id/linear 的测量结果和自己的之前算出的MeasureSpec一起来测量自己的结果，具体计算的逻辑去看FrameLayout onMeasure 函数的计算过程。以此类推，接下来测量ViewRoot，然后再测量id/statusBarBackground，虽然不知道id/statusBarBackground 是什么，但是调试的过程中，测出的它的高度=100px, 和 id/content 的paddingTop 刚好相等。在最后测量DecorView 的高宽，最终整个测量过程结束。所有的View的大小测量完毕。所有的getMeasureWidth 和 getMeasureWidth 都已经有值了。Measure 分析到此为止。
+最终算出id/linear出来后，id/content 就要根据它唯一的子View id/linear 的测量结果和自己的之前算出的MeasureSpec一起来测量自己的结果，具体计算的逻辑去看FrameLayout onMeasure 函数的计算过程。以此类推，接下来测量ViewRoot，然后再测量id/statusBarBackground，虽然不知道id/statusBarBackground 是什么，但是调试的过程中，测出的它的高度=100px, 和 id/content 的paddingTop 刚好相等。在最后测量DecorView 的高宽，最终整个测量过程结束。所有的View的大小测量完毕。所有的getMeasureWidth 和 getMeasureHeight 都已经有值了。Measure 分析到此为止。
 
-### 三、Layout过程
+## Layout过程
+
+layout的主要作用 ：**根据子视图的大小以及布局参数将View树放到合适的位置上**。
 
 ```java
 mView.measure(childWidthMeasureSpec, childHeightMeasureSpec); 
@@ -864,7 +878,7 @@ mView.measure(childWidthMeasureSpec, childHeightMeasureSpec);
 mView.layout(0, 0, mView.getMeasuredWidth(), mView.getMeasuredHeight());
 ```
 
-performTraversals 方法执行完mView.measure 计算出mMeasuredXXX后就开始执行layout 函数来确定View具体放在哪个位置，我们计算出来的View目前只知道view矩阵的大小，具体这个矩阵放在哪里，这就是layout 的工作了。layout的主要作用 ：根据子视图的大小以及布局参数将View树放到合适的位置上。
+performTraversals 方法执行完mView.measure 计算出mMeasuredXXX后就开始执行layout 函数来确定View具体放在哪个位置，我们计算出来的View目前只知道view矩阵的大小，具体这个矩阵放在哪里，这就是layout 的工作了。
 
 既然是通过mView.layout(0, 0, mView.getMeasuredWidth(), mView.getMeasuredHeight()); 那我们来看下layout 函数做了什么，我们直接看下ViewGroup 的layout函数，ViewGroup 重写了View.layout，对动画的情况做了一下处理。
 
@@ -933,7 +947,7 @@ protected abstract void onLayout(boolean changed,
     }
 ```
 
-代码很简单，就是遍历自己的孩子，然后调用  child.layout(l, t, r, b) ，给子view 通过setFrame(l, t, r, b) 确定位置，而重点是(l, t, r, b) 怎么计算出来的呢。还记得我们之前测量过程，测量出来的MeasuredWidth和MeasuredHeight吗？还记得你在xml 设置的Gravity吗？还有RelativeLayout 的其他参数吗，没错，就是这些参数和MeasuredHeight、MeasuredWidth 一起来确定子View在父视图的具体位置的。具体的计算过程大家可以看下最简单FrameLayout 的onLayout 函数的源码，每个不同的ViewGroup  的实现都不一样，这边不做具体分析了吧。
+代码很简单，就是遍历自己的孩子，然后调用  child.layout(l, t, r, b) ，给子view 通过setFrame(l, t, r, b) 确定位置，而重点是(l, t, r, b) 怎么计算出来的呢。还记得我们之前测量过程，测量出来的MeasuredWidth和MeasuredHeight吗？还记得你在xml 设置的Gravity吗？还有RelativeLayout 的其他参数吗，没错，就是这些参数和MeasuredHeight、MeasuredWidth 一起来确定子View在父视图的具体位置的。具体的计算过程大家可以看下最简单FrameLayout 的onLayout 函数的源码，每个不同的ViewGroup  的实现都不一样，这边不做具体分析了。
 
 3、MeasuredWidth和MeasuredHeight这两个参数为layout过程提供了一个很重要的依据（如果不知道View的大小，你怎么固定四个点的位置呢），但是这两个参数也不是必须的，layout过程中的4个参数l, t, r, b完全可以由我们任意指定，而View的最终的布局位置和大小（mRight - mLeft=实际宽或者mBottom-mTop=实际高）完全由这4个参数决定，measure过程得到的mMeasuredWidth和mMeasuredHeight提供了视图大小测量的值，但我们完全可以不使用这两个值，所以measure过程并不是必须的。如果我们不使用这两个值，那么getMeasuredWidth() 和getWidth() 就很有可能不是同一个值，它们的计算是不一样的：
 
@@ -942,18 +956,17 @@ public final int getMeasuredWidth() {
         return mMeasuredWidth & MEASURED_SIZE_MASK;  
     }  
 public final int getWidth() {  
-        return mRight - mLeft;  
+        return mRight - mLeft;
     }
 ```
 
 layout 过程相对简单些，分析就到此为止。
 
-### 四、Draw过程
+## Draw过程
 
 performTraversals 方法的下一步就是mView.draw(canvas); 因为View的draw 方法一般不去重写，官网文档也建议不要去重写draw 方法，所以下一步执行就是View.java的draw 方法，我们来看下源码：
 
 ```java
-
 public void draw(Canvas canvas) {
     ...
         /*
@@ -1005,7 +1018,6 @@ public void draw(Canvas canvas) {
 
 注释写得比较清楚，一共分成6步，看到注释没有（  // skip step 2 & 5 if possible (common case)）除了2 和 5之外 我们一步一步来看：
  1、**第一步：背景绘制**
- 看注释即可，不是重点
 
 ```java
 private void drawBackground(Canvas canvas) { 
@@ -1027,11 +1039,10 @@ private void drawBackground(Canvas canvas) {
  onDraw(canvas) 方法是view用来draw 自己的，具体如何绘制，颜色线条什么样式就需要子View自己去实现，View.java 的onDraw(canvas) 是空实现，ViewGroup 也没有实现，每个View的内容是各不相同的，所以需要由子类去实现具体逻辑。
 
 3、**第4步 对当前View的所有子View进行绘制**
- dispatchDraw(canvas) 方法是用来绘制子View的，View.java 的dispatchDraw()方法是一个空方法,因为View没有子View,不需要实现dispatchDraw ()方法，ViewGroup就不一样了，它实现了dispatchDraw ()方法：
+dispatchDraw(canvas) 方法是用来绘制子View的，View.java 的dispatchDraw()方法是一个空方法,因为View没有子View,不需要实现dispatchDraw ()方法，ViewGroup就不一样了，它实现了dispatchDraw ()方法：
 
 ```java
-
-@Override
+ @Override
  protected void dispatchDraw(Canvas canvas) {
        ...
         if ((flags & FLAG_USE_CHILD_DRAWING_ORDER) == 0) {
@@ -1053,10 +1064,10 @@ private void drawBackground(Canvas canvas) {
     }
 ```
 
-代码一眼看出，就是遍历子View然后drawChild(),drawChild()方法实际调用的是子View.draw()方法,ViewGroup类已经为我们实现绘制子View的默认过程，这个实现基本能满足大部分需求，所以ViewGroup类的子类（LinearLayout,FrameLayout）也基本没有去重写dispatchDraw方法，我们在实现自定义控件，除非比较特别，不然一般也不需要去重写它， drawChild()的核心过程就是为子视图分配合适的cavas剪切区，剪切区的大小正是由layout过程决定的，而剪切区的位置取决于滚动值以及子视图当前的动画。设置完剪切区后就会调用子视图的draw()函数进行具体的绘制了。
+代码一眼看出，就是遍历子View然后drawChild()，drawChild()方法实际调用的是子View.draw()方法，ViewGroup类已经为我们实现绘制子View的默认过程，这个实现基本能满足大部分需求，所以ViewGroup类的子类（LinearLayout,FrameLayout）也基本没有去重写dispatchDraw方法，我们在实现自定义控件，除非比较特别，不然一般也不需要去重写它， drawChild()的核心过程就是为子视图分配合适的cavas剪切区，剪切区的大小正是由layout过程决定的，而剪切区的位置取决于滚动值以及子视图当前的动画。设置完剪切区后就会调用子视图的draw()函数进行具体的绘制了。
 
 4、**第6步 对View的滚动条进行绘制**
- 不是重点，知道有这东西就行，onDrawScrollBars 的一句注释 ：*Request the drawing of the horizontal and the vertical scrollbar. The  scrollbars are painted only if they have been awakened first.*
+不是重点，知道有这东西就行，onDrawScrollBars 的一句注释 ：*Request the drawing of the horizontal and the vertical scrollbar. The  scrollbars are painted only if they have been awakened first.*
 
 一张图看下整个draw的递归流程。
 
@@ -1066,9 +1077,13 @@ private void drawBackground(Canvas canvas) {
 
 
 
-#### 一、绘制流程
+# 问题
 
-<font color='orange'>Q1、View的绘制原理？</font>
+## 一、绘制流程
+
+<font color='orange'>Q：View的绘制流程（原理）？</font>
+
+主要就是讲一下measure、layout、draw分别干了什么。然后MeasureSpec发挥的作用。
 
 在View类中的话，主要涉及到3个方法。
 
@@ -1080,17 +1095,11 @@ onLayout()，计算View要显示的位置
 
 onDraw()，绘制
 
-
-
-<font color='orange'>Q：View的绘制流程？</font>
-
-主要就是讲一下measure、layout、draw分别干了什么。然后MeasureSpec发挥的作用。
-
 见 **【总结篇】View的绘制流程.md**。
 
 <font color='orange'>Q：View的第一次绘制是怎么调到的？</font>
 
-measure,layout和draw.View的绘制流程是在Window添加过程中，ViewRootImpl类的setView方法开始的。
+measure，layout和draw。View的绘制流程是在Window添加过程中，ViewRootImpl类的setView方法开始的。
 
 ```java
 ActivityThread.java
@@ -1111,7 +1120,7 @@ ActivityThread.java
                     wm.addView(decor, l);
                 }
             }
-        }        
+        }
     }
 WindowManagerImpl.java
     private final WindowManagerGlobal mGlobal = WindowManagerGlobal.getInstance();    
@@ -1139,7 +1148,7 @@ WindowManagerGlobal.java
     }
 ```
 
-是在handleResumeActivity()中通过wm.addView()触发的。最终调用到ViewRootImpl.setView()。
+在handleResumeActivity中，通过wm.addView()把DecorView添加到WindowManager，最终调用到ViewRootImpl.setView()。
 
 ```java
     /**
@@ -1177,11 +1186,11 @@ WindowManagerGlobal.java
     }
 ```
 
-
+最终会把执行ViewRootImpl#requestLayout()，这个方法会进行线程检测，调用scheduleTraversals，发出同步屏障消息，并把监听Vsync信号的绘制任务添加到mChoreographer，这样当mChoreographer中收到Vsync回调时，会使用Handler发出一条异步消息，来触发绘制任务。
 
 <font color='orange'>Q：第一次绘制的消息是怎么发出来的？</font>
 
-
+跟上一个一样。
 
 <font color='orange'>Q：View的后续绘制是怎么调用的？</font>
 
@@ -1191,7 +1200,77 @@ WindowManagerGlobal.java
 
 
 
-<font color='orange'>Q：View的onMeasure，onLayout，onDraw都分别用来干什么，除了上面三个，还有哪些关键的方法？</font>
+<font color='orange'>Q：View的onMeasure，onLayout，onDraw都分别用来干什么</font>
+
+1. **measure（测量）**：这个阶段用于判断是否需要重新计算View的大小，如果需要，则计算View的宽高。
+2. **layout（布局）**：这个阶段用于判断是否需要重新计算View的位置，如果需要，则计算View在父容器中的放置位置。
+3. **draw（绘制）**：这个阶段用于判断是否需要重新绘制View，如果需要，则进行具体的绘制操作。绘制过程包括绘制背景、通过onDraw()方法绘制自身内容、通过dispatchDraw()方法绘制子View（如果有的话）以及绘制滚动条等。
+
+<font color='orange'>Q：Measure、Layout、draw的流程、绘制顺序，基于这些说下TagLayout(FlowLayout)怎么写？</font>
+
+
+
+<font color='orange'>Q：onMeasure怎么测量的？</font>
+
+以FrameLayout为例，由父View发起，先为子View计算一个MS，再测子View，然后再测父View，最后父View测量完成后，再对match_parent类型的子View再进行一次测量。
+
+三种模式：EXACTLY、AT_MOST、UNSPECIFIED。首先在为子View计算MS的时候会使用到，具体是结合子View的LayoutParams（布局参数）来计算的，MS的结果一共存在9种情况。
+
+<font color='orange'>Q：MeasureSpec(MS)知道吗？</font>
+
+1、是什么？用来做什么？
+
+MeasureSpec是measure过程中给View使用的一个测量规格，或者说是测量约束，由mode和size 2 个部分构成，是从父View传递给子View。
+
+View需要参考MeasureSpec来计算自己的测量结果measuredWidth和measuredHeight。
+
+> todo：这两个值的作用是什么？
+
+2、怎么生成？
+
+分为ViewGroup和View。
+
+ViewGroup：通过父View的MeasureSpec、padding、widthUse，再配合着子View的LayoutParams，有margin、子View设置的宽高计算得来的。
+
+<font color='orange'>Q：MeasureSpec的三种模式？</font>
+
+EXACTLY、AT_MOST、UNSPECIFIED。
+
+<font color='orange'>Q：如何确定一个View的MS？那DecorView呢？</font>
+
+MS是由父View为子View计算出来的一个测量约束。具体的计算是通过getChildMeasureSpec()方法，一共有9中情况。细细说一下。
+
+
+
+<font color='orange'>Q：在oncreate里面可以得到View的宽高吗?</font>
+
+不能。View是在handleResumeActivity()执行时，先执行onResume，然后才执行View的第一次绘制流程，因此在此之前都不能获取到View的真实宽高。
+
+<font color='orange'>Q：在onResume中可以测量宽高么？</font>
+
+分两种情况，首次打开和再次打开。
+
+首次打开，不能。
+
+再次打开，比如从桌面恢复时，可以获取到。
+
+```kotlin
+    @Override
+    public void handleResumeActivity(ActivityClientRecord r, boolean finalStateRequest,
+            boolean isForward, boolean shouldSendCompatFakeFocus, String reason) {
+		// 这里会触发 onResume 的执行
+        if (!performResumeActivity(r, finalStateRequest, reason)) {
+            return;
+        }
+        
+        // 而在后面才执行了 DecorView 的添加，并计算出 View 的宽高，所以在前面的 onResume 中获取不到宽高
+        // 当然这是首次时，如果是已经打开的情况下，比如回到桌面后再进入，是可以获取到的
+        View decor = r.window.getDecorView();
+        decor.setVisibility(View.INVISIBLE);
+        
+        a.mWindowAdded = true;
+        wm.addView(decor, l);
+```
 
 
 
@@ -1202,8 +1281,6 @@ WindowManagerGlobal.java
 <font color='orange'>Q：View的getwidth()和getMesuredWidth()有啥区别?</font>
 
 getWidth()获取的是View当前真实的宽度，getMesuredWidth()获取的是当前View测量的宽度。getWidth()的值实在onLayout时赋值的，getMesuredWidth()的值是在完成onMeasure时赋值的。它们的大小不一定相等。为什么？这个还需要深入学一下。
-
-<font color='orange'>Q：Measure、Layout、draw的流程、绘制顺序，基于这些说下TagLayout(FlowLayout)怎么写？</font>
 
 
 
@@ -1263,39 +1340,25 @@ if (mFirst) {
     }
 ```
 
-
-
-<font color='orange'>Q：View的绘制原理？</font>
-
-
+## Inflate
 
 <font color='orange'>Q：View.inflater过程与异步inflater（东方头条）</font>
 
 
 
-<font color='orange'>Q：inflater为什么比自定义View慢？（东方头条）</font>
+<font color='orange'>Q：inflater为什么比自定义View慢？</font>
 
+其中会执行XML解析和通过反射创建View。
 
+<font color='orange'>Q：LayoutInflater#inflate的attrachToRoot 为true是什么意思？</font>
 
-<font color='orange'>Q：onMeasure怎么测量的？MeasureSpec的三种模式？</font>
+`attachToRoot`为`true`时，inflate加载的View对象将直接成为父视图组的一部分；为`false`时，返回的View对象不会立即附加到父视图组。
 
-以FrameLayout为例，由父View发起，先为子View计算一个MS，再测子View，然后再测父View，最后父View测量完成后，再对match_parent类型的子View再进行一次测量。
+当我们不需要额外再做一些操作时，可以考虑用true直接添加；
 
-三种模式：EXACTLY、AT_MOST、UNSPECIFIED。首先在为子View计算MS的时候会使用到，具体是结合子View的LayoutParams（布局参数）来计算的，MS的结果一共存在9种情况。
-
-<font color='orange'>Q：View的绘制流程，MeasureSpec(MS)知道吗？如何确定一个View的MS？那DecorView呢？</font>
-
-MS是由父View为子View计算出来的一个测量约束。具体的计算是通过getChildMeasureSpec()方法，一共有9中情况。细细说一下。
-
-<font color='orange'>Q：LayoutInflater#inflate的attrachToParenttrue是什么意思？</font>
-
-
+如果还需要对新建的View进行一些处理时，考虑用false。
 
 <font color='orange'>Q：View的渲染过程？</font>
-
-
-
-<font color='orange'>Q：View的刷新机制？</font>
 
 
 
@@ -1303,47 +1366,13 @@ MS是由父View为子View计算出来的一个测量约束。具体的计算是�
 
 
 
-<font color='orange'>Q：Android渲染和刷新原理？</font>
+<font color='orange'>Q：GPU调试工具几个颜色值分别代码什么？</font>
 
 
 
-<font color='orange'>Q：讲讲页面的刷新机制，GPU调试工具几个颜色值分别代码什么？</font>
+## 二、刷新机制
 
-
-
-<font color='orange'>Q：在oncreate里面可以得到View的宽高吗?</font>
-
-不能。View是在handleResumeActivity()执行时，先执行onResume，然后才执行View的第一次绘制流程，因此在此之前都不能获取到View的真实宽高。
-
-<font color='orange'>Q：在onResume中可以测量宽高么？</font>
-
-不能。
-
-
-
-#### 二、invalidate、postInvalidate、requestLayout
-
-<font color='orange'>Q：invalidate的原理？</font>
-
-
-
-<font color='orange'>Q：invalidate()和postInvalicate()区别</font>
-
-
-
-<font color='orange'>Q：invalidate和requestlayout的区别</font>
-
-
-
-<font color='orange'>Q：requestlayout的作用范围是多大</font>
-
-
-
-<font color='orange'>Q：invalidate、postInvalidate、requestLayout的区别？</font>
-
-
-
-<font color='orange'>Q：自定义View执行invalidate()方法,为什么有时候不会回调onDraw()？</font>
+<font color='orange'>Q：View的刷新机制（原理）？</font>
 
 
 
@@ -1351,7 +1380,9 @@ MS是由父View为子View计算出来的一个测量约束。具体的计算是�
 
 
 
-参考：
 
-1、[Android View的绘制流程](https://www.jianshu.com/p/5a71014e7b1b)
+
+# 参考
+
+[Android View的绘制流程](https://www.jianshu.com/p/5a71014e7b1b)
 

@@ -1,27 +1,10 @@
-# 前言
-
-- `HashMap` 在 `Java`  和  `Android` 开发中非常常见
-- 而`HashMap 1.8` 相对于 `HashMap 1.7` 更新多
-- 今天，我将通过源码分析`HashMap 1.8` ，从而讲解`HashMap 1.8` 相对于 `HashMap 1.7` 的更新内容，希望你们会喜欢。
-
-> 1. 本文基于版本 `JDK 1.8`，即 `Java 8`
-> 2. 关于版本 `JDK 1.7`，即 `Java 7`，具体请看文章[Java：手把手带你源码分析 HashMap 1.7](https://links.jianshu.com/go?to=http%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79373026)
-
-------
-
 # 目录
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-537006af67a62759.png?imageMogr2/auto-orient/strip|imageView2/2/w/1066/format/webp)
-
-示意图
-
-------
+![944365-537006af67a62759](images/HashMap1.8/944365-537006af67a62759.webp)
 
 # 1. 简介
 
 - 类定义
-
-
 
 ```java
 public class HashMap<K,V>
@@ -31,30 +14,17 @@ public class HashMap<K,V>
 
 - 主要简介
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-086b58aeee2d00cb.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
-
-- `HashMap` 的实现在 `JDK 1.7` 和 `JDK 1.8` 差别较大
-- 今天，我将对照 `JDK 1.7`的源码，在此基础上讲解 `JDK 1.8` 中  `HashMap` 的源码解析
-
-> 请务必打开`JDK 1.7`对照看：[Java：手把手带你源码分析 HashMap 1.7](https://links.jianshu.com/go?to=http%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79373026)
-
-------
+![944365-086b58aeee2d00cb](images/HashMap1.8/944365-086b58aeee2d00cb.webp)
 
 # 2. 数据结构：引入了 红黑树
 
 ### 2.1 主要介绍
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-98178707855677bc.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/789/format/webp)
-
-示意图
+![944365-98178707855677bc](images/HashMap1.8/944365-98178707855677bc.webp)
 
 > 关于 红黑树 的简介
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-dc8b2b6ae269ffee.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-dc8b2b6ae269ffee](images/HashMap1.8/944365-dc8b2b6ae269ffee.webp)
 
 > 更加具体的了解，请：[点击阅读文章](https://links.jianshu.com/go?to=http%3A%2F%2Fblog.csdn.net%2Fv_july_v%2Farticle%2Fdetails%2F6105630)
 
@@ -62,9 +32,7 @@ public class HashMap<K,V>
 
 > 注：为了让大家有个感性的认识，只是简单的画出存储流程，更加详细 & 具体的存储流程会在下面源码分析中给出
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-441706c5a99e02a3.png?imageMogr2/auto-orient/strip|imageView2/2/w/939/format/webp)
-
-示意图
+![944365-441706c5a99e02a3](images/HashMap1.8/944365-441706c5a99e02a3.webp)
 
 ### 2.3 数组元素 & 链表节点的 实现类
 
@@ -74,16 +42,11 @@ public class HashMap<K,V>
 
 - 该类的源码分析如下
 
-> 具体分析请看注释
-
-
-
 ```java
 /** 
   * Node  = HashMap的内部类，实现了Map.Entry接口，本质是 = 一个映射(键值对)
   * 实现了getKey()、getValue()、equals(Object o)和hashCode()等方法
-  **/  
-
+  **/
   static class Node<K,V> implements Map.Entry<K,V> {
 
         final int hash; // 哈希值，HashMap根据该值确定记录的位置
@@ -138,8 +101,6 @@ public class HashMap<K,V>
 
 - `HashMap`中的红黑树节点 采用 `TreeNode` 类 实现
 
-
-
 ```java
  /**
   * 红黑树节点 实现类：继承自LinkedHashMap.Entry<K,V>类
@@ -156,27 +117,23 @@ public class HashMap<K,V>
     // 构造函数
     TreeNode(int hash, K key, V val, Node<K,V> next) {  
         super(hash, key, val, next);  
-    }  
-  
+    }
+
     // 返回当前节点的根节点  
     final TreeNode<K,V> root() {  
         for (TreeNode<K,V> r = this, p;;) {  
             if ((p = r.parent) == null)  
                 return r;  
-            r = p;  
+            r = p;
         }  
-    } 
+    }
 ```
-
-------
 
 # 3. 具体使用
 
 ### 3.1 主要使用API（方法、函数）
 
 > 与 `JDK 1.7` 基本相同
-
-
 
 ```java
 V get(Object key); // 获得指定键的值
@@ -207,8 +164,6 @@ boolean isEmpty(); // 判断HashMap是否为空；size == 0时 表示为 空
 4. 获取 `HashMap` 的全部数据：遍历`HashMap`
 
 - 示例代码
-
-
 
 ```dart
 import java.util.Collection;
@@ -309,8 +264,6 @@ public class HashMapTest {
         }
 
     }
-
-
 }
 
 // 注：对于遍历方式，推荐使用针对 key-value对（Entry）的方式：效率高
@@ -320,8 +273,6 @@ public class HashMapTest {
 ```
 
 - 运行结果
-
-
 
 ```undefined
 方法1
@@ -358,15 +309,11 @@ Android1
 
 下面，我们按照上述的使用过程，对一个个步骤进行源码解析
 
-------
-
 # 4. 基础知识：HashMap中的重要参数（变量）
 
 - 在进行真正的源码分析前，先讲解`HashMap`中的重要参数（变量）
 - `HashMap`中的主要参数 同  `JDK 1.7` ，即：容量、加载因子、扩容阈值
 - 但由于数据结构中引入了 红黑树，故加入了 **与红黑树相关的参数**。具体介绍如下：
-
-
 
 ```java
  /** 
@@ -410,34 +357,24 @@ Android1
 
 > 同 `JDK 1.7`，但由于其重要性，故此处再次说明
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-b85819e2f8a3c30a.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/1007/format/webp)
-
-示意图
+![944365-b85819e2f8a3c30a](images/HashMap1.8/944365-b85819e2f8a3c30a.webp)
 
 - 总结 数据结构 & 参数方面与 `JDK 1.7`的区别
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-67768bc4f0d23d69.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
-
-------
+![944365-67768bc4f0d23d69](images/HashMap1.8/944365-67768bc4f0d23d69.webp)
 
 # 5. 源码分析
 
 - 本次的源码分析主要是根据 **使用步骤** 进行相关函数的详细分析
 - 主要分析内容如下：
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-43ee4c315b6f82d8.png?imageMogr2/auto-orient/strip|imageView2/2/w/750/format/webp)
-
-示意图
+![944365-43ee4c315b6f82d8](images/HashMap1.8/944365-43ee4c315b6f82d8.webp)
 
 - 下面，我将对每个步骤内容的主要方法进行详细分析
 
 ### 步骤1：声明1个 HashMap的对象
 
 > 此处主要分析的构造函数 类似 `JDK 1.7`
-
-
 
 ```dart
 /**
@@ -472,7 +409,6 @@ public class HashMap<K,V>
         // 实际上是调用指定“容量大小”和“加载因子”的构造函数
         // 只是在传入的加载因子参数 = 默认加载因子
         this(initialCapacity, DEFAULT_LOAD_FACTOR);
-        
     }
 
     /**
@@ -490,7 +426,7 @@ public class HashMap<K,V>
         if (initialCapacity > MAXIMUM_CAPACITY)
             initialCapacity = MAXIMUM_CAPACITY;
 
-        // 填充比必须为正  
+        // 加载因子 必须为正  
         if (loadFactor <= 0 || Float.isNaN(loadFactor))  
             throw new IllegalArgumentException("Illegal load factor: " +  
                                            loadFactor);  
@@ -509,7 +445,6 @@ public class HashMap<K,V>
      * 即 构造出来的HashMap包含传入Map的映射关系
      * 加载因子 & 容量 = 默认
      */
-
     public HashMap(Map<? extends K, ? extends V> m) {
 
         // 设置容量大小 & 加载因子 = 默认
@@ -536,28 +471,16 @@ public class HashMap<K,V>
 }
 ```
 
-- 注：（同
-
-  ```
-  JDK 1.7
-  ```
-
-  类似）
+- 注：（同JDK 1.7类似）
 
   1. 此处仅用于接收初始容量大小（`capacity`）、加载因子(`Load factor`)，但仍无真正初始化哈希表，即初始化存储数组`table`
   2. 此处先给出结论：**真正初始化哈希表（初始化存储数组`table`）是在第1次添加键值对时，即第1次调用`put（）`时。下面会详细说明**
-
-至此，关于`HashMap`的构造函数讲解完毕。
-
-------
 
 ### 步骤2：向HashMap添加数据（成对 放入 键 - 值对）
 
 - 在该步骤中，与`JDK 1.7`的差别较大：
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-45ec8c640c5e5363.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-45ec8c640c5e5363](images/HashMap1.8/944365-45ec8c640c5e5363.webp)
 
 > 下面会对上述区别进行详细讲解
 
@@ -565,13 +488,9 @@ public class HashMap<K,V>
 
 > 注：为了让大家有个感性的认识，只是简单的画出存储流程，更加详细 & 具体的存储流程会在下面源码分析中给出
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-2914343d292dc7e0.png?imageMogr2/auto-orient/strip|imageView2/2/w/939/format/webp)
-
-示意图
+![944365-2914343d292dc7e0](images/HashMap1.8/944365-2914343d292dc7e0.webp)
 
 - 源码分析
-
-
 
 ```cpp
  /**
@@ -595,9 +514,7 @@ public class HashMap<K,V>
 
 下面，将详细讲解 上面的2个主要分析点
 
-### 分析1：hash（key）
-
-
+#### 分析1：hash（key）
 
 ```dart
    /**
@@ -642,17 +559,11 @@ public class HashMap<K,V>
 > 1. 此处与 `JDK 1.7`的区别在于：`hash`值的求解过程中 哈希码的二次处理方式（扰动处理）
 > 2. 步骤1、2 =  `hash`值的求解过程
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-4eec328e8dd3d7e7.png?imageMogr2/auto-orient/strip|imageView2/2/w/820/format/webp)
-
-示意图
+![944365-4eec328e8dd3d7e7](images/HashMap1.8/944365-4eec328e8dd3d7e7.webp)
 
 - 计算示意图
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-1f13afa0cd516356.png?imageMogr2/auto-orient/strip|imageView2/2/w/1044/format/webp)
-
-示意图
-
-------
+![944365-1f13afa0cd516356](images/HashMap1.8/944365-1f13afa0cd516356.webp)
 
 在了解 如何计算存放数组`table` 中的位置 后，所谓 **知其然 而 需知其所以然**，下面我将讲解为什么要这样计算，即主要解答以下3个问题：
 
@@ -664,38 +575,30 @@ public class HashMap<K,V>
 
 > **所有处理的根本目的，都是为了提高 存储`key-value`的数组下标位置 的随机性 & 分布均匀性，尽量避免出现hash值冲突**。即：对于不同`key`，存储的数组下标位置要尽可能不一样
 
-### 问题1：为什么不直接采用经过hashCode（）处理的哈希码 作为 存储数组table的下标位置？
+##### 问题1：为什么不直接采用经过hashCode（）处理的哈希码 作为 存储数组table的下标位置？
 
 - 结论：容易出现 哈希码 与 数组大小范围不匹配的情况，即 计算出来的哈希码可能 不在数组大小范围内，从而导致无法匹配存储位置
 - 原因描述
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-d18ee0697a1a1b53.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+![944365-d18ee0697a1a1b53](images/HashMap1.8/944365-d18ee0697a1a1b53.webp)
 
-示意图
+- 为了解决 “哈希码与数组大小范围不匹配” 的问题，`HashMap`给出了解决方案：**哈希码 与运算（&） （数组长度-1）**，即问题2
 
-- 为了解决 “哈希码与数组大小范围不匹配” 的问题，`HashMap`给出了解决方案：**哈希码 与运算（&） （数组长度-1）**，即问题3
-
-### 问题2：为什么采用 哈希码 与运算(&) （数组长度-1） 计算数组下标？
+##### 问题2：为什么采用 哈希码 与运算(&) （数组长度-1） 计算数组下标？
 
 - 结论：根据HashMap的容量大小（数组长度），按需取 哈希码一定数量的低位 作为存储的数组下标位置，从而 解决 “哈希码与数组大小范围不匹配” 的问题
 - 具体解决方案描述
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-04658793bae1ed90.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
+![944365-04658793bae1ed90](images/HashMap1.8/944365-04658793bae1ed90.webp)
 
-示意图
-
-### 问题3：为什么在计算数组下标前，需对哈希码进行二次处理：扰动处理？
+##### 问题3：为什么在计算数组下标前，需对哈希码进行二次处理：扰动处理？
 
 - 结论：加大哈希码低位的随机性，使得分布更均匀，从而提高对应数组存储下标位置的随机性 & 均匀性，最终减少Hash冲突
 - 具体描述
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-20d396364b968713.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-20d396364b968713](images/HashMap1.8/944365-20d396364b968713.webp)
 
 至此，关于怎么计算 `key-value` 值存储在`HashMap`数组位置 & 为什么要这么计算，讲解完毕。
-
-------
 
 ### 分析2：putVal(hash(key), key, value, false, true);
 
@@ -710,11 +613,7 @@ public class HashMap<K,V>
 
 > 与 `JDK 1.7`的区别： `JDK 1.7`只需判断 数组 & 链表
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-53b07522b343ebe9.png?imageMogr2/auto-orient/strip|imageView2/2/w/1040/format/webp)
-
-示意图
-
-
+![944365-53b07522b343ebe9](images/HashMap1.8/944365-53b07522b343ebe9.webp)
 
 ```csharp
    /**
@@ -861,21 +760,15 @@ public class HashMap<K,V>
 
 - 总结
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-4f700e47dda01f7f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1060/format/webp)
-
-示意图
+![944365-4f700e47dda01f7f](images/HashMap1.8/944365-4f700e47dda01f7f.webp)
 
 ### 主要讲解点2：扩容机制（即 resize（）函数方法）
 
 - 扩容流程如下
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-9fb3fec07a0764ec.png?imageMogr2/auto-orient/strip|imageView2/2/w/518/format/webp)
-
-示意图
+![944365-9fb3fec07a0764ec](images/HashMap1.8/944365-9fb3fec07a0764ec.webp)
 
 - 源码分析
-
-
 
 ```java
    /**
@@ -977,29 +870,21 @@ public class HashMap<K,V>
 
 - 扩容流程（含 与 `JDK 1.7` 的对比）
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-a31e51b24f135d7c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1120/format/webp)
-
-示意图
+![944365-a31e51b24f135d7c](images/HashMap1.8/944365-a31e51b24f135d7c.webp)
 
 ### 此处主要讲解： `JDK 1.8`扩容时，数据存储位置重新计算的方式
 
 - 计算结论 & 原因解析
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-a467fdaa3a110350.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-a467fdaa3a110350](images/HashMap1.8/944365-a467fdaa3a110350.webp)
 
 - 结论示意图
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-2466f5db47fd7685.png?imageMogr2/auto-orient/strip|imageView2/2/w/890/format/webp)
-
-示意图
+![944365-2466f5db47fd7685](images/HashMap1.8/944365-2466f5db47fd7685.webp)
 
 - 数组位置转换的示意图
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-d78ae9079c14f222.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-d78ae9079c14f222](images/HashMap1.8/944365-d78ae9079c14f222.webp)
 
 - `JDK 1.8`根据此结论作出的新元素存储位置计算规则 非常简单，提高了扩容效率，具体如下图
 
@@ -1010,15 +895,11 @@ public class HashMap<K,V>
 
 - 添加数据的流程
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-c263d87e5eecdcb0.png?imageMogr2/auto-orient/strip|imageView2/2/w/1070/format/webp)
-
-示意图
+![944365-c263d87e5eecdcb0](images/HashMap1.8/944365-c263d87e5eecdcb0.webp)
 
 - 与 `JDK 1.7`的区别
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-e706a4817a35b021.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-e706a4817a35b021](images/HashMap1.8/944365-e706a4817a35b021.webp)
 
 至此，关于 `HashMap`的添加数据源码分析 分析完毕。
 
@@ -1029,13 +910,9 @@ public class HashMap<K,V>
 - 假如理解了上述`put（）`函数的原理，那么`get（）`函数非常好理解，因为二者的过程原理几乎相同
 - `get（）`函数的流程如下：
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-a02a9b827efebe30.png?imageMogr2/auto-orient/strip|imageView2/2/w/220/format/webp)
-
-示意图
+![944365-a02a9b827efebe30](images/HashMap1.8/944365-a02a9b827efebe30.webp)
 
 - 源码分析
-
-
 
 ```csharp
 /**
@@ -1131,48 +1008,33 @@ boolean containsValue(Object value);  // 判断是否存在该值的键值对；
 
 - 数据结构 & 主要参数
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-38b76323d9e4ceb7.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-38b76323d9e4ceb7](images/HashMap1.8/944365-38b76323d9e4ceb7.webp)
 
 - 添加 & 查询数据流程
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-3edece748ed29c71.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-3edece748ed29c71](images/HashMap1.8/944365-3edece748ed29c71.webp)
 
 - 扩容机制
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-5ff3ae3f2149184e.png?imageMogr2/auto-orient/strip|imageView2/2/w/920/format/webp)
-
-示意图
-
-------
+![944365-5ff3ae3f2149184e](images/HashMap1.8/944365-5ff3ae3f2149184e.webp)
 
 # 7. 与 `JDK 1.7` 的区别
 
 `HashMap` 的实现在 `JDK 1.7` 和 `JDK 1.8` 差别较大，具体区别如下
 
 > 1. `JDK 1.8` 的优化目的主要是：减少 `Hash`冲突 & 提高哈希表的存、取效率
-> 2. 关于  `JDK 1.7` 中  `HashMap` 的源码解析请看文章：[Java：手把手带你源码分析 HashMap 1.7](https://links.jianshu.com/go?to=http%3A%2F%2Fblog.csdn.net%2Fcarson_ho%2Farticle%2Fdetails%2F79373026)
 
 ### 7.1 数据结构
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-1479fa30b86d2f6b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-1479fa30b86d2f6b](images/HashMap1.8/944365-1479fa30b86d2f6b.webp)
 
 ### 7.2 获取数据时（获取数据 类似）
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-375d272b7c41c09a.png?imageMogr2/auto-orient/strip|imageView2/2/w/1190/format/webp)
-
-示意图
+![944365-375d272b7c41c09a](images/HashMap1.8/944365-375d272b7c41c09a.webp)
 
 ### 7.3 扩容机制
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-f5a75aa358889853.png?imageMogr2/auto-orient/strip|imageView2/2/w/1100/format/webp)
-
-示意图
+![944365-f5a75aa358889853](images/HashMap1.8/944365-f5a75aa358889853.webp)
 
 ------
 
@@ -1180,33 +1042,25 @@ boolean containsValue(Object value);  // 判断是否存在该值的键值对；
 
 - 有几个小问题需要在此补充
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-efec914683e3dadf.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-efec914683e3dadf](images/HashMap1.8/944365-efec914683e3dadf.webp)
 
 - 具体如下
 
 ### 8.1 哈希表如何解决Hash冲突
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-7621b15f58e87a66.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-7621b15f58e87a66](images/HashMap1.8/944365-7621b15f58e87a66.webp)
 
 ### 8.2 为什么HashMap具备下述特点：键-值（key-value）都允许为空、线程不安全、不保证有序、存储位置随时间变化
 
 - 具体解答如下
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-ce5aa2227f269410.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/1162/format/webp)
-
-示意图
+![944365-ce5aa2227f269410](images/HashMap1.8/944365-ce5aa2227f269410.webp)
 
 - 下面主要讲解 `HashMap` 线程不安全的其中一个重要原因：多线程下容易出现`resize（）`死循环
    **本质 = 并发 执行 `put（）`操作导致触发 扩容行为，从而导致 环形链表，使得在获取数据遍历链表时形成死循环，即`Infinite Loop`**
 - 先看扩容的源码分析`resize（）`
 
 > 关于resize（）的源码分析已在上文详细分析，此处仅作重点分析：transfer（）
-
-
 
 ```dart
 /**
@@ -1287,17 +1141,11 @@ void transfer(Entry[] newTable) {
 
 初始状态、步骤1、步骤2
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-8748867d2085b481.png?imageMogr2/auto-orient/strip|imageView2/2/w/700/format/webp)
+![944365-8748867d2085b481](images/HashMap1.8/944365-8748867d2085b481.webp)
 
-示意图
+![944365-4989e9b5e1b3ef6d](images/HashMap1.8/944365-4989e9b5e1b3ef6d.webp)
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-4989e9b5e1b3ef6d.png?imageMogr2/auto-orient/strip|imageView2/2/w/1146/format/webp)
-
-示意图
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-d28ea19f84a1394f.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-d28ea19f84a1394f](images/HashMap1.8/944365-d28ea19f84a1394f.webp)
 
 注：由于 `JDK 1.8` 转移数据操作 = **按旧链表的正序遍历链表、在新链表的尾部依次插入**，所以不会出现链表 **逆序、倒置**的情况，故不容易出现环形链表的情况。
 
@@ -1305,15 +1153,11 @@ void transfer(Entry[] newTable) {
 
 ### 8.3 为什么 HashMap 中 String、Integer 这样的包装类适合作为 key 键
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-318b6e178419065b.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-318b6e178419065b](images/HashMap1.8/944365-318b6e178419065b.webp)
 
 ### 8.4 HashMap 中的 `key`若 `Object`类型， 则需实现哪些方法？
 
-![img](https:////upload-images.jianshu.io/upload_images/944365-23536584ac590783.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
+![944365-23536584ac590783](images/HashMap1.8/944365-23536584ac590783.webp)
 
 至此，关于`HashMap`的所有知识讲解完毕。
 

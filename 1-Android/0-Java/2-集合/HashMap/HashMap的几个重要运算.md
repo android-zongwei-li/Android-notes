@@ -139,20 +139,9 @@ index的取值就是，0 — length -1。
 
 # 总结
 
-1、
-
-## 【精益求精】我还能做（补充）些什么？
-
-1、
-
-
-
-# 脑图
-
 
 
 # 参考
 
 1、[HashMap中hash(Object key)原理，为什么(hashcode ＞＞＞ 16)。](https://blog.csdn.net/qq_42034205/article/details/90384772?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7Edefault-1-90384772-blog-105092989.pc_relevant_multi_platform_whitelistv1&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7ECTRLIST%7Edefault-1-90384772-blog-105092989.pc_relevant_multi_platform_whitelistv1&utm_relevant_index=1)
 
-2、
