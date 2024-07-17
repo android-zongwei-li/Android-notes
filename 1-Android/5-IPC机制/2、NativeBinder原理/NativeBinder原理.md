@@ -81,7 +81,7 @@ Binder 是基于开源的OpenBinder 实现的。
 
 Binder 是基于内存映射来实现的，在前面我们知道内存映射通常是用在有物理介质的文件系统上的，然后 Binder 没有物理介质，它使用内存映射是为了跨进程传递数据的，Linux 的 Binder 通信模型如图所示。
 
-![image-20240716091145086](images/NativeBinder原理/image-20240716091145086.png)
+![image-20240717152919770](images/NativeBinder原理/image-20240717152919770.png)
 
 Binder 通信的步骤如下所示。
 
