@@ -38,8 +38,6 @@ WorkManager 可处理三种类型的持久性工作：
 | 长时间运行 | 一次性或定期 | 任意 `WorkRequest` 或 `Worker`。在 worker 中调用 `setForeground()` 来处理通知。 |
 | 可延期     | 一次性或定期 | `PeriodicWorkRequest` 和`Worker`。                           |
 
-如需详细了解如何设置 WorkManager，请参阅[定义您的 WorkRequest](https://developer.android.google.cn/topic/libraries/architecture/workmanager/how-to/define-work?hl=zh-cn#work-constraints) 指南。
-
 # WorkManager介绍
 
 WorkManager 是一个后台任务调度与管理库。是 Google 推出的组件, 用于解决**应用在退出或者设备重启后仍需要运行任务**的问题。

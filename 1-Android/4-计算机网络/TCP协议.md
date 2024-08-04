@@ -1,19 +1,10 @@
 # 前言
 
-- 计算机网络基础 该是程序猿需掌握的知识，但往往会被忽略
-- 今天，我将详细讲解计算机网络中最重要的`TCP`协议，含其特点、三次握手、四次挥手、无差错传输等知识，希望你们会喜欢。
-
-> 阅读本文前，请先了解计算机网络基础知识：[献上一份全面 & 详细的计算机网络基础 学习指南](https://www.jianshu.com/p/45d27f3e1196)
-
-------
+讲解计算机网络中最重要的 `TCP` 协议，含其特点、三次握手、四次挥手、无差错传输等知识。
 
 # 目录
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-257b0fc51b1d3bb4.png?imageMogr2/auto-orient/strip|imageView2/2/w/816/format/webp)
-
-示意图
-
-------
 
 # 1. 定义
 
@@ -22,18 +13,12 @@
 > 1. 属于 传输层通信协议
 > 2. 基于`TCP`的应用层协议有`HTTP`、`SMTP`、`FTP`、`Telnet` 和 `POP3`
 
-------
-
 # 2 特点
 
 - 面向连接、面向字节流、全双工通信、可靠
 - 具体介绍如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-c77053c9881592ab.png?imageMogr2/auto-orient/strip|imageView2/2/w/520/format/webp)
-
-示意图
-
-------
 
 # 3. 优缺点
 
@@ -66,13 +51,7 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-123333642e8eb31a.png?imageMogr2/auto-orient/strip|imageView2/2/w/1110/format/webp)
 
-示意图
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-4740db911582939f.png?imageMogr2/auto-orient/strip|imageView2/2/w/808/format/webp)
-
-示意图
-
-------
 
 # 6. 建立连接过程
 
@@ -81,15 +60,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-895493e20637d2b0.png?imageMogr2/auto-orient/strip|imageView2/2/w/880/format/webp)
 
-示意图
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-d148731fa16316be.png?imageMogr2/auto-orient/strip|imageView2/2/w/1020/format/webp)
 
-示意图
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-5527d827865f8d30.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
 
 **成功进行TCP的三次握手后，就建立起一条TCP连接，即可传送应用层数据**
 
@@ -122,15 +95,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-6162a7db50ebb9d3.png?imageMogr2/auto-orient/strip|imageView2/2/w/950/format/webp)
 
-示意图
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-91b079843a9e8235.png?imageMogr2/auto-orient/strip|imageView2/2/w/1020/format/webp)
 
-示意图
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-82c3290a6135a610.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
 
 ### 特别说明：为什么TCP释放连接需四次挥手？
 
@@ -143,8 +110,6 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-345dbc590bbcb19d.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/816/format/webp)
 
-示意图
-
 > 延伸疑问：为什么客户端关闭连接前要等待2MSL时间？
 >
 > 1. 即 `TIME - WAIT` 状态的作用是什么；
@@ -154,14 +119,10 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-1cfff0282bdac472.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/880/format/webp)
 
-示意图
-
 - 原因2：防止 上文提到的早已失效的连接请求报文 出现在本连接中
    客户端发送了最后1个连接释放请求确认报文后，再经过2`MSL`时间，则可使本连接持续时间内所产生的所有报文段都从网络中消失。
 
 > 即 在下1个新的连接中就不会出现早已失效的连接请求报文
-
-------
 
 # 8. 无差错传输
 
@@ -180,8 +141,6 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-9675d7fa2007d374.png?imageMogr2/auto-orient/strip|imageView2/2/w/860/format/webp)
 
-示意图
-
 - 工作原理
    对于发送端：
 
@@ -191,13 +150,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-09525e9bc9916fbc.png?imageMogr2/auto-orient/strip|imageView2/2/w/864/format/webp)
 
-示意图
-
 对于接收端：当收到数据帧后，将窗口向前移动一个位置，并发回确认帧，若收到的数据帧落在接收窗口之外，则一律丢弃。
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-9bed1dc6d7dd0eaa.png?imageMogr2/auto-orient/strip|imageView2/2/w/880/format/webp)
-
-示意图
 
 ### 滑动窗口 协议的重要特性
 
@@ -227,13 +182,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-b35ec57c26668491.png?imageMogr2/auto-orient/strip|imageView2/2/w/1083/format/webp)
 
-示意图
-
 - 类型
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-30fd78ac1589939f.png?imageMogr2/auto-orient/strip|imageView2/2/w/740/format/webp)
-
-示意图
 
 下面，将主要讲解 上述3类协议
 
@@ -264,15 +215,11 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-2784660582f0ff18.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
 ### 示例讲解
 
 本示例 = 源站 向 目的站 发送数据帧。具体示例如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-130b4e423e864ef9.png?imageMogr2/auto-orient/strip|imageView2/2/w/638/format/webp)
-
-示意图
 
 ### 类型3：选择重传ARQ（Selective Repeat）
 
@@ -297,21 +244,13 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-1ffce38c3211e715.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
 - 示例
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-9d820fad1e4ab1eb.png?imageMogr2/auto-orient/strip|imageView2/2/w/783/format/webp)
 
-示意图
-
 - 特别注意：死锁问题
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-6c9619a53f27cac6.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
-
-------
 
 ### 措施2：拥塞控制
 
@@ -323,8 +262,6 @@
 - 与 “流量控制”的区别
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-416385123558bc04.png?imageMogr2/auto-orient/strip|imageView2/2/w/590/format/webp)
-
-示意图
 
 - 具体解决方案
    共分为2个解决方案：慢开始 & 拥塞避免、快重传 & 快恢复
@@ -343,8 +280,6 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-6a843661e8bd26af.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
 ### b. 慢开始算法
 
 - 原理
@@ -355,13 +290,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-4d799093659c419e.png?imageMogr2/auto-orient/strip|imageView2/2/w/1020/format/webp)
 
-示意图
-
 - 示意图
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-91808b297ff26714.png?imageMogr2/auto-orient/strip|imageView2/2/w/861/format/webp)
-
-示意图
 
 - 特别注意
    慢开始的“慢”指：一开始发送报文段时拥塞窗口`（cwnd）`设置得较小（为1），使得发送方在开始时只发送一个报文段（目的是试探一下网络的拥塞情况）
@@ -380,15 +311,11 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-8ed9b52c1acc9778.png?imageMogr2/auto-orient/strip|imageView2/2/w/821/format/webp)
 
-示意图
-
 ### 1.2 解决方案描述（慢开始 & 拥塞避免）
 
 - 为了防止拥塞窗口`（cwnd）`增长过大而引起网络拥塞，采用慢开始 & 拥塞避免 2种算法，具体规则如下
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-4d64330b5c223849.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
 
 - 实例说明
 
@@ -441,11 +368,7 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-1032ce078efe6cd8.png?imageMogr2/auto-orient/strip|imageView2/2/w/1011/format/webp)
 
-示意图
-
 至此，关于`TCP`无差错传输的知识讲解完毕。
-
-------
 
 # 9. 与UDP协议的区别
 

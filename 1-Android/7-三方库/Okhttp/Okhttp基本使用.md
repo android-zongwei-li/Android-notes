@@ -43,11 +43,12 @@ implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
 ### 异步GET请求
 
-使用步骤：
-创建OkHttpClient对象
-构造Request对象
-通过OkHttpClient和Request对象来构建Call对象
-通过Call对象的enqueue(Callback)方法来执行异步请求
+#### 使用步骤
+
+1. 创建OkHttpClient对象
+2. 构造Request对象
+3. 通过OkHttpClient和Request对象来构建Call对象
+4. 通过Call对象的enqueue(Callback)方法来执行异步请求
 
 ```kotlin
     fun asyncGet() {

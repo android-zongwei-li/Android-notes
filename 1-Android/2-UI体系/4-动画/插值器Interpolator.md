@@ -10,24 +10,9 @@
 
 其中，步骤2中的 插值器（`Interpolator`）和估值器（`TypeEvaluator`）是实现 复杂动画效果的关键；本文主要讲解 将详细讲解 插值器（`Interpolator`），通过阅读本文你将能轻松实现复杂的动画效果
 
-> Carson带你学`Android`动画系列文章：
->  [Carson带你学Android：一份全面&详细的动画知识学习攻略](https://www.jianshu.com/p/53759778284a)
->  [Carson带你学Android：常见的三种动画类型](https://www.jianshu.com/p/53759778284a)
->  [Carson带你学Android：补间动画学习教程](https://www.jianshu.com/p/733532041f46)
->  [Carson带你学Android：属性动画学习教程](https://www.jianshu.com/p/2412d00a0ce4)
->  [Carson带你学Android：逐帧动画学习教程](https://www.jianshu.com/p/225fe1feba60)
->  [Carson带你学Android：自定义动画神器-估值器(含实例教学)](https://www.jianshu.com/p/ab5785f017b2)
->  [Carson带你学Android：自定义动画神器-插值器(含实例教学)](https://www.jianshu.com/p/2f19fe1e3ca1)
-
-------
-
 # 目录
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-a45587dafc18daa3.png?imageMogr2/auto-orient/strip|imageView2/2/w/868/format/webp)
-
-示意图
-
-------
 
 # 1. 简介
 
@@ -37,19 +22,13 @@
 > 1. 如匀速、加速 & 减速 等等
 > 2. 即确定了 动画效果变化的模式，如匀速变化、加速变化 等等
 
-------
-
 # 2. 应用场景
 
 实现非线性运动的动画效果。非线性运动是指动画改变的速率不是一成不变的，如加速、减速运动的动画效果。
 
-------
-
 # 3. 具体使用
 
 插值器在动画的使用有两种方式：在XML / Java代码中设置：
-
-
 
 ```php
 /*
@@ -89,8 +68,6 @@ mButton.startAnimation(alphaAnimation);
 - 那么使用插值器时的资源ID是什么呢？即有哪些类型的插值器可供我们使用呢？
 - 插值器分为两种：Android内置默认 & 自定义，下面我将详细介绍
 
-------
-
 # 4. 系统内置插值器
 
 ### 4.1 类型
@@ -98,8 +75,6 @@ mButton.startAnimation(alphaAnimation);
 `Android`内置了 9 种内置的插值器实现：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-dccc87ed4ad77156.png?imageMogr2/auto-orient/strip|imageView2/2/w/1144/format/webp)
-
-示意图
 
 ### 4.2 具体使用
 
@@ -112,13 +87,9 @@ mButton.startAnimation(alphaAnimation);
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-0a9435149480729e.gif?imageMogr2/auto-orient/strip|imageView2/2/w/397/format/webp)
 
-效果图
-
 - 使用`Android`内置的插值器能满足大多数的动画需求
 - 如果上述9个插值器无法满足需求，还可以自定义插值器
 - 下面将介绍如何自定义插值器（`Interpolator`）
-
-------
 
 # 5. 自定义插值器
 
@@ -134,8 +105,6 @@ mButton.startAnimation(alphaAnimation);
 > 2. `TimeInterpolator`接口是属性动画中新增的，用于兼容`Interpolator`接口，这使得所有过去的`Interpolator`实现类都可以直接在属性动画使用
 
 Interpolator接口和TimeInterpolator接口说明如下：
-
-
 
 ```csharp
 // Interpolator接口
@@ -168,8 +137,6 @@ public interface TimeInterpolator {
 
 - 匀速插值器：`LinearInterpolator`
 - 先加速再减速 插值器：`AccelerateDecelerateInterpolator`
-
-
 
 ```java
 /*
@@ -210,8 +177,6 @@ public class AccelerateDecelerateInterpolator implements Interpolator, NativeInt
 ### 5.3 实例说明
 
 下面，我将写一个自定义`Interpolator`：先减速后加速。
-
-
 
 ```java
 /*
@@ -267,17 +232,11 @@ animator.start();
 
 差值器.gif
 
-------
-
 # 6. 与估值器的区别
 
 估值器和插值器很多人容易混淆，具体区别如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-49649401b1ae6ece.png?imageMogr2/auto-orient/strip|imageView2/2/w/639/format/webp)
-
-示意图
-
-------
 
 # 7. 总结
 

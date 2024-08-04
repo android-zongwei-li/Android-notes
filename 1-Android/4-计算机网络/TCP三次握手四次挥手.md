@@ -13,13 +13,9 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-895493e20637d2b0.png?imageMogr2/auto-orient/strip|imageView2/2/w/880/format/webp)
 
-示意图
-
 ### 1.2 流程解析
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-d148731fa16316be.png?imageMogr2/auto-orient/strip|imageView2/2/w/1020/format/webp)
-
-示意图
 
 **成功进行TCP的三次握手后，就建立起一条TCP连接，即可传送应用层数据**。需要注意的是：
 
@@ -48,8 +44,6 @@
 ### 2.1 示意图
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-6162a7db50ebb9d3.png?imageMogr2/auto-orient/strip|imageView2/2/w/950/format/webp)
-
-示意图
 
 ### 2.2 流程解析
 

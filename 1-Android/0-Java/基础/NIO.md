@@ -1,49 +1,31 @@
 # 前言
 
 - `JDK 1.4`后，`Java`提供了一个全新的`IO API`，即 `Java New IO`
-- 本文 全面 & 详细解析`Java New IO`，希望你们会喜欢
-
-------
+- 本文 全面 & 详细解析`Java New IO`
 
 # 目录
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-ab6030fbfd826e0e.png?imageMogr2/auto-orient/strip|imageView2/2/w/496/format/webp)
 
-示意图
-
-------
-
 # 储备知识：Java IO
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-3a31f3fd3df13c18.jpg?imageMogr2/auto-orient/strip|imageView2/2/w/1032/format/webp)
-
-示意图
-
-------
 
 # 1. 定义
 
 - 即 `Java New IO`
 - 是1个全新的、 `JDK 1.4`后提供的 `IO API`
 
-------
-
 # 2. 作用
 
 - 提供了与标准`IO`不同的`IO`工作方式
 - 可替代 标准`Java IO` 的`IO API`
-
-------
 
 # 3. 新特性
 
 对比于 `Java IO`，`NIO`具备的新特性如下
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-d482f9f75e9383f7.png?imageMogr2/auto-orient/strip|imageView2/2/w/644/format/webp)
-
-示意图
-
-------
 
 # 4. 核心组件
 
@@ -57,17 +39,11 @@
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-93cd55b2ed7cd37c.png?imageMogr2/auto-orient/strip|imageView2/2/w/1120/format/webp)
 
-示意图
-
-------
-
 # 5.  具体使用
 
 ### 5.1 基于通道 & 缓冲数据
 
 具体步骤如下：
-
-
 
 ```dart
     // 1. 获取数据源 和 目标传输地的输入输出流（此处以数据源 = 文件为例）
@@ -112,18 +88,16 @@
 
 具体步骤如下：
 
-
-
 ```csharp
-// 1. 创建Selector对象   
+// 1. 创建Selector对象
 Selector sel = Selector.open();
 
 // 2. 向Selector对象绑定通道   
  // a. 创建可选择通道，并配置为非阻塞模式   
  ServerSocketChannel server = ServerSocketChannel.open();   
- server.configureBlocking(false);   
+ server.configureBlocking(false);
  
- // b. 绑定通道到指定端口   
+ // b. 绑定通道到指定端口
  ServerSocket socket = server.socket();   
  InetSocketAddress address = new InetSocketAddress(port);   
  socket.bind(address);   
@@ -151,14 +125,10 @@ try {
 }
 ```
 
-------
-
 # 6. 实例讲解
 
 - 实例说明：实现文件复制功能
 - 实现方式：通道`FileChannel`、 缓冲区`ByteBuffer`
-
-
 
 ```java
 import java.io.FileInputStream;
@@ -186,7 +156,6 @@ public class Test {
         ByteBuffer buff = ByteBuffer.allocate(1024);
         
         while (true) {
-
             // 4. 从通道读取数据 & 写入到缓冲区
             // 注：若 以读取到该通道数据的末尾，则返回-1  
             int r = fcin.read(buff);
@@ -201,14 +170,11 @@ public class Test {
             
             // 7. 重置缓冲区
             buff.clear();
-            
           }
         }
 
 }
 ```
-
-------
 
 # 7. 与Java IO的区别
 

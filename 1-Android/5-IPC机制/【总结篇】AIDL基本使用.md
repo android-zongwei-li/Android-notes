@@ -4,10 +4,6 @@
 
 
 
-目录
-
-[TOC]
-
 # 一、AIDL 简介
 
 在 Android 系统中一个进程通常无法直接访问另一个进程的内存空间，这被称为Application Sandbox。所以进程间想要通信，就需要将对象分解成操作系统可以理解的基本单元（基本数据类型，可序列化的、可打包的），并且有序的（写的顺序和读的顺序要一致）通过进程边界。要实现上述跨进程通信的协议是比较复杂的，需要将数据进行编组和解组等操作，为了简化应用层实现进程间通信的难度，Android系统提供了 AIDL，用于生成进程间通信的代码。
@@ -26,7 +22,7 @@ AIDL的架构可以看作是一种CS（Client-Server）架构，即客户端-服
 
 ## 使用场景
 
-Q：什么情况考虑使用AIDL，什么情况适用
+Q：什么情况考虑使用AIDL？
 
 ### AIDL适用需求示例
 
@@ -85,6 +81,8 @@ Android 系统中的 IPC不只是有AIDL，Android系统还提供了以下几种
 
 3、build输出aar文件
 
+![image-20240802103858467](images/【总结篇】AIDL基本使用/image-20240802103858467.png)
+
 <img src="images/【总结篇】AIDL基本使用/image-20230703163001233.png" alt="image-20230703163001233" style="zoom: 33%;" />
 
 <img src="images/【总结篇】AIDL基本使用/image-20230703163143790.png" alt="image-20230703163143790" style="zoom: 50%;" />
@@ -142,7 +140,7 @@ interface IPersonInfoManager {
 
 .aidl 文件的作用就是用来生成 build 后产生的文件，有了 AIDL 生成的类文件后，就可以开始写业务代码了。
 
-1、服务端
+### 1、服务端
 
 第一步：实现业务接口。构建 Stub 子类，实现接口中定义的方法。
 
@@ -177,7 +175,7 @@ class PersonManagerService : Service() {
 
 第二步：通过 Service 的 onBind 方法将 Binder 接口实现类返回给客户端。
 
-2、客户端流程，通过 bindService() 绑定服务
+### 2、客户端流程，通过 bindService() 绑定服务
 
 ```java
     // 通过aar依赖的方式，相较于在服务端、客户端分别创建文件夹、文件的方式，更便于接入，并且不需要build后才生成文件
@@ -224,19 +222,70 @@ personManagerService?.howManyPersons()
 </manifest>
 ```
 
-> 示例代码链接： 
->
-
 # 三、AIDL 进阶实践
 
 ## 1、AIDL 支持的数据类型
 
 - Java编程语言中的所有原始类型（如int、long、char、boolean等）
+
 - String和CharSequence
+
 - List，只支持ArrayList,里面每个元素都必须能够被AIDL支持
+
+  步骤1：AIDL文件中定义方法
+
+  ```kotlin
+      /**
+      * 通过 AIDL 传输 List
+      * 返回年龄为 age 的 Person 集合
+      */
+      List<Person> getPersonsList(int age);
+  ```
+
+  步骤2：服务端返回方法实现
+
+  ```kotlin
+          override fun getPersonsList(age: Int): MutableList<Person> {
+              val arrayList = ArrayList<Person>()
+              arrayList.add(Person().apply {
+                  name = "t1"
+                  this.age = 18
+              })
+              arrayList.add(Person().apply {
+                  name = "t2"
+                  this.age = 18
+              })
+              return arrayList
+          }
+  ```
+
+  步骤3：客户端获取
+
+  ```kotlin
+      fun getPersonsList(): List<Person> {
+          if (personManagerService == null) {
+              return ArrayList()
+          }
+          return personManagerService!!.getPersonsList(18)
+      }
+  ```
+
 - Map，只支持HashMap,里面的每个元素都必须被AIDL支持,包括key和value
+
+  和 List 实现步骤一样。
+
+  ```kotlin
+      /**
+      * 通过 AIDL 传输 Map
+      * 注意：Key-Value 不支持 Integer 等包装类型
+      */
+      Map<String,Person> getPersonsMap();
+  ```
+
 - Parcelable，所有实现了Parcelable接口的对象
+
 - Serializable，所有实现了Serializable接口的对象（不能独立传输）
+
 - AIDL，所有的AIDL接口本身也可以在AIDL文件中使用，比如实现回调。
 
 ### Parcelable
@@ -294,8 +343,6 @@ import com.lizw.aidlsdk.Person;
 ```
 
 如果是 Android 系统的类，比如 Intent、Bundle，可以不写 import。
-
-
 
 ### Serializable
 
@@ -419,9 +466,67 @@ NetworkInfo networkInfo = bundle.getParcelable("network_info");
 
 AIDL是一种基于Binder实现的跨进程调用方案，Binder 对传输数据大小有限制，传输超过 1M 的文件就会报 android.os.TransactionTooLargeException 异常。不过我们依然有大文件传输的解决方案，其中一种解决办法是，使用AIDL传递文件描述符`ParcelFileDescriptor`，来实现超大型文件的跨进程传输。
 
-该部分内容较多，可以查看文章：[Android 使用AIDL传输超大型文件 - 掘金](https://juejin.cn/post/7218615271384088633)
+### 服务端返回数据
 
+服务端通过 Binder 返回 ParcelFileDescriptor 对象。
 
+```kotlin
+    private class PersonManager(val application: Application) : IPersonInfoManager.Stub() {
+		override fun getFileDescriptor(): ParcelFileDescriptor? {
+            try {
+                // test.mp4 是要传输的文件，位于app的缓存目录下，约256M
+                return ParcelFileDescriptor.open(
+                    File(application.cacheDir, "test.mp4"), ParcelFileDescriptor.MODE_READ_ONLY
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            return null
+        }
+    }
+```
+
+### 客户端接收数据
+
+客户端从 ParcelFileDescriptor 中读取数据。
+
+```kotlin
+PersonManager#getFileDescriptor
+	fun getFileDescriptor(): ParcelFileDescriptor? {
+        return personManagerService!!.fileDescriptor
+    }
+
+CoroutineScope(Dispatchers.IO).launch {
+                Log.i(TAG, "btnGetBigFile start")
+                val pfd = PersonManager.getFileDescriptor()
+                Log.i(TAG, "btnGetBigFile : ${pfd.statSize}")
+                val file = File(cacheDir, "testFromServer.mp4")
+                try {
+                    val inputStream = ParcelFileDescriptor.AutoCloseInputStream(pfd)
+                    file.delete()
+                    file.createNewFile()
+                    val stream = FileOutputStream(file)
+                    val buffer = ByteArray(1024)
+                    // 将inputStream中的数据写入到file中
+                    while (true) {
+                        // 读取数据到缓冲区
+                        val len = inputStream.read(buffer)
+                        if (len == -1) {
+                            // 如果到达输入流的末尾，则退出循环
+                            break
+                        }
+                        stream.write(buffer, 0, len) // 将缓冲区中的数据写入输出流
+                    }
+                    stream.close()
+                    pfd.close()
+                    Log.i(TAG, "btnGetBigFile end")
+                } catch (e: IOException) {
+                    e.printStackTrace()
+                }
+            }
+```
+
+当然，也可以从客户端发送 ParcelFileDescriptor 到服务端，这个例子可以查看：[Android 使用AIDL传输超大型文件 - 掘金](https://juejin.cn/post/7218615271384088633)
 
 ## 5、AIDL 引起的 ANR
 
@@ -851,6 +956,157 @@ public void optionPermission(final int i) throws RemoteException {
 
 > 这部分代码，可以参考这个库，https://github.com/android-zongwei-li/CarAndroidCourse。
 
+
+
+# 四、AIDL问题处理
+
+## 大数据问题
+
+### 一般数据
+
+```kotlin
+AIDL接口：
+
+interface IPersonInfoManager {
+	/**
+     * 发送数据。
+     * 可以用来验证 AIDL 传输时，对最大数据量的限制问题
+     * 需要注意：数组必须指定方向 in/out/inout
+     */
+    void sendData(inout byte[] data);
+}
+```
+
+测试：传输大于 1M 字节时
+
+```kotlin
+PersonManager.sendData(ByteArray(1024 * 1024))
+```
+
+报错 TransactionTooLargeException ：
+
+```kotlin
+Binder transaction failure: 4912809/29201/-28
+Large outgoing transaction of 1048704 bytes, interface descriptor , code 10
+!!! FAILED BINDER TRANSACTION !!!  (parcel size = 1048704)
+sendData: android.os.TransactionTooLargeException: data parcel size 1048704 bytes
+```
+
+所以使用 AIDL 要注意别传输太大的数据。
+
+### Bitmap
+
+服务端通过 Binder 提供下面的 Bitmap
+
+![img1](images/【总结篇】AIDL基本使用/img1.jpg)
+
+```kotlin
+private class PersonManager(val application: Application) : IPersonInfoManager.Stub() {
+	override fun getIcon(): Bitmap {
+            return ResourcesCompat.getDrawable(
+                application.resources,
+                R.drawable.img1,
+                null
+            )!!.toBitmap()
+        }
+    }
+```
+
+客户端获取Bitmap
+
+```kotlin
+    fun getIcon(): Bitmap? {
+        if (personManagerService != null) {
+            return personManagerService?.icon
+        }
+        return null
+    }
+
+            val bitmap = PersonManager.getIcon() ?: return@setOnClickListener
+            Log.i(
+                TAG,
+                "getBitmap allocationByteCount : ${bitmap.allocationByteCount / 1024 / 1024} M"
+            )
+            viewBinding.ivIcon.setImageBitmap(bitmap)
+
+getBitmap allocationByteCount : 31 M
+```
+
+实验证明，通过AIDL 的传输 Bitmap 时，大小没有限制，不会出现上面的 TransactionTooLargeException 问题。
+
+但是要注意，由于 AIDL 的调用会阻塞主线程，要注意避免出现卡顿。
+
+## 客户端问题
+
+### 1、服务端已停止时，客户端发起调用
+
+```kotlin
+object PersonManager {
+    private const val TAG = "PersonManager"
+
+    // 通过aar依赖的方式，相较于在服务端、客户端分别创建文件夹、文件的方式，更便于接入，并且不需要build后才生成文件
+    private var personManagerService: IPersonInfoManager? = null
+    private val personManagerServiceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            personManagerService = IPersonInfoManager.Stub.asInterface(service)
+            Log.i("PersonManager", "connected")
+        }
+
+        override fun onServiceDisconnected(name: ComponentName?) {
+            Log.i(TAG, "PersonManagerService Disconnected!")
+        }
+    }
+
+    fun init(application: Application) {
+        val intent = Intent().apply {
+            `package` = "com.lizw.aidlserver"
+            action = "com.lizw.aidlserver.action.PersonManagerService"
+        }
+        application.bindService(intent, personManagerServiceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    fun addPerson(person: Person) {
+        personManagerService?.addPerson(person)
+    }
+}
+```
+
+1. 在上面的代码中，首先使用init()连接上服务端
+
+2. 调用 addPerson()，应该一切正常
+
+3. 后台关闭服务端进程（清空数据）
+
+4. 此时再次调用 addPerson()，应该会报错
+
+   ```kotlin
+   FATAL EXCEPTION: main
+   Process: com.lizw.demos_androidcorelibs, PID: 30762
+   java.lang.RuntimeException: java.lang.reflect.InvocationTargetException
+   	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:562)
+   	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971)
+   Caused by: java.lang.reflect.InvocationTargetException
+   	at java.lang.reflect.Method.invoke(Native Method)
+   	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:552)
+   	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:971) 
+   Caused by: android.os.DeadObjectException
+   	at android.os.BinderProxy.transactNative(Native Method)
+   	at android.os.BinderProxy.transact(BinderProxy.java:584)
+   	at com.lizw.aidlserver.aidlsdk.person.IPersonInfoManager$Stub$Proxy.addPerson(IPersonInfoManager.java:229)
+   	at com.lizw.aidlserver.aidlsdk.person.PersonManager.addPerson(PersonManager.kt:41)
+   	at com.lizw.demos_androidcorelibs.aidl.AidlClientActivity.onCreate$lambda$2(AidlClientActivity.kt:29)
+   ```
+
+因为在关闭服务端进程后，会回调 onServiceDisconnected()，因此可以在 onServiceDisconnected 中将 personManagerService 设置为 null。
+
+## 服务端问题
+
+### 1、有多个客户端时，并发问题考虑
+
+
+
+
+
 # 总结
 
 优点：
@@ -931,6 +1187,12 @@ o 当有多个业务模块都需要 AIDL 来进行 IPC，此时需要为每个�
 
 # 参考
 
-1、[【视频文稿】车载Android应用开发与分析 - AIDL实践与封装（上）](https://juejin.cn/post/7221328463692120119)
+[【视频文稿】车载Android应用开发与分析 - AIDL实践与封装（上）](https://juejin.cn/post/7221328463692120119)
 
-2、[【视频文稿】车载Android应用开发与分析 - AIDL实践与封装（下）](https://juejin.cn/post/7236009756530933819#heading-0)
+[【视频文稿】车载Android应用开发与分析 - AIDL实践与封装（下）](https://juejin.cn/post/7236009756530933819#heading-0)
+
+[Android AIDL 服务端客户端双向死亡监听和”连接后执行”的几种方式](https://juejin.cn/post/7386504498476679195?searchId=20240801104638374C3B88C10E47C970F0#heading-1)
+
+[Android 使用AIDL传输超大型文件](https://juejin.cn/post/7218615271384088633)
+
+[Android：跨进程传递bitmap图片](https://blog.csdn.net/qq_15212357/article/details/106628628)：讲了怎么通过Bundle的putBinder方法传递Bitmap。

@@ -461,8 +461,6 @@ public class MainActivity extends AppCompatActivity {
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-90b634041b47b84a.png?imageMogr2/auto-orient/strip|imageView2/2/w/798/format/webp)
 
-示意图
-
 **步骤2：创建服务器线程**
  *TestHandler.java*
 

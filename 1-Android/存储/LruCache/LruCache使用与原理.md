@@ -222,7 +222,7 @@ public static final void main(String[] args) {
         for (Map.Entry<Integer, Integer> entry : map.entrySet()) {
             System.out.println(entry.getKey() + ":" + entry.getValue());
         }
-    }
+}
 ```
 
 输出结果：
@@ -373,48 +373,22 @@ void recordAccess(HashMap<K,V> m) {
 
 # 相关问题
 
-> 这个模块收集和记录知识点可能涉及到的一些问题，比如在做笔记时的一些疑问，或者工作中常见的问题，或者面试相关的问题等。
-
 <font color='orange'>Q：LruCache 的 Key 值用什么合适？</font>
 
 
 
-<font color='orange'>Q：</font>
-
-LruCache 的原理
-
-LruCache怎么实现？为什么是o(1)的时间复杂度？
+<font color='orange'>Q：LruCache 的原理</font>
 
 
+
+<font color='orange'>Q：LruCache怎么实现？为什么是o(1)的时间复杂度？</font>
 
 
 
 # 总结
 
-1、
-
-
-
-# 【精益求精】我还能做（补充）些什么？
-
-> 这个模块主要是探索下是否有更多关联的知识点，或者当前知识点是否还有拓展或需要深入的点？
-
-比如可以从下面几个方向进行思考：
-
-1、相关技术
-
-比如技术比较，是否有新的技术来替代等。
-
-横向、纵向（原理）去探索
-
-2、此技术在哪些项目或者三方库中用到了？
-
-3、
-
-# 脑图
-
 
 
 # 参考
 
-1、[彻底解析Android缓存机制——LruCache](https://www.jianshu.com/p/b49a111147ee)
+[彻底解析Android缓存机制——LruCache](https://www.jianshu.com/p/b49a111147ee)

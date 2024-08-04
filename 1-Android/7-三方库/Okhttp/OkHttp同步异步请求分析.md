@@ -5,19 +5,22 @@
 # 同步请求
 
 ```cpp
- //  构建okHttpClient，相当于请求的客户端，Builder设计模式
- OkHttpClient okHttpClient = new OkHttpClient.Builder().readTimeout(5, TimeUnit.SECONDS).build();
+    fun syncGet() {
         // 构建一个请求体，同样也是Builder设计模式
-        Request request = new Request.Builder().url("http://www.baidu.com").build();
-        //  生成一个Call对象，该对象是接口类型
-        Call call = okHttpClient.newCall(request);
-        try {
-            //  拿到Response
-            Response response = call.execute();
-            Log.i("TAG",response.body().string());
-        } catch (IOException e) {
-            
+        val request: Request = Request.Builder().url("http://wwww.baidu.com").build()
+        // 构建okHttpClient，相当于请求的客户端，Builder设计模式
+        // 生成一个Call对象，该对象是接口类型
+        val call = OkHttpClient().newCall(request)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // 拿到Response
+                val response = call.execute()
+                Log.d(TAG, "run: " + response.body?.string())
+            } catch (e: IOException) {
+                e.printStackTrace()
+            }
         }
+    }
 ```
 
 同步请求步骤：
@@ -59,7 +62,6 @@ public static final class Builder {
       writeTimeout = 10_000;
       pingInterval = 0;
     }
-   
 }
 
  public ConnectionPool(int maxIdleConnections, long keepAliveDuration, TimeUnit timeUnit) {

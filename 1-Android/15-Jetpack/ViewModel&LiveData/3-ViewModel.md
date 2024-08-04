@@ -21,12 +21,6 @@
 | androidx.activity:activity-ktx             | 提供 viewModelScope 等 |      |
 |                                            |                        |      |
 
-
-
-
-
-
-
 # ViewModel 简介
 
 [`ViewModel`](https://developer.android.google.cn/reference/androidx/lifecycle/ViewModel?hl=zh-cn) 类是一种[业务逻辑或屏幕级状态容器](https://developer.android.google.cn/topic/architecture/ui-layer/stateholders?hl=zh-cn)。用于将状态公开给界面，以及封装相关的业务逻辑。 主要优点是，可以缓存状态，并在配置更改后持久保留相应状态。这意味着在 activity 之间导航时或进行配置更改后（例如旋转屏幕时），界面无需重新提取数据。
@@ -39,6 +33,22 @@ ViewModel 类的主要优势有两个方面：
 
 - 可以持久保留界面状态。
 - 可以封装业务逻辑。
+
+ViewModel旨在以注重生命周期的方式存储和管理界面相关的数据(配合它里面的livedata)。
+
+1.1 将Activity的UI处理和数据处理分离，分开管理，解耦且高效。
+
+1.2 ViewModel在屏幕旋转等系统配置更改后被继续保留，避免再次请求数据，浪费网络资源。重建该 Activity时，它接收的ViewModel实例与之前的Activity持有的ViewModel相同。
+
+只有当Activity真正销毁时，框架才会调用getViewModelStore().clear()清除所有的ViewModel。
+
+1.3 避免页面销毁后，数据返回后刷新界面导致crash，例如页面发起请求后，数据还没返回就关闭activity，数据返回后，刷新界面，因view不存在而crash。
+
+1.4 两个Fragment可以使用其Activity的ViewModel来处理通信。
+
+1.5 和onSaveInstanceState()对比，onSaveInstanceState()仅适合可以序列化再反序列化的少量数据，而不适合数量可能较大的数据，如用户列表或位图。
+
+1.6 ViewModelScope，为应用中的每个ViewModel定义了ViewModelScope。如果ViewModel已清除，则在此范围内启动的协程都会自动取消。
 
 ### 持久性
 
@@ -79,8 +89,6 @@ ViewModel 是在界面层处理业务逻辑的正确位置。当需要应用业�
 以下是用户掷骰子屏幕的 ViewModel 实现示例。
 
 **重要提示**：在此示例中，获取和保存用户列表的责任在于 ViewModel，而不直接在于 activity 或 fragment。
-
-[Kotlin](https://developer.android.google.cn/topic/libraries/architecture/viewmodel?hl=zh-cn#kotlin)[Java](https://developer.android.google.cn/topic/libraries/architecture/viewmodel?hl=zh-cn#java)
 
 ```kotlin
 data class DiceUiState(
@@ -257,8 +265,6 @@ class MyViewModel(
 
 以下示例说明了如何提供 ViewModel 的实例，该实例会将作用域限定为 `Application` 类的[存储库](https://developer.android.google.cn/topic/architecture/data-layer?hl=zh-cn#architecture)和 `SavedStateHandle` 作为依赖项：
 
-[Kotlin](https://developer.android.google.cn/topic/libraries/architecture/viewmodel/viewmodel-factories?hl=zh-cn#kotlin)[Java](https://developer.android.google.cn/topic/libraries/architecture/viewmodel/viewmodel-factories?hl=zh-cn#java)
-
 ```kotlin
     import androidx.lifecycle.SavedStateHandle
     import androidx.lifecycle.ViewModel
@@ -395,8 +401,6 @@ companion object {
 
 然后，您可以使用工厂检索 ViewModel：
 
-[Kotlin](https://developer.android.google.cn/topic/libraries/architecture/viewmodel/viewmodel-factories?hl=zh-cn#kotlin)[Java](https://developer.android.google.cn/topic/libraries/architecture/viewmodel/viewmodel-factories?hl=zh-cn#java)[Jetpack Compose](https://developer.android.google.cn/topic/libraries/architecture/viewmodel/viewmodel-factories?hl=zh-cn#jetpack-compose)
-
 ```kotlin
 import androidx.activity.viewModels
 
@@ -410,11 +414,7 @@ class MyActivity : AppCompatActivity() {
 }
 ```
 
-
-
 # ViewModel 作用域 API **[Android Jetpack](https://developer.android.google.cn/jetpack?hl=zh-cn) 的一部分。**
-
-
 
 作用域是有效使用 ViewModel 的关键。每个 ViewModel 的作用域都限定为一个实现 [`ViewModelStoreOwner`](https://developer.android.google.cn/reference/androidx/lifecycle/ViewModelStoreOwner?hl=zh-cn) 接口的对象。有多个 API 可帮助您更轻松地管理 ViewModel 的作用域。本文档简要介绍了您应该了解的一些关键技术。
 
@@ -807,41 +807,15 @@ class MyViewModelTest {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## ViewModel
+# ViewModel原理解析
 
 > The [`ViewModel`](https://developer.android.com/reference/android/arch/lifecycle/ViewModel.html) class is designed to store and manage UI-related data in a lifecycle conscious way.
 
 简而言之，就是<u>在生命周期中管理数据</u>。说到生命周期，我们都知道 Android 中 `Activity` 和 `Fragment` 都有各自对应的生命周期，比如 `Activity`，它的生命周期如下图：
 
-[![activity_lifecycle](images/3-ViewModel/doc-img.png)](https://leo-doc-img.oss-cn-hangzhou.aliyuncs.com/doc-img/activity_lifecycle.png?x-oss-process=style/doc-img)
+![activity_lifecycle](images/3-ViewModel/doc-img.png)
+
+## 从没有ViewModel的时候开始
 
 通常我们会在 `onCreate()` 初始化数据，在 `onResume()` 中展示数据，`onDestroy()` 中释放数据，类似下面这些伪代码：
 
@@ -859,9 +833,9 @@ onDestory() {
 }
 ```
 
-如果没有在 `onDestory()` 中及时释放某些资源，可能还会导致内存泄漏，这是第一个问题。
+如果没有在 `onDestory()` 中及时释放某些资源，可能会导致内存泄漏，这是第一个问题。
 
-第二个问题，Android 系统可能会在内存不足的情况下，回收了 `Activity`，导致 `Activity` 重建时数据会丢失，对于这种情况，Android 提供了 `onSaveInstanceState` 中保存数据，在 `onRestoreInstanceState` 和 `onCreate` 中获取。类似下面这些伪代码：
+第二个问题，Android 系统可能会在内存不足的情况下，回收了 `Activity`，导致 `Activity` 重建时数据会丢失，对于这种情况，Android 提供了 `onSaveInstanceState` 来保存数据，在 `onRestoreInstanceState` 和 `onCreate` 中获取。类似下面这些伪代码：
 
 ```
 onSaveInstanceState(Bundle outState) {
@@ -911,7 +885,9 @@ onDestory() {
 
 看了上面解决思路后，我们再来看看 Google 提供的 `ViewModel`，它是如何解决上面提到的两个问题的。首先看下，`ViewModel`的典型用法，来源于官方文档：
 
-首先定义一个 `MyViewModel` 继承于 `ViewModel`，这里使用 `LiveData` 作为数据源，这里我们只需要知道 `LiveData` 和 `RxJava` 是差不多的东西就可以了
+## ViewModel使用
+
+首先定义一个 `MyViewModel` 继承于 `ViewModel`，这里使用 `LiveData` 作为数据源。
 
 ```java
 public class MyViewModel extends ViewModel {
@@ -955,15 +931,9 @@ public class MainActivity extends AppCompatActivity {
 }
 ```
 
-在最新版本中，这种写法已经弃用：
+## 1、new ViewModelProvider
 
-```
-model = ViewModelProviders.of(this).get(XXXViewModel.class);
-```
-
-现在需要先new ViewModelProvider对象，再使用这个provider去获取ViewModel。
-
-#### 1、 new ViewModelProvider(）
+### 构造方法
 
 需要将当前 `Activity` 或 `Fragment` 作为参数，这也是 `ViewModel` 将数据与生命周期结合起来的地方。那具体也是如何实现的呢？
 
@@ -985,13 +955,30 @@ model = ViewModelProviders.of(this).get(XXXViewModel.class);
     }
 ```
 
-##### 1.1、ViewModelStoreOwner接口
+通过构造方法的调用链，可以看到最终都是调用了第三个构造方法。
+
+- ViewModelStoreOwner接口：ComponentActivity和Fragment实现了这个接口，所以我们在Activity或者Fragment中使用ViewModelProvider传入的this就可以了。
+
+  ```kotlin
+      public class ComponentActivity extends androidx.core.app.ComponentActivity implements
+          ViewModelStoreOwner,
+          HasDefaultViewModelProviderFactory,
+  	}
+  ```
+
+- ViewModelStore：ViewModelStore 通过内部的一个HashMap集合来存储 ViewModel 对象。
+
+- ComponentActivity 持有一个 ViewModelStore，可以通过 ViewModelStoreOwner 中的 getViewModelStore() 方法获取。
+
+- Factory：是一个接口，用来创建ViewModel的
+
+### 1.1、ViewModelStoreOwner接口
 
 以下的Activity/Fragment都实现了此接口。
 
+![image-20240725103639095](images/3-ViewModel/image-20240725103639095.png)
 
-
-##### 1.2、Factory
+### 1.2、Factory
 
 `factory` 是 `ViewModel` 的工厂类，这里默认使用 `AndroidViewModelFactory` 最后返回 `ViewModelProvider`实例。
 
@@ -1024,11 +1011,7 @@ public class ViewModelProvider {
             //noinspection TryWithIdenticalCatches
             try {
                 return modelClass.newInstance();
-            } catch (InstantiationException e) {
-                throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-            }
+            } catch (InstantiationException e) {...}
         }
     }
     
@@ -1057,15 +1040,7 @@ public class ViewModelProvider {
                 //noinspection TryWithIdenticalCatches
                 try {
                     return modelClass.getConstructor(Application.class).newInstance(mApplication);
-                } catch (NoSuchMethodException e) {
-                    throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-                } catch (IllegalAccessException e) {
-                    throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-                } catch (InstantiationException e) {
-                    throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-                } catch (InvocationTargetException e) {
-                    throw new RuntimeException("Cannot create an instance of " + modelClass, e);
-                }
+                } catch (NoSuchMethodException e) {...}
             }
             return super.create(modelClass);
         }
@@ -1073,7 +1048,9 @@ public class ViewModelProvider {
 }
 ```
 
-#### 2、ViewModelProvider.get()
+## 2、ViewModelProvider.get()
+
+ViewModelProvider获取ViewModel
 
 ```java
 public class ViewModelProvider {
@@ -1114,50 +1091,56 @@ public class ViewModelProvider {
 }
 ```
 
-##### 2.1 ViewModelStore.get()
+调用get方法后，会调用第二个get方法，传递key（DEFAULT_KEY + ":" + canonicalName）给第二个get方法
 
-ViewModelStore是真正负责存储ViewModel的。
+1. ViewModelStore.get()：ViewModelStore是真正负责存储ViewModel的。
 
-##### 2.2 OnRequeryFactory，KeyedFactory
+   根据提供的key从ViewModelStore中获取一个ViewModel对象。如果这个获取到的ViewModel对象实例存在，那么就将其返回；如果该ViewModel对象不存在，就通过Factory创建一个ViewModel对象，并将其存储到ViewModelStore中，并将这个新创建的ViewModel对象返回。
 
-也是`ViewModel` 的工厂类，在创建ViewModel的时候会传入参数key。
+2. 这里面存在三个Factory：Factory，KeyedFactory和OnrequeryFactory，keyedFactory和Factory相比就是create方法中多了一个key参数。
 
-```java
-    static class OnRequeryFactory {
-        void onRequery(@NonNull ViewModel viewModel) {
-        }
-    }
+   ViewModelStore获取到ViewModel时，会判断当前mFactory是否是OnRequeryFactory类型的，是的话会回调onRequery方法。那么OnRequeryFactory回调onRequery有什么用呢？其实ViewModel不仅可以因为配置改变可以恢复Activity数据，也能恢复因为系统资源紧张而回收掉的Activity数据，只不过后者需要依靠SaveStateHandler。
 
-    abstract static class KeyedFactory extends OnRequeryFactory implements Factory {
+   - OnRequeryFactory，KeyedFactory
 
-        @NonNull
-        public abstract <T extends ViewModel> T create(@NonNull String key,
-                @NonNull Class<T> modelClass);
+     也是 `ViewModel` 的工厂类，在创建ViewModel的时候会传入参数key。
 
-        @NonNull
-        @Override
-        public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
-            throw new UnsupportedOperationException("create(String, Class<?>) must be called on "
-                    + "implementaions of KeyedFactory");
-        }
-    }
-```
+     ```kotlin
+         static class OnRequeryFactory {
+             void onRequery(@NonNull ViewModel viewModel) {
+             }
+         }
+     
+         abstract static class KeyedFactory extends OnRequeryFactory implements Factory {
+     
+             @NonNull
+             public abstract <T extends ViewModel> T create(@NonNull String key,
+                     @NonNull Class<T> modelClass);
+     
+             @NonNull
+             @Override
+             public <T extends ViewModel> T create(@NonNull Class<T> modelClass) {
+                 throw new UnsupportedOperationException("create(String, Class<?>) must be called on "
+                         + "implementaions of KeyedFactory");
+             }
+         }
+     ```
 
-在说ViewModelStore之前先来总结一下：
+总结：ViewModelProvider获取ViewModel流程
 
-将以上两段代码合起来看，其实逻辑是比较清晰的：
+![ViewModelProvider#create](images/3-ViewModel/doc-img-1715446811514-3.png)
 
-[![ViewModelProvider#create](images/3-ViewModel/doc-img-1715446811514-3.png)](https://leo-doc-img.oss-cn-hangzhou.aliyuncs.com/doc-img/viewmodel/ViewModelProvider%23create.png?x-oss-process=style/doc-img)
+- 首先创建ViewModelProvider传入ViewModelStoreOwner和Factory 
+- 调用ViewModelProvider的get方法，从ViewModelStore中获取ViewModel，有则直接返回，没有就创建后返回。
 
 Factor 的实现可以通过反射来实现，比如默认的 `AndroidViewModelFactory` 会优先调用使用 `Application` 作为参数的构造方法，来创建实例。所以，如果自定义的 `ViewModel` 构造方法有其他参数，就需要自定义 `Factor`
 
-#### 3 ViewModelStore
+## 3、ViewModelStore
 
  `ViewModelStore` 是 `Activity` 重建时还能拥有之前数据的保障。
 
 ```java
 public class ViewModelStore {
-
     private final HashMap<String, ViewModel> mMap = new HashMap<>();
 
     final void put(String key, ViewModel viewModel) {
@@ -1187,7 +1170,7 @@ public class ViewModelStore {
 }
 ```
 
-`ViewModelStore` 的源码很短，可以看到其实就是使用 `HashMap` 作为数据载体。既然有使用，那就需要清理操作，可以看到有个 `clear` 它会清除 `HashMap` 中的缓存数据。我们首先看下 `ViewModelProvider` 中的 `mViewModelStore` 是在哪里赋值的：
+`ViewModelStore` 的源码很短，就是使用 `HashMap` 作为数据载体。既然有使用，那就需要清理操作，有个 `clear` 用于清除 `HashMap` 中的缓存数据。我们首先看下 `ViewModelProvider` 中的 `mViewModelStore` 是在哪里赋值的：
 
 ```java
 public ViewModelProvider(@NonNull ViewModelStoreOwner owner, @NonNull Factory factory) { 
@@ -1202,18 +1185,24 @@ public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory
 
 通过 `ViewModelStoreOwner.getViewModelStore` 获取 `ViewModelStore` 实例对象，而 `ViewModelStoreOwner` 实际就是我们调用 `new ViewModelProvider` 中传递进来的的 `FragmentActivity` 和 `Fragment`。
 
-#### 4、owner.getViewModelStore()
+## 4、owner.getViewModelStore()
 
 看一下ComponentActivity的实现：
 
 ```java
     private ViewModelStore mViewModelStore;
 
-	public ViewModelStore getViewModelStore() {
+	@Override
+    public ViewModelStore getViewModelStore() {
         if (getApplication() == null) {
             throw new IllegalStateException("Your activity is not yet attached to the "
                     + "Application instance. You can't request ViewModel before onCreate call.");
         }
+        ensureViewModelStore();
+        return mViewModelStore;
+    }
+
+    void ensureViewModelStore() {
         if (mViewModelStore == null) {
             NonConfigurationInstances nc =
                     (NonConfigurationInstances) getLastNonConfigurationInstance();
@@ -1225,22 +1214,94 @@ public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory
                 mViewModelStore = new ViewModelStore();
             }
         }
-        return mViewModelStore;
     }
 ```
 
 通过new ViewModelStore()进行实例化，并持有mViewModelStore对象。
 
-#### 5 数据保持与恢复
+getViewModelStore()通过两种方法获取到ViewModelStore
+
+1. 从NonConfigurationInstances中获取；
+
+   NonConfigurationInstances 用来包装不受配置更改影响的数据。Activity的NonConfigurationInstances在系统配置改变时保存了ViewModelStore和fragments等
+
+2. new一个出来。
+
+## 5 数据保持与恢复
+
+前面的代码能够完成创建、保存 ViewModel 到 ViewModelStore 中。
+
+### ViewModelStore的保存
+
+#### ActivityThread # handleRelaunchActivity
+
+系统配置发生改变时，AMS会调用ActivityThread的handleRelaunchActivity，并且通过当前Activity对应的ActivityRecord构建一个ActivityClientRecord传递过来
+
+Activity的生命周期方法是在ActivityThread中执行的
 
 ```java
-    public final Object onRetainNonConfigurationInstance() {
+private void handleRelaunchActivity(ActivityClientRecord tmp) {
+    ...
+    //注意最后一个参数getNonConfigInstance为true，如果是正常退出Activity的走到onDestory的该参数为false
+    handleDestroyActivity(r.token, false, configChanges, true);
+    ...
+    handleLaunchActivity(r, currentIntent, "handleRelaunchActivity");
+}
+
+private void handleDestroyActivity(IBinder token, boolean finishing,
+        int configChanges, boolean getNonConfigInstance) {
+    ActivityClientRecord r = performDestroyActivity(token, finishing,
+                configChanges, getNonConfigInstance);
+}
+```
+
+#### ActivityThread #performDestroyActivity
+
+```java
+ActivityClientRecord performDestroyActivity(IBinder token, boolean finishing,
+            int configChanges, boolean getNonConfigInstance, String reason) {
+             ....
+             
+            //注意此时ActivityClientRecord并未从mActivities中移除，只有执行完Destroy才会移除
+            ActivityClientRecord r = mActivities.get(token);
+            performPauseActivityIfNeeded(r, "destroy");
+
+            if (!r.stopped) {
+                  //执行Activity的onStop()方法
+                callActivityOnStop(r, false /* saveState */, "destroy");
+            }
+            /此时为true，正常退出的为false
+            if (getNonConfigInstance) {
+                try {
+                    //调用对应Activity的retainNonConfigurationInstances方法
+                    //返回值NonConfigurationInstance赋给ActivityClientRecord内的lastNonConfigurationInstances持有
+                    r.lastNonConfigurationInstances
+                            = r.activity.retainNonConfigurationInstances();
+                } catch (Exception e) {
+                    if (!mInstrumentation.onException(r.activity, e)) {
+                      ...
+                    }
+                }
+            }
+           
+          /最终回调到onDestroy方法
+          mInstrumentation.callActivityOnDestroy(r.activity);
+          ...
+    }
+```
+
+Activity的retainNonConfigurationInstances 调用了onRetainNonConfigurationInstance
+
+#### ComponentActivity # onRetainNonConfigurationInstance()
+
+```java
+public final Object onRetainNonConfigurationInstance() {
+        // Maintain backward compatibility.
         Object custom = onRetainCustomNonConfigurationInstance();
 
         ViewModelStore viewModelStore = mViewModelStore;
         if (viewModelStore == null) {
-            // No one called getViewModelStore(), so see if there was an existing
-            // ViewModelStore from our last NonConfigurationInstance
+            // No one called getViewModelStore()，从lastNonConfigurationInstance取出viewModelStore
             NonConfigurationInstances nc =
                     (NonConfigurationInstances) getLastNonConfigurationInstance();
             if (nc != null) {
@@ -1251,7 +1312,8 @@ public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory
         if (viewModelStore == null && custom == null) {
             return null;
         }
-
+        
+        //创建一个NonConfigurationInstances，将此时的mViewModelStore设置进去
         NonConfigurationInstances nci = new NonConfigurationInstances();
         nci.custom = custom;
         nci.viewModelStore = viewModelStore;
@@ -1259,13 +1321,70 @@ public ViewModelProvider(@NonNull ViewModelStore store, @NonNull Factory factory
     }
 ```
 
+在调用onDestory()方法前，会创建一个NonConfigurationInstances对象，将viewModelStore存储在NonConfigurationInstances，然后将NonConfigurationInstances存储在ActivityClientrecord中。
+
 > 在`ComponentActivity` 中会通过 `onRetainNonConfigurationInstance` 和 `getLastNonConfigurationInstance` 去保持 `Activity` 因为屏幕旋转等配置发生改变而导致重建时，数据的唯一性。
 
 恢复则使用 **4** 中的getViewModelStore()方法获取ViewModelStore，进而恢复数据。
 
-### 小结
+### ViewModelStore的恢复
 
-现在我们来比较下自定义实现的方案和 `ViewModel` ，可以发现其实核心思想是共通的，首先我们需要一个保存于 `Activity` 和 `Fragment` 生命周期之外的存储空间，在 `ViewModel` 中是 `ViewModelStore`，其次我们需要在 `Activity` 和 `Fragment`对应的生命周期中，去初始化和清理这个 `ViewModelStore`
+ViewModel是从ViewModelStore中获取
+
+ViewModelStore是通过ViewModelStoreOwner.getViewModelStore方法获取
+
+ComponentActivity实现了ViewModelStoreOwner接口和HasDefaultViewModelProviderFactory
+
+ViewModelStore 从 NonConfigurationInstance 中恢复。
+
+#### ActivityThread #performLaunchActivity
+
+```java
+private Activity performLaunchActivity(ActivityClientRecord r, Intent customIntent) {
+...
+    activity.attach(appContext, this, getInstrumentation(), r.token,
+                        r.ident, app, r.intent, r.activityInfo, title, r.parent,
+                        r.embeddedID, r.lastNonConfigurationInstances, config,
+                        r.referrer, r.voiceInteractor, window, r.configCallback,
+                        r.assistToken);
+}
+...
+```
+
+1. ActivityThread的handleLaunchActivity最终会调用 performLaunchActivity，最终调用到activity.attach，传入了lastNonConfigurationInstances
+2. 这样对于新的Activity来说，获取到的就是之前Activity的NonConfigurationInstance，其中的ViewModelStore也是之前的，ViewModel自然也是之前的。这样就保证了在系统配置改变时，ViewModel不变了。
+
+### 总结
+
+1. 系统配置改变时，构建一个NonConfigurationInstance，将ViewModelStore保持到NonConfigurationInstance，再将NonConfigurationInstance保存到ActivityClientrecord的lastNonConfigurationInstances
+2. 恢复时，将ActivityClientrecord的lastNonConfigurationInstances传递给新的Activity，再通过getViewModelStore()获取时就能从新的Activity的lastNonConfigurationInstances获取ViewModelStore，进而获取之前的ViewModel。
+
+## Activity正常销毁
+
+```java
+public ComponentActivity() {
+    getLifecycle().addObserver(new LifecycleEventObserver() {
+            @Override
+            public void onStateChanged(@NonNull LifecycleOwner source,
+                    @NonNull Lifecycle.Event event) {
+                if (event == Lifecycle.Event.ON_DESTROY) {
+                    // Clear out the available context
+                    mContextAwareHelper.clearAvailableContext();
+                    // And clear the ViewModelStore
+                    if (!isChangingConfigurations()) {
+                        getViewModelStore().clear();
+                    }
+                }
+            }
+        });
+    }
+```
+
+Activity正常销毁时，会通过getViewModelStore().clear()清理所有的ViewModel。
+
+## 小结
+
+现在我们来比较下自定义实现的方案和 `ViewModel` ，可以发现其实核心思想是共通的，首先我们需要一个保存于 `Activity` 和 `Fragment` 生命周期之外的存储空间，在 `ViewModel` 中是 `ViewModelStore`，其次我们需要在 `Activity` 和 `Fragment`对应的生命周期中，去初始化和清理这个 `ViewModelStore`。
 
 
 
@@ -1286,3 +1405,5 @@ ViewModelProvider：用于操作ViewModel，Factory，ViewModelStore，Component
 # 参考
 
 [官方：ViewModel 概览](https://developer.android.google.cn/topic/libraries/architecture/viewmodel?hl=zh-cn)
+
+[ViewModel原理](https://juejin.cn/post/6972129920734478350)

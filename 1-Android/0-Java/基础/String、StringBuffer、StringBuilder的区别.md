@@ -360,13 +360,6 @@ public boolean equals(Object obj){
 
 > `Java7` 前支持的类型：枚举、`byte`、`short`、`char`、`int` & 对应的封装类
 
-至此，关于关于Java String类的必知必会讲解完毕。
-
-作者：Carson带你学安卓
-链接：
-来源：简书
-著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
-
 
 
 

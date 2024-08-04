@@ -16,6 +16,32 @@
 
 BroadcastReceiver 自身并不实现图形用户界面，但是当它收到某个通知后， BroadcastReceiver 可以通过启动 Service 、启动 Activity 或是 NotificationMananger 提醒用户。
 
+# 应用场景
+
+- `Android`不同组件间的通信（含 ：应用内 / 不同应用之间）
+- 多线程通信
+- 与 `Android` 系统在特定情况下的通信
+
+> 如：电话呼入时、网络可用时
+
+# 实现原理
+
+## 4.1 采用的模型
+
+- `Android`中的广播使用了设计模式中的**观察者模式**：基于消息的发布 / 订阅事件模型
+
+> 因此，Android将广播的**发送者 和 接收者 解耦**，使得系统方便集成，更易扩展
+
+## 4.2 模型讲解
+
+- 模型中有3个角色：
+  1. 消息订阅者（广播接收者）
+  2. 消息发布者（广播发布者）
+  3. 消息中心（`AMS`，即`Activity Manager Service`）
+- 示意图 & 原理如下
+
+![img](https:////upload-images.jianshu.io/upload_images/944365-9fca9fd3978cef10.png?imageMogr2/auto-orient/strip|imageView2/2/w/830/format/webp)
+
 # 二、广播分类
 
 `BroadcastReceiver`的所有广播类型，主要分为5类：
@@ -56,10 +82,6 @@ sendBroadcast(intent);
 ```
 
 - 若发送广播有相应权限，那么广播接收者也需要相应权限
-
-
-
-
 
 ## 2、系统广播（System Broadcast）
 
@@ -132,8 +154,6 @@ public void onReceive(Context arg0, Intent intent) {
 ```
 
 高级别的广播收到该广播后，可以决定把该广播是否截断掉。同级别接收是先后是随机的，如果先接收到的把广播截断了，同级别的例外的接收者是无法收到该广播。
-
-
 
 ## 4、本地广播（Local Broadcast）
 
@@ -234,8 +254,6 @@ sendStickyOrderedBroadcast(intent, resultReceiver, scheduler, initialCode, initi
  <uses-permission android:name="android.permission.BROADCAST_STICKY" /> 
 ```
 
-# 
-
 # 三、接收广播消息（BroadcastReceiver的注册）
 
 Android内置了很多系统级别的广播，比如手机开机完成、电量变化等情况，都会发出广播。可以在程序中接收这些广播。广播接收器通过注册来监听广播，有两种注册方式：动态注册和静态注册（推荐使用），广播接收者在注册后就开始监听系统或者应用之间发送的广播消息。
@@ -285,8 +303,6 @@ IntentFilter指明要接收的广播BroadcastReceiver指定广播接收器，接
      }
 }
 ```
-
-
 
 ## 3.2 静态注册
 
@@ -402,8 +418,6 @@ public class MainActivity extends Activity {
 - 对于应用内广播的动态注册（LocalBroadcastManager方式），回调onReceive(context, intent)中的context返回值是：Application Context。
 - 对于应用内广播的动态注册（非LocalBroadcastManager方式），回调onReceive(context, intent)中的context返回值是：Activity Context；
 
-
-
 # 四、其他
 
 ## BroadcastReceiver使用注意
@@ -467,8 +481,6 @@ public void onReceive(Context context, Intent intent) {
         Log.i(TAG, "battery: " + percent + "%");  
     }  
 ```
-
-
 
 # 总结
 
@@ -685,75 +697,13 @@ BroadcastReceiver 所在消息队列拿到此广播后，回调它的 onReceive(
 
 
 
-# 前言
-
-- `BroadcastReceiver`（广播接收器），属于 `Android` 四大组件之一
-- 在 `Android` 开发中，`BroadcastReceiver` 的应用场景非常多
-- 今天，我将详细讲解关于`BroadcastReceiver`的一切相关知识
-
-------
-
-# 目录
-
 ![img](https:////upload-images.jianshu.io/upload_images/944365-194f7effd72ce409.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
 
-示意图
-
-------
-
-# 1. 定义
-
-即 广播，是一个全局的监听器，属于`Android`四大组件之一
-
-> `Android` 广播分为两个角色：广播发送者、广播接收者
-
-------
-
-# 2. 作用
-
-监听 / 接收 应用 `App` 发出的广播消息，并 做出响应
-
-------
-
-# 3. 应用场景
-
-- `Android`不同组件间的通信（含 ：应用内 / 不同应用之间）
-- 多线程通信
-- 与 `Android` 系统在特定情况下的通信
-
-> 如：电话呼入时、网络可用时
-
-------
-
-# 4. 实现原理
-
-### 4.1 采用的模型
-
-- `Android`中的广播使用了设计模式中的**观察者模式**：基于消息的发布 / 订阅事件模型
-
-> 因此，Android将广播的**发送者 和 接收者 解耦**，使得系统方便集成，更易扩展
-
-### 4.2 模型讲解
-
-- 模型中有3个角色：
-  1. 消息订阅者（广播接收者）
-  2. 消息发布者（广播发布者）
-  3. 消息中心（`AMS`，即`Activity Manager Service`）
-- 示意图 & 原理如下
-
-![img](https:////upload-images.jianshu.io/upload_images/944365-9fca9fd3978cef10.png?imageMogr2/auto-orient/strip|imageView2/2/w/830/format/webp)
-
-示意图
-
-------
-
-# 5. 使用流程
+# 使用流程
 
 - 使用流程如下：
 
 ![img](https:////upload-images.jianshu.io/upload_images/944365-7c9ff656ebd1b981.png?imageMogr2/auto-orient/strip|imageView2/2/w/1200/format/webp)
-
-示意图
 
 - 下面，我将一步步介绍如何使用`BroadcastReceiver`
 

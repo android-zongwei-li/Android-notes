@@ -128,16 +128,6 @@ public class Singleton {
 
 
 
-# 总结
-
-1、
-
-## 【精益求精】我还能做（补充）些什么？
-
-1、
-
-
-
 # 参考
 
 1、[关于volatile解决DCL(双重检查)问题的看法](https://blog.csdn.net/ACreazyCoder/article/details/80982578)

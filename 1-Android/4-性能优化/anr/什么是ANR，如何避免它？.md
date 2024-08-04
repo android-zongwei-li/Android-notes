@@ -162,7 +162,7 @@ Zygote loaded classes=10642 post zygote classes=1095
 Intern table: 74397 strong; 365 weak
 JNI: CheckJNI is on; globals=609 (plus 26 weak)
 Libraries: /data/app/com.lay.layzproject-ctmKoWSLQO-XwViIKfoW5Q==/lib/x86/libmmkv.so /system/lib/libandroid.so /system/lib/libcompiler_rt.so /system/lib/libjavacrypto.so /system/lib/libjnigraphics.so /system/lib/libmedia_jni.so /system/lib/libsoundpool.so /system/lib/libwebviewchromium_loader.so libjavacore.so libopenjdk.so (10)
-//已经分配了堆内存大小3M，已经使用了2M，创建了43648个对象
+// 已经分配了堆内存大小3M，已经使用了2M，创建了43648个对象
 Heap: 20% free, 2MB/3MB; 43648 objects
 // GC的一些信息，可以不关注
 Dumping cumulative Gc timings
@@ -656,8 +656,6 @@ Tips1：定位问题。
 
 # 参考
 
-1、[深入解析](https://mp.weixin.qq.com/s?__biz=MzIwMTAzMTMxMg==&mid=2649493643&idx=1&sn=34b51d1f61bd2ecaa8fd0a2d39c4d1d1&chksm=8eec9b74b99b126246acc4547597dfe55c836b8f689b2d1a65bdf1ee2054ced2fc070bfa2678&mpshare=1&scene=24&srcid=0116vzNfMMv2dLizhAT8mEYq)
+[看完这篇 Android ANR 分析，就可以和面试官装逼了！](https://mp.weixin.qq.com/s?__biz=MzIwMTAzMTMxMg==&mid=2649493643&idx=1&sn=34b51d1f61bd2ecaa8fd0a2d39c4d1d1&chksm=8eec9b74b99b126246acc4547597dfe55c836b8f689b2d1a65bdf1ee2054ced2fc070bfa2678&mpshare=1&scene=24&srcid=0116vzNfMMv2dLizhAT8mEYq)
 
-2、[Android进阶宝典 -- 如何通过ANR日志分析问题原因](https://juejin.cn/post/7222509109949677629)
-
-3、
+[Android进阶宝典 -- 如何通过ANR日志分析问题原因](https://juejin.cn/post/7222509109949677629)
