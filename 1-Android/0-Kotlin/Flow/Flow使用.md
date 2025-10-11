@@ -77,7 +77,7 @@ lifecycleScope.launch {
 
 ## 一般 Flow
 
-> 一般的`Fowl` , 仅有一个观察者 。冷流 。
+> 一般的`Flow` , 仅有一个观察者 。冷流 。
 
 ```kotlin
 val testFlow = flow<String>{
