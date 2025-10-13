@@ -1,10 +1,10 @@
 `Kotlin Flow` 基本上可以替代RxJava，其提供了诸多操作符来处理数据。本文分下类，整理基本用法。
 
-问题自测
-1、冷流、热流的区别？冷流有哪些？热流有哪些？
-2、冷流、热流的使用（适用）场景？
-3、emit()和tryEmit()方法的的区别？
-4、Flow和LiveData的区别？什么时候用LiveData，什么时候用Flow？
+问题自测<br>
+1、冷流、热流的区别？冷流有哪些？热流有哪些？<br>
+2、冷流、热流的使用（适用）场景？<br>
+3、emit()和tryEmit()方法的的区别？<br>
+4、Flow和LiveData的区别？什么时候用LiveData，什么时候用Flow？<br>
 5、
 
 # 冷流与热流
@@ -77,7 +77,8 @@ lifecycleScope.launch {
 
 ## 一般 Flow
 
-> 一般的`Flow` , 仅有一个观察者 。冷流 。
+> 冷流。<br>
+> 一般的`Flow`, 仅有一个观察者。
 
 ```kotlin
 val testFlow = flow<String>{
@@ -99,9 +100,10 @@ flow
 
 ## StateFlow
 
-> **有状态**的`Flow` ，可以有多个观察者，热流
-> 构造时需要传入初始值 : initialState
-> 常用作与UI相关的数据观察，类比`LiveData`
+> 热流。<br>
+> **有状态**的`Flow` ，可以有多个观察者<br>
+> 构造时需要传入初始值 : initialState<br>
+> 常用作与UI相关的数据观察，类比`LiveData`<br>
 
 ```kotlin
 //创建
@@ -124,11 +126,11 @@ Result.Sucess
 
 ## SharedFlow
 
-> 可定制化的`StateFlow`，可以有多个观察者，热流. 无需初始值，有三个可选参数：
-> `replay` - **重播**给新订阅者的值的数量（不能为负，默认为零）。 
-> `extraBufferCapacity` - 除了replay之外**缓冲**的值的数量。 当有剩余缓冲区空间时， emit不会挂起（可选，不能为负，默认为零）。
+> 热流。<br>
+> 可定制化的`StateFlow`，可以有多个观察者。无需初始值，有三个可选参数：<br>
+> `replay` - **重播**给新订阅者的值的数量（不能为负，默认为零）。<br>
+> `extraBufferCapacity` - 除了replay之外**缓冲**的值的数量。 当有剩余缓冲区空间时， emit不会挂起（可选，不能为负，默认为零）。<br>
 > `onBufferOverflow` - 配置缓冲区**溢出**的操作（可选，默认为暂停尝试发出值）
-> 使用`SharedFlow` 你可以写个 [FlowEventBus](https://juejin.cn/post/6985093305470025764)
 
 ```kotlin
 //创建
