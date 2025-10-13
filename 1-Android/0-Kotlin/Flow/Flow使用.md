@@ -174,8 +174,8 @@ MutableSharedFlow和MutableStateFlow是Kotlin协程库中用于处理流式数�
 
 1. 初始值要求
 
-- **MutableStateFlow**：需要有一个初始值。这个初始值在创建MutableStateFlow对象时就必须指定，代表了状态的初始状态。
-- **MutableSharedFlow**：不需要初始值。它可以在没有初始数据的情况下被创建，更适合于那些不需要初始数据或者初始数据不重要的场景。
+- **MutableStateFlow**：创建时，必须设置一个初始值，表示初始状态。
+- **MutableSharedFlow**：创建时，不要求设置初始值，适用于不需要初始数据的场景。
 
 2. 缓存和重放行为
 
@@ -184,7 +184,7 @@ MutableSharedFlow和MutableStateFlow是Kotlin协程库中用于处理流式数�
 
 3. 背压处理
 
-- **MutableStateFlow**：主要用于状态管理，其设计并不直接关注背压问题（即生产者发送数据的速度超过消费者处理数据的速度时的处理）。它更侧重于状态的更新和通知。
+- **MutableStateFlow**：主要用于状态管理（侧重于状态的更新和通知），其设计并不直接关注背压问题（即生产者发送数据的速度超过消费者处理数据的速度时的处理）。
 - **MutableSharedFlow**：提供了更灵活的背压处理机制。通过extraBufferCapacity和onBufferOverflow参数，可以控制当缓存满时的行为，如暂停发送、丢弃旧数据或抛出异常等。
 
 4. 使用场景
@@ -194,7 +194,7 @@ MutableSharedFlow和MutableStateFlow是Kotlin协程库中用于处理流式数�
 
 5. 性能考虑
 
-- 在选择使用MutableStateFlow还是 MutableSharedFlow 时，还需要考虑性能因素。由于MutableStateFlow通常用于状态管理，并且其设计更侧重于状态的简单更新和通知，因此在性能方面可能更加高效。而MutableSharedFlow由于支持多个观察者和缓存机制，可能在处理大量数据和复杂场景时会有更高的性能开销。
+- 在选择使用 MutableStateFlow 还是 MutableSharedFlow 时，还需要考虑性能因素。由于MutableStateFlow通常用于状态管理，并且其设计更侧重于状态的简单更新和通知，因此在性能方面可能更加高效。而MutableSharedFlow由于支持多个观察者和缓存机制，可能在处理大量数据和复杂场景时会有更高的性能开销。
 
 综上所述，MutableSharedFlow和MutableStateFlow在初始值要求、缓存和重放行为、背压处理、使用场景以及性能考虑等方面存在明显的区别。在选择使用哪个类时，需要根据具体的应用场景和需求进行权衡和选择。
 
@@ -218,10 +218,10 @@ MutableSharedFlow通过几个参数和机制来支持背压处理，主要包括
    - **replay**：决定了新的订阅者能够收到多少历史数据。如果replay设置为0，则新的订阅者不会收到任何历史数据；如果设置为1或更大值，则新的订阅者可以收到最新的一个或多个数据项。
    - **extraBufferCapacity**：为MutableSharedFlow提供了一个额外的缓冲区容量，用于在数据生产速率高于消费速率时缓存数据。这个参数与replay参数共同决定了缓存的总容量。
 2. onBufferOverflow参数
-   - 这个参数指定了当缓冲区满时（即达到replay+extraBufferCapacity的容量限制）应该采取的策略。可用的策略包括：
+   - 指定当缓冲区满时（即达到replay+extraBufferCapacity的容量限制）应该采取的策略。可用的策略包括：
      - **BufferOverflow.SUSPEND**：当缓冲区满时，新的emit操作将被挂起，直到缓冲区中有空间可用。这是默认策略。
-     - **BufferOverflow.DROP_OLDEST**：当缓冲区满时，将丢弃最旧的数据项，以便为新数据腾出空间。
-     - **BufferOverflow.DROP_LATEST**：当缓冲区满时，将丢弃最新的（即最近尝试添加的）数据项。
+     - **BufferOverflow.DROP_OLDEST**：当缓冲区满时，丢弃 buffer 里最旧的数据项，然后把新数据加进去。
+     - **BufferOverflow.DROP_LATEST**：当缓冲区满时，buffer 保持不变，丢弃最新 emit() 的（即最近尝试添加的）数据项。
 
 ## 背压处理的实际应用
 
