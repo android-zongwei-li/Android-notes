@@ -1,0 +1,83 @@
+```markdown
+# 建议与迭代计划 — 用于把 1-Android 打造成工程化、可验证的专业知识库
+
+目标
+- 把个人知识从“笔记型”转为“能力证明型”：每个重要知识点应包含文档 + 可运行示例 + 测试 + CI，能够在面试或工作中复现并说明解决方案与权衡。
+
+一、优先补强的知识点（按优先级）
+高优先级（近期产出为主）
+1. 自动化与发布：Gradle 多模块、Kotlin DSL、CI（GitHub Actions）、签名与 AAB 发布流程。
+2. 测试体系：单元测试（JUnit/MockK）、Robolectric、Espresso、测试策略与覆盖率目标。
+3. 现代架构实战：Clean Architecture、模块化、依赖注入（Hilt）、StateFlow/协程、Paging/WorkManager 深入示例。
+4. Kotlin 协程与 Flow：并发、异常处理、性能、与 RxJava 的迁移策略。
+5. Jetpack Compose：组件库、互操作、性能对比与迁移策略。
+6. 性能排查与优化：Android Profiler、LeakCanary、ANR/Crash 排查模版、Cold-start 优化案例。
+7. 网络与离线能力：OkHttp/Retrofit 高级用法、缓存/同步/冲突解决、WebSocket/GraphQL。
+
+中优先级
+8. 动态交付与模块化（Dynamic Feature / 插件化）。
+9. NDK/JNI（有必要时）：性能剖析、ABI 管理。
+10. 安全：Keystore、R8/混淆、权限与隐私合规。
+
+长期
+11. 系统级原理：Binder、ART/Dalvik、zygote、内核层面（用于复杂问题排查）。
+12. 团队级工程化：monorepo 策略、共享库治理、依赖升级与安全扫描。
+
+二、仓库内可执行的迭代策略（短期可落地）
+1. 目录与索引改造
+   - 完善 1-Android/readme.md（已推送）。
+   - 为每个 top-level 目录添加 README，说明目标、先修知识、产出清单（示例、测试、CI）。
+
+2. 产出标准化（强制模板）
+   - 采用统一模板（0-模板.md）作为每篇笔记/Case 的必填格式：背景、问题、解决方案、示例代码、测试、性能影响、参考。
+   - 样例必须包含 README（场景 + 复现步骤 + 测试命令）。
+
+3. 可运行示例（samples/ 或 9-实战/）
+   - 至少完成 3 个高价值样例（含单测与 CI），例如：
+     - Compose 基础页面 + View 对比性能示例
+     - Paging3 + Room 离线分页示例（含网络层缓存）
+     - WorkManager 错误重试与幂等性示例（含集成测试）
+   - 示例建议使用 Gradle multi-module 并使用 GitHub Actions 做构建与测试。
+
+4. CI 与质量门
+   - 配置 Actions 运行：ktlint/Detekt、unit tests、build（缓存 gradle）、可能的 UI 测试（matrix）。
+   - 在 README 中显示 Badge（构建/测试 状态）。
+
+5. 文档治理
+   - references/ 存放外部资料（标注来源/许可/抓取时间），把重要外链转为 Markdown。
+   - ADRs（architecture-decisions/）记录重大技术选型与原因。
+
+6. 任务与可度量目标（KPI）
+   - 3 个月目标示例：
+     - 至少 10 个可运行样例（每个含测试）。
+     - 每个核心主题至少 1 篇 Case Study。
+     - CI 覆盖关键样例并在 README 显示状态。
+   - 指标化：每篇重要笔记满足 “示例+测试+CI” 为合格。
+
+三、推荐的短期工作清单（可直接转成 Issue）
+- 为核心目录添加 README（优先：15-Jetpack、1-四大组件、2-UI体系、4-性能优化、9-实战）。
+- 合并 00-问答集 / 000-Q&A，去重并生成索引。
+- 新建 samples/ 目录并上链三个示例项目（见上文）。
+- 配置基础 CI（lint + unit tests），并提交 badge 到仓库顶层 README。
+- 将 5 篇常用外部 HTML 转为 Markdown 并放到 references/，在每篇注明来源与许可。
+
+四、样板与模版（便于快速产出）
+- 笔记模板（0-模板.md，已存在）应包含：
+  - 标题、问题描述、解决方案、示例代码（链接到 samples/）、测试（如何运行）、风险与权衡、参考链接。
+- 示例项目 README 模板：
+  - 场景、依赖、如何运行、如何测试、预期结果、性能基准（如有）。
+
+五、代码质量与协作建议
+- 添加仓库治理文件：LICENSE、CONTRIBUTING.md、ISSUE_TEMPLATE、PULL_REQUEST_TEMPLATE。
+- PR 要求：描述复现步骤、测试結果、影响范围、CI 通过截图/链接（或指向 badge）。
+- 定期 Review：每月/每双周合并一次样例，保证主分支可运行且有 CI 报绿。
+
+六、展示与输出（对外能力证明）
+- 把重要 Case Study 摘要放在仓库顶层 README 的 “成就展示” 区块（可作为面试/技术展示入口）。
+- 把最佳实践整理为博客文章并在 README 中链接回仓库样例（提升可见性）。
+
+七、实施节奏建议（12 周计划示例）
+- 周 0-2：完善顶层索引、为 top-level 目录生成 README（把任务转成 Issues）。
+- 周 3-6：完成 3 个 samples（含测试）并配置 CI。
+- 周 7-10：补充 3 篇 Case Study、配置自动化发布演示（AAB 生成流程）。
+- 周 11-12：复盘、整理高价值内容为博客并更新 README 展示区。
