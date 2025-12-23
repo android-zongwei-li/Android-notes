@@ -1524,7 +1524,7 @@ flow {
 //1 2 3 7 8 9 4 5 6 (顺序并不固定)
 ```
 
-### flatMapContact
+### flatMapConcat
 
 > 这是一个组合操作符，相当于 map+ flattenConcat ，通过 map 转成一个流，在通过 flattenConcat 展开合并成一个流
 
@@ -1555,7 +1555,7 @@ flowOf(1, 2, 3).flatMapConcat {
 
 ### flatMapLatest
 
-> 和其他 带 **Latest**的操作符 一样，如果下个值来了，上变换还没结束，就取消掉。相当于 transformLatest + emitAll
+> 和其他 带 **Latest**的操作符 一样，如果下个值来了，上一个变换还没结束，就取消掉。相当于 transformLatest + emitAll。
 
 ```scss
 flow {
@@ -1577,7 +1577,7 @@ flow {
 
 ### flatMapMerge
 
-> 也是组合操作符，简化使用。 map + flattenMerge 。 因此也有 `concurrency: Int` 参数，来限制并发数。
+> 组合操作符，简化使用 map + flattenMerge 。 因此也有 `concurrency: Int` 参数，来限制并发数。
 
 ```scss
 flowOf("a","b","c","d","e","f").flatMapMerge(3) { value ->
