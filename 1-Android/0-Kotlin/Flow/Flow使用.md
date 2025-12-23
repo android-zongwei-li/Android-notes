@@ -1444,6 +1444,8 @@ flowOf(1, 1, 3,1).distinctUntilChanged()
 ### combine
 
 > 组合每个流**最新**发出的值。
+> 在任一 Flow 发射新值时，只要另一个 Flow 已经至少发射过一次（有最新值），就会用双方的最新值进行一次组合并发射。
+> （在任一 Flow 发射新值时，只要另一个 Flow 有最新值，则组合两个 Flow 的最新值并发射。如果另一个 Flow 没有发射过值，不会触发combine）
 
 ```scss
 val flow = flowOf(1, 2).onEach { delay(10) }
@@ -1451,7 +1453,13 @@ val flow2 = flowOf("a", "b", "c").onEach { delay(15) }
 flow.combine(flow2) { i, s -> i.toString() + s }.collect {
   println(it) 
 }
-// Will print "1a 2a 2b 2c"
+// 1a 2a 2b 2c
+
+time(ms):  10   15   20   30   45
+flow1:      1        2
+flow2:           a        b    c
+----------------------------------
+combine:         1a  2a   2b   2c
 ```
 
 ### combineTransform
