@@ -821,8 +821,6 @@ flow<Result>{
 }
 ```
 
-> todo：是 flow 里的代码执行完，还是 collect 执行完，后调用？
-
 ### onEach
 
 > 在上游向下游发出元素之前调用
@@ -844,7 +842,7 @@ flow<Int>{
 
 ### onEmpty
 
-> 当流完成却没有发出任何元素时回调。 可以用来兜底。
+> 当流完成却没有发出任何元素时回调。可以用来兜底。
 
 ```scss
 emptyFlow<String>().onEmpty {
@@ -854,8 +852,9 @@ emptyFlow<String>().onEmpty {
 
 ### onSubscription
 
-> `SharedFlow` **专属**操作符 （`StateFlow`是`SharedFlow` 的一种特殊实现）
-> 在**建立订阅之后** 回调。 和 `onStart` 有些区别 ，`SharedFlow` 是热流，因此如果在`onStart`里发送值，则下游可能接收不到。
+> 当「有新的订阅者开始收集这个 Flow」时执行一次回调，即在 **建立订阅之后** 回调。
+> 是 `SharedFlow` （热流）的**专属**操作符 （`StateFlow`是`SharedFlow` 的一种特殊实现）。
+> 在 onSubscription 中不能emit数据，在 onStart 中可以插入（emit）额外数据。
 
 ```scss
 val state = MutableSharedFlow<String>().onSubscription {
