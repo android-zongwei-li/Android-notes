@@ -1461,6 +1461,22 @@ flow2:           a        b    c
 combine:         1a  2a   2b   2c
 ```
 
+再来一个例子
+```scss
+val flow = flowOf(1, 2, 3).onEach { delay(10) }
+val flow2 = flowOf("a", "b", "c").onEach { delay(15) }
+flow.combine(flow2) { i, s -> i.toString() + s }.collect {
+  println(it) 
+}
+有以下两种可能性：
+1a,2a,3a,3b,3c
+1a,2a,2b,3b,3c
+```
+<img width="695" height="548" alt="image" src="https://github.com/user-attachments/assets/d075b61f-6cc0-4c96-8fc1-e260049f5ed5" />
+不要完全相信AI，AI也会犯错
+<img width="1010" height="439" alt="image" src="https://github.com/user-attachments/assets/92e914d2-b113-4836-bc52-a83f9e55dcc2" />
+
+
 ### combineTransform
 
 > 顾名思义 combine + transform
